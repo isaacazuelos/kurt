@@ -1,0 +1,14 @@
+[package]
+name = "kurt"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "kurt"
+path = "bin/main.rs"
+
+[workspace]
+
+[features]
+
+[dependencies]
