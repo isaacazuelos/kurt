@@ -12,3 +12,8 @@ path = "bin/main.rs"
 [features]
 
 [dependencies]
+runtime = { path = "./src/runtime" }
+
+[dependencies.clap]
+version = "2.33"
+features = [ "suggestions", "color", "wrap_help" ]
