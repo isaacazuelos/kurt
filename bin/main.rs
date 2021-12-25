@@ -11,13 +11,11 @@ fn main() {
         .version(clap::crate_version!())
         .about("a language for fun")
         .author(clap::crate_authors!())
-        .args(&[
-            clap::Arg::with_name("input")
-                .help(INPUT_HELP)
-                .takes_value(true)
-                .value_name("FILE")
-                .index(1),
-        ]);
+        .args(&[clap::Arg::with_name("input")
+            .help(INPUT_HELP)
+            .takes_value(true)
+            .value_name("FILE")
+            .index(1)]);
 
     let matches = app.get_matches();
 
@@ -32,7 +30,9 @@ fn run_file(filename: &OsStr) {
     let path: PathBuf = filename.into();
     let mut buf: Vec<u8> = Vec::new();
 
-    if let Err(e) = File::open(&path).and_then(|mut file| file.read_to_end(&mut buf)) {
+    if let Err(e) =
+        File::open(&path).and_then(|mut file| file.read_to_end(&mut buf))
+    {
         eprintln!("Error: cannot read '{}': {}", path.display(), e);
         std::process::exit(1);
     }

@@ -12,7 +12,9 @@ path = "bin/main.rs"
 [features]
 
 [dependencies]
-runtime = { path = "./src/runtime" }
+diagnostic = { path = "src/diagnostic" }
+runtime = { path = "src/runtime" }
+syntax = { path = "src/syntax" }
 
 [dependencies.clap]
 version = "2.33"
