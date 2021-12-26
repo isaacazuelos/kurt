@@ -3,9 +3,7 @@ use syntax::lexer::*;
 #[test]
 fn lexer_empty() {
     let mut lexer = Lexer::new("");
-
     assert!(lexer.is_empty());
-
     assert!(matches!(lexer.token(), Err(Error::UnexpectedEOF(_))));
 }
 
@@ -14,25 +12,20 @@ fn lexer_whitespace() {
     let mut lexer = Lexer::new("  \t\r\n  a    \t\r\n ");
 
     assert!(!lexer.is_empty());
-
     let _ = lexer.token();
-
     assert!(lexer.is_empty());
-
     assert!(matches!(lexer.token(), Err(Error::UnexpectedEOF(_))));
 }
 
 #[test]
 fn lexer_identifier_simple() {
     let mut lexer = Lexer::new("input");
-
     assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier);
 }
 
 #[test]
 fn lexer_identifier_start_underscore() {
     let mut lexer = Lexer::new("_input");
-
     assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier);
 }
 
@@ -78,7 +71,6 @@ fn lexer_operator_intuition() {
     assert_eq!(lexer.token().unwrap().kind(), Kind::Operator); // <
     assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier); // T
     assert_eq!(lexer.token().unwrap().kind(), Kind::Operator); // >
-
     assert_eq!(lexer.token().unwrap().kind(), Kind::Operator); // >
     assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier); // Bar
     assert_eq!(lexer.token().unwrap().kind(), Kind::Dot); // .

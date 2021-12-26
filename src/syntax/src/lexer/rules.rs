@@ -191,11 +191,6 @@ impl Lexer<'_> {
     fn character(&mut self) -> Result<Kind, Error> {
         Err(Error::Unsupported(self.location, "character literals"))
     }
-
-    /// A placeholder for numeric literals.
-    fn number(&mut self) -> Result<Kind, Error> {
-        Err(Error::Unsupported(self.location, "numeric literals"))
-    }
 }
 
 /// Is a character a valid beginning to an identifier, i.e.
