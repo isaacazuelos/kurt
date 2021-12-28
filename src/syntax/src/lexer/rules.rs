@@ -181,16 +181,6 @@ impl Lexer<'_> {
 
         Kind::Comment(kind)
     }
-
-    /// A placeholder for string literals.
-    fn string(&mut self) -> Result<Kind, Error> {
-        Err(Error::Unsupported(self.location, "string literals"))
-    }
-
-    /// A placeholder for character literals.
-    fn character(&mut self) -> Result<Kind, Error> {
-        Err(Error::Unsupported(self.location, "character literals"))
-    }
 }
 
 /// Is a character a valid beginning to an identifier, i.e.

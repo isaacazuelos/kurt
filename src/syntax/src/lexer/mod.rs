@@ -14,6 +14,7 @@ mod combinator;
 mod error;
 mod number;
 mod rules;
+mod string;
 mod token;
 
 use diagnostic::{Caret, Span};

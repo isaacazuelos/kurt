@@ -75,9 +75,6 @@ pub enum Kind {
     /// A String literal like `"Hello World!\n"`.
     String,
 
-    /// A multi-line string literal like """hello"""
-    MultiString,
-
     /// Things like `foo` are identifies.
     Identifier,
     /// Things like `+`, `=` or `>>=` are operators.
@@ -131,7 +128,6 @@ impl Kind {
             Bin => "binary number",
             Oct => "octal number",
             String => "string",
-            MultiString => "multi-line string",
             Identifier => "identifier",
             Operator => "operator",
             At => "at sign (@)",

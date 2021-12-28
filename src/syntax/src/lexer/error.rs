@@ -8,11 +8,14 @@ use diagnostic::Caret;
 #[derive(Debug)]
 pub enum Error {
     EmptyRadixLiteral(Caret, u32),
+    InvalidEscape(Caret, char),
     InvalidFloatExponent(Caret),
     InvalidFloatFractional(Caret),
     InvalidUnicode(Caret),
     NotStartOfToken(Caret, char),
     Reserved(Caret, char),
+    UnclosedCharacter(Caret),
+    UnclosedString(Caret),
     UnexpectedEOF(Caret),
 
     // TODO: Finish the cases that would produce this.
@@ -28,6 +31,9 @@ impl fmt::Display for Error {
             Error::EmptyRadixLiteral(_, _) => {
                 write!(f, "special radix literals can't be empty")
             }
+            Error::InvalidEscape(_, c) => {
+                write!(f, "not a valid escape sequence '{}'", c)
+            }
             Error::InvalidFloatExponent(_) => {
                 write!(f, "not a valid floating point literal exponent part")
             }
@@ -40,6 +46,12 @@ impl fmt::Display for Error {
             }
             Error::Reserved(_, c) => {
                 write!(f, "the character '{}' is reserved for future use", c)
+            }
+            Error::UnclosedCharacter(_) => {
+                write!(f, "character literal is missing closing single quote")
+            }
+            Error::UnclosedString(_) => {
+                write!(f, "string literal is missing closing double quote")
             }
             Error::UnexpectedEOF(_) => {
                 write!(f, "unexpected end of input")
