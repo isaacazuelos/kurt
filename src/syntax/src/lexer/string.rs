@@ -103,6 +103,12 @@ mod tests {
     }
 
     #[test]
+    fn character_unescaped_double_quote() {
+        let mut lexer = Lexer::new("'\"'");
+        assert_eq!(lexer.token().unwrap().kind(), Kind::Char);
+    }
+
+    #[test]
     fn string() {
         let mut lexer = Lexer::new(r#" "test" "#);
         let token = lexer.token().unwrap();
@@ -122,5 +128,11 @@ mod tests {
     fn string_invalid_escape() {
         let mut lexer = Lexer::new(r#" "test \x{0}" "#);
         assert!(lexer.token().is_err());
+    }
+
+    #[test]
+    fn string_unescaped_single_quote() {
+        let mut lexer = Lexer::new(r#" "'" "#);
+        assert_eq!(lexer.token().unwrap().kind(), Kind::String);
     }
 }
