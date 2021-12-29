@@ -13,6 +13,7 @@ pub enum Error {
     InvalidFloatFractional(Caret),
     InvalidUnicode(Caret),
     NotStartOfToken(Caret, char),
+    NotUTF8(usize),
     Reserved(Caret, char),
     UnclosedCharacter(Caret),
     UnclosedString(Caret),
@@ -43,6 +44,9 @@ impl fmt::Display for Error {
             Error::InvalidUnicode(_) => write!(f, "invalid unicode"),
             Error::NotStartOfToken(_, c) => {
                 write!(f, "no token can start with a '{}'", c)
+            }
+            Error::NotUTF8(index) => {
+                write!(f, "file is not valid unicode, at byte {}", index)
             }
             Error::Reserved(_, c) => {
                 write!(f, "the character '{}' is reserved for future use", c)

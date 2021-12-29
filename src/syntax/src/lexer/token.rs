@@ -36,7 +36,7 @@ impl<'a> Token<'a> {
     }
 
     /// The way the token was represented in the source.
-    pub fn body(&self) -> &str {
+    pub fn body(&self) -> &'a str {
         &self.body
     }
 }
@@ -146,6 +146,14 @@ impl Kind {
             Close(Bracket) => "close bracket",
             Open(Brace) => "open brace",
             Close(Brace) => "close brace",
+        }
+    }
+
+    pub(crate) fn is_literal(&self) -> bool {
+        use Kind::*;
+        match self {
+            Bin | Bool | Char | Float | Hex | Int | Oct | String => true,
+            _ => false,
         }
     }
 }

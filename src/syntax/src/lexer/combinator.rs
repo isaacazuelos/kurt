@@ -2,7 +2,7 @@
 //! the grammar.
 //!
 //! If these can fail, they return an [`Option`] rather than an
-//! [`Error`][crate::lexer::error::Error]. This is so that the user of these _must_
+//! [`Error`][crate::lexer::Error]. This is so that the user of these _must_
 //! craft the appropriate error rather than passing it up.
 
 use std::str;

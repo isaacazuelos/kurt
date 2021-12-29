@@ -3,12 +3,12 @@
 use unicode_categories::UnicodeCategories;
 use unicode_xid::UnicodeXID;
 
-use crate::lexer::{Comment, Delimiter, Error, Kind, Lexer, Reserved};
+use crate::lexer::{Comment, Delimiter, Error, Lexer, Reserved, TokenKind};
 
 impl Lexer<'_> {
     /// This is the main entry point into the lexer internals. It dispatches to
     /// smaller handlers for more complicated token types.
-    pub(crate) fn token_kind(&mut self) -> Result<Kind, Error> {
+    pub(crate) fn token_kind(&mut self) -> Result<TokenKind, Error> {
         let next = self
             .peek()
             .ok_or_else(|| Error::UnexpectedEOF(self.location))?;
@@ -16,43 +16,43 @@ impl Lexer<'_> {
         match next {
             '@' => {
                 self.advance();
-                Ok(Kind::At)
+                Ok(TokenKind::At)
             }
             ':' => {
                 self.advance();
-                Ok(Kind::Colon)
+                Ok(TokenKind::Colon)
             }
             ';' => {
                 self.advance();
-                Ok(Kind::Semicolon)
+                Ok(TokenKind::Semicolon)
             }
             ',' => {
                 self.advance();
-                Ok(Kind::Comma)
+                Ok(TokenKind::Comma)
             }
             '(' => {
                 self.advance();
-                Ok(Kind::Open(Delimiter::Parenthesis))
+                Ok(TokenKind::Open(Delimiter::Parenthesis))
             }
             ')' => {
                 self.advance();
-                Ok(Kind::Close(Delimiter::Parenthesis))
+                Ok(TokenKind::Close(Delimiter::Parenthesis))
             }
             '[' => {
                 self.advance();
-                Ok(Kind::Open(Delimiter::Bracket))
+                Ok(TokenKind::Open(Delimiter::Bracket))
             }
             ']' => {
                 self.advance();
-                Ok(Kind::Close(Delimiter::Bracket))
+                Ok(TokenKind::Close(Delimiter::Bracket))
             }
             '{' => {
                 self.advance();
-                Ok(Kind::Open(Delimiter::Brace))
+                Ok(TokenKind::Open(Delimiter::Brace))
             }
             '}' => {
                 self.advance();
-                Ok(Kind::Close(Delimiter::Brace))
+                Ok(TokenKind::Close(Delimiter::Brace))
             }
             '.' => Ok(self.dots()),
 
@@ -94,14 +94,14 @@ impl Lexer<'_> {
     /// ```tet
     /// Dots => `.`*
     /// ```
-    fn dots(&mut self) -> Kind {
+    fn dots(&mut self) -> TokenKind {
         let dots = self.consume_while(|c| c == '.');
         match dots.len() {
             0 => unreachable!("Lexer::dots should only be called after a '.'"),
-            1 => Kind::Dot,
-            2 => Kind::Range,
-            3 => Kind::Spread,
-            _ => Kind::Operator,
+            1 => TokenKind::Dot,
+            2 => TokenKind::Range,
+            3 => TokenKind::Spread,
+            _ => TokenKind::Operator,
         }
     }
 
@@ -109,21 +109,21 @@ impl Lexer<'_> {
     ///
     /// Unicode classes are: Pc, Pd, Pe, Pf, Pi, Po, Ps, Sc, Sk, Sm, So.
     /// This also unpacks the special-cased arrow kinds.
-    fn operator(&mut self) -> Result<Kind, Error> {
+    fn operator(&mut self) -> Result<TokenKind, Error> {
         let body = self.consume_while(is_operator);
 
         match body {
             "" => unreachable!(
                 "Lexer::operator should only be called after an operator start"
             ),
-            "->" => Ok(Kind::Arrow),
-            "=>" => Ok(Kind::DoubleArrow),
-            _ => Ok(Kind::Operator),
+            "->" => Ok(TokenKind::Arrow),
+            "=>" => Ok(TokenKind::DoubleArrow),
+            _ => Ok(TokenKind::Operator),
         }
     }
 
     /// A word is any reserved word or identifier.
-    fn word(&mut self) -> Kind {
+    fn word(&mut self) -> TokenKind {
         let start = self.offset;
         let c = self.advance().unwrap();
 
@@ -137,12 +137,12 @@ impl Lexer<'_> {
         let word = &self.input[start..self.offset];
 
         if word == "true" || word == "false" {
-            return Kind::Bool;
+            return TokenKind::Bool;
         }
 
         match Reserved::try_from_bytes(word) {
-            Some(r) => Kind::Reserved(r),
-            None => Kind::Identifier,
+            Some(r) => TokenKind::Reserved(r),
+            None => TokenKind::Identifier,
         }
     }
 
@@ -161,7 +161,7 @@ impl Lexer<'_> {
     /// - `///` is a documentation comment
     /// - `//:` is a markup comment
     /// - `//` starts a line comment
-    pub fn comment(&mut self) -> Kind {
+    pub fn comment(&mut self) -> TokenKind {
         self.char('/').unwrap();
         self.char('/').unwrap();
 
@@ -179,7 +179,7 @@ impl Lexer<'_> {
 
         self.consume_while(|c| c != '\n');
 
-        Kind::Comment(kind)
+        TokenKind::Comment(kind)
     }
 }
 

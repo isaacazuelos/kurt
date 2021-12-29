@@ -41,11 +41,11 @@
 //       I think it's wiser to wait until we have a better idea of what the type
 //       names will be.
 
-use crate::lexer::{Error, Kind, Lexer};
+use crate::lexer::{Error, Lexer, TokenKind};
 
 impl Lexer<'_> {
     /// The entry point for numeric literals.
-    pub(crate) fn number(&mut self) -> Result<Kind, Error> {
+    pub(crate) fn number(&mut self) -> Result<TokenKind, Error> {
         if self.peek() == Some('0') {
             match self.peek_nth(1) {
                 Some('x') | Some('X') => self.radix_literal("xX", 16),
@@ -67,7 +67,7 @@ impl Lexer<'_> {
     ///                     ('.' digits)?
     ///                     (("e" | "E") ("+" | "-")? digits)?
     /// ```
-    fn float_or_integer(&mut self) -> Result<Kind, Error> {
+    fn float_or_integer(&mut self) -> Result<TokenKind, Error> {
         self.consume_digits(10)
             .expect("Lexer::float_or_int expected at least 1 base-10 digit");
 
@@ -80,7 +80,7 @@ impl Lexer<'_> {
         {
             self.float()
         } else {
-            Ok(Kind::Int)
+            Ok(TokenKind::Int)
         }
     }
 
@@ -88,7 +88,7 @@ impl Lexer<'_> {
     ///
     /// This assumes the caller has already consumed the whole part of the
     /// floating point value.
-    fn float(&mut self) -> Result<Kind, Error> {
+    fn float(&mut self) -> Result<TokenKind, Error> {
         if let Some('.') = self.char('.') {
             let location = self.location;
             self.consume_digits(10)
@@ -104,7 +104,7 @@ impl Lexer<'_> {
                 .ok_or_else(|| Error::InvalidFloatExponent(location))?;
         }
 
-        Ok(Kind::Float)
+        Ok(TokenKind::Float)
     }
 
     /// Consume a radix literal like those used for hexadecimal, octal and
@@ -123,7 +123,7 @@ impl Lexer<'_> {
         &mut self,
         letters: &'static str,
         radix: u32,
-    ) -> Result<Kind, Error> {
+    ) -> Result<TokenKind, Error> {
         self.char('0')
             .expect("Lexer::radix_literal expected a leading 0");
 
@@ -131,7 +131,7 @@ impl Lexer<'_> {
             .expect("Lexer::radix_literal expected specific letters after a 0");
 
         match self.consume_digits(radix) {
-            Some(_) => Ok(Kind::Hex),
+            Some(_) => Ok(TokenKind::Hex),
             None => Err(Error::EmptyRadixLiteral(self.location, radix)),
         }
     }
@@ -160,22 +160,22 @@ mod tests {
     #[test]
     fn zero() {
         let mut lexer = Lexer::new("0");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn integer() {
         let mut lexer = Lexer::new("12341");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn signed() {
         let mut lexer = Lexer::new("-1");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Operator);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
         assert!(lexer.is_empty());
     }
 
@@ -188,14 +188,14 @@ mod tests {
             _205_846_127_479_365_820_592_393_377_723_561_443_721_764_030_073_546\
             _976_801_874_298_166_903_427_690_031_858_186_486_050_853_753_882_811\
             _946_569_946_433_649_006_084_096");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn fractional() {
         let mut lexer = Lexer::new("0.0");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Float);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Float);
         assert!(lexer.is_empty());
     }
 
@@ -203,7 +203,7 @@ mod tests {
     fn exponent() {
         // This almost looks like a base-e radix literal. :p
         let mut lexer = Lexer::new("0e1");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Float);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Float);
         assert!(lexer.is_empty());
     }
 
@@ -211,21 +211,21 @@ mod tests {
     fn exponent_with_separators() {
         // yes this is weird
         let mut lexer = Lexer::new("0_e1_");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Float);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Float);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn pathological_float() {
         let mut lexer = Lexer::new("0_.0_E-0_");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Float);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Float);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn exponent_sign() {
         let mut lexer = Lexer::new("0e+1");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Float);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Float);
         assert!(lexer.is_empty());
     }
 
@@ -238,25 +238,25 @@ mod tests {
     #[test]
     fn dot_underscore() {
         let mut lexer = Lexer::new("0._0");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Dot);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn dot_letter() {
         let mut lexer = Lexer::new("0.a");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Int);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Dot);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Identifier);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Int);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
         assert!(lexer.is_empty());
     }
 
     #[test]
     fn no_leading_zero_in_float() {
         let mut lexer = Lexer::new(".5");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Dot);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
         assert!(!lexer.is_empty());
     }
 }

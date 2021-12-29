@@ -1,14 +1,20 @@
 //! Lexing - converting input into [`Token`]s.
 //!
+//! Generally speaking you shouldn't need these directly, and can go straight to
+//! using a [`Parser`][crate::parser::Parser] instead.
+//!
 //! Before we can start the task of parsing, we need to sweep over the input and
 //! breaking it apart into meaningful atoms called [`Token`]s.
 //!
-//! Lexing happens over `&str` as unicode validation should be done before hand.
-
-// You may be wondering why Lexer doesn't implement `Iterator`. The short answer
-// is that it did, returning `Option<Result<Token<'i>, Diagnostic>>` and using
-// it was worse than a `while let` loop like in the example on the struct
-// definition.
+//! Lexing can happen over `&str` when unicode validation should be done before
+//! hand, or you can use [`Lexer::from_bytes`] to perform that validation.
+//!
+//! # Notes
+//!
+//! You may be wondering why Lexer doesn't implement `Iterator`. The short
+//! answer is that it did, returning `Option<Result<Token<'i>, Diagnostic>>` and
+//! using it was worse than a `while let` loop like in the example on the struct
+//! definition.
 
 mod combinator;
 mod error;
@@ -21,7 +27,7 @@ use diagnostic::{Caret, Span};
 
 pub use crate::lexer::{
     error::Error,
-    token::{Comment, Delimiter, Kind, Reserved, Token},
+    token::{Comment, Delimiter, Kind as TokenKind, Reserved, Token},
 };
 
 /// A [`Lexer`] scans over a `&str` which scans over the input character by
@@ -51,10 +57,23 @@ pub struct Lexer<'i> {
 impl<'i> Lexer<'i> {
     /// Create a new lexer over some input.
     pub fn new(input: &'i str) -> Self {
-        Lexer {
+        let mut lexer = Lexer {
             input,
             location: Caret::default(),
             offset: 0,
+        };
+
+        lexer.whitespace();
+
+        lexer
+    }
+
+    /// Create a new lexer over some input which may not be valid UTF8. This
+    /// will produce an error right away before any lexing is done.
+    pub fn from_bytes(input: &'i [u8]) -> Result<Self, Error> {
+        match std::str::from_utf8(input) {
+            Ok(s) => Ok(Lexer::new(s)),
+            Err(e) => Err(Error::NotUTF8(e.valid_up_to())),
         }
     }
 

@@ -21,11 +21,11 @@
 //       4. Raw byte sequences for byte literals like "\x{0}".
 //       5. String prefixes like r"" or b""?
 
-use crate::lexer::{Error, Kind, Lexer};
+use crate::lexer::{Error, Lexer, TokenKind};
 
 impl Lexer<'_> {
     /// A placeholder for string literals.
-    pub(crate) fn string(&mut self) -> Result<Kind, Error> {
+    pub(crate) fn string(&mut self) -> Result<TokenKind, Error> {
         let start = self.location;
         self.char('"').expect("Lexer::string expected a `\"`.");
 
@@ -45,11 +45,11 @@ impl Lexer<'_> {
 
         self.char('"').ok_or_else(|| Error::UnclosedString(start))?;
 
-        Ok(Kind::String)
+        Ok(TokenKind::String)
     }
 
     /// A placeholder for character literals.
-    pub(crate) fn character(&mut self) -> Result<Kind, Error> {
+    pub(crate) fn character(&mut self) -> Result<TokenKind, Error> {
         let start = self.location;
         self.char('\'').expect("Lexer::character expected a `'`.");
 
@@ -61,7 +61,7 @@ impl Lexer<'_> {
 
         self.char('\'')
             .ok_or_else(|| Error::UnclosedCharacter(start))?;
-        Ok(Kind::Char)
+        Ok(TokenKind::Char)
     }
 
     fn escape_sequence(&mut self) -> Result<(), Error> {
@@ -84,7 +84,7 @@ mod tests {
     fn character() {
         let mut lexer = Lexer::new("'a'");
         let token = lexer.token().unwrap();
-        assert_eq!(token.kind(), Kind::Char);
+        assert_eq!(token.kind(), TokenKind::Char);
         assert_eq!(token.body(), "'a'");
     }
 
@@ -92,7 +92,7 @@ mod tests {
     fn character_escape() {
         let mut lexer = Lexer::new("'\\n'");
         let token = lexer.token().unwrap();
-        assert_eq!(token.kind(), Kind::Char);
+        assert_eq!(token.kind(), TokenKind::Char);
         assert_eq!(token.body(), "'\\n'");
     }
 
@@ -105,14 +105,14 @@ mod tests {
     #[test]
     fn character_unescaped_double_quote() {
         let mut lexer = Lexer::new("'\"'");
-        assert_eq!(lexer.token().unwrap().kind(), Kind::Char);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Char);
     }
 
     #[test]
     fn string() {
         let mut lexer = Lexer::new(r#" "test" "#);
         let token = lexer.token().unwrap();
-        assert_eq!(token.kind(), Kind::String);
+        assert_eq!(token.kind(), TokenKind::String);
         assert_eq!(token.body(), r#""test""#);
     }
 
@@ -120,7 +120,7 @@ mod tests {
     fn string_escape() {
         let mut lexer = Lexer::new(r#" "test '\"' " "#);
         let token = lexer.token().unwrap();
-        assert_eq!(token.kind(), Kind::String);
+        assert_eq!(token.kind(), TokenKind::String);
         assert_eq!(token.body(), r#""test '\"' ""#);
     }
 
@@ -133,6 +133,6 @@ mod tests {
     #[test]
     fn string_unescaped_single_quote() {
         let mut lexer = Lexer::new(r#" "'" "#);
-        assert_eq!(lexer.token().unwrap().kind(), Kind::String);
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::String);
     }
 }
