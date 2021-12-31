@@ -8,6 +8,7 @@ use super::*;
 
 /// A literal value is something like `123` or `false` which produces a specific
 /// value at runtime.
+#[derive(Debug)]
 pub struct Module<'a> {
     statements: Vec<Statement<'a>>,
 }

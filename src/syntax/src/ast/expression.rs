@@ -7,6 +7,7 @@ use super::*;
 /// expressions, each of which is their own actual struct.
 ///
 /// [syn-crate]: https://docs.rs/syn/1.0.84/syn/enum.Expr.html#syntax-tree-enums
+#[derive(Debug)]
 pub enum Expression<'a> {
     Literal(Literal<'a>),
 }

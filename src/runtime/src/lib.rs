@@ -1,6 +1,12 @@
 //! The language runtime interface.
 
-/// A struct that manages an instance of the langauge runtime.
+use syntax::*;
+
+mod error;
+
+use crate::error::Error;
+
+/// A struct that manages an instance of the language runtime.
 pub struct Runtime {}
 
 impl Default for Runtime {
@@ -11,7 +17,20 @@ impl Default for Runtime {
 
 impl Runtime {
     /// Attempts to evaluate some input.
-    pub fn eval(&mut self, _input: impl AsRef<[u8]>) {
-        todo!("Runtime cannot yet eval code.")
+    ///
+    /// For now 'evaluate' means [`Debug`] pretty print however far into the
+    /// pipeline we are, or the [`Debug`] representation for any errors.
+    pub fn eval(&mut self, input: &[u8]) {
+        fn eval_inner(input: &[u8]) -> Result<(), Error> {
+            let input = syntax::verify_utf8(input)?;
+            let ast = syntax::Module::parse(input)?;
+            println!("{:#?}", ast);
+            Ok(())
+        }
+
+        match eval_inner(input) {
+            Ok(()) => {}
+            Err(e) => eprintln!("{} [ {:?} ]", e, e),
+        }
     }
 }

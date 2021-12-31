@@ -23,6 +23,12 @@ pub enum Error {
     Unsupported(Caret, &'static str),
 }
 
+impl From<std::str::Utf8Error> for Error {
+    fn from(e: std::str::Utf8Error) -> Error {
+        Error::NotUTF8(e.valid_up_to())
+    }
+}
+
 // This [`Display`][fmt::display] implementation doesn't have access to enough
 // information to really explain _why_ the error was raised, so these must be
 // mostly for presenting to developers working on the language, not _in_ it.

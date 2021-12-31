@@ -27,6 +27,7 @@ pub enum Kind {
 
 /// A literal value is something like `123` or `false` which produces a specific
 /// value at runtime.
+#[derive(Debug)]
 pub struct Literal<'a> {
     kind: Kind,
     body: &'a str,

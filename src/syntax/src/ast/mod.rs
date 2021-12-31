@@ -16,11 +16,11 @@ pub use self::{
     statement::Statement,
 };
 
-pub trait Syntax {
+pub trait Syntax: std::fmt::Debug {
     fn span(&self) -> Span;
 }
 
-pub trait Parse<'a>: Sized {
+pub trait Parse<'a>: Sized + Syntax {
     /// Consume the beginning of the input to parse the expected part of syntax.
     fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error>;
 

@@ -12,6 +12,7 @@ use super::*;
 ///
 /// Note that the statement never includes the semicolon at the end (if
 /// present).
+#[derive(Debug)]
 pub enum Statement<'a> {
     Empty(Span),
     Expression(Expression<'a>),

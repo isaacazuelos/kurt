@@ -68,15 +68,6 @@ impl<'i> Lexer<'i> {
         lexer
     }
 
-    /// Create a new lexer over some input which may not be valid UTF8. This
-    /// will produce an error right away before any lexing is done.
-    pub fn from_bytes(input: &'i [u8]) -> Result<Self, Error> {
-        match std::str::from_utf8(input) {
-            Ok(s) => Ok(Lexer::new(s)),
-            Err(e) => Err(Error::NotUTF8(e.valid_up_to())),
-        }
-    }
-
     /// Has the lexer consumed all of the input?
     ///
     /// # Examples

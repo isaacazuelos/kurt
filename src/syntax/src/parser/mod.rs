@@ -67,15 +67,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Crate a parser over some bytes. This will produce any lexical errors
-    /// (including non-UTF8 input) immediately.
-    pub fn from_bytes(input: &'a [u8]) -> Result<Parser<'a>, Error> {
-        match std::str::from_utf8(input) {
-            Ok(s) => Parser::new(s),
-            Err(e) => Err(LexerError::NotUTF8(e.valid_up_to()).into()),
-        }
-    }
-
     /// Parse the input into syntax.
     ///
     /// # Example
