@@ -43,14 +43,31 @@
 
 use crate::lexer::{Error, Lexer, TokenKind};
 
+#[derive(Clone, Copy)]
+enum Radix {
+    Binary = 2,
+    Octal = 8,
+    Hexadecimal = 16,
+}
+
+impl Radix {
+    fn letters(&self) -> &'static str {
+        match self {
+            Radix::Binary => "bB",
+            Radix::Octal => "oO",
+            Radix::Hexadecimal => "xX",
+        }
+    }
+}
+
 impl Lexer<'_> {
     /// The entry point for numeric literals.
     pub(crate) fn number(&mut self) -> Result<TokenKind, Error> {
         if self.peek() == Some('0') {
             match self.peek_nth(1) {
-                Some('x') | Some('X') => self.radix_literal("xX", 16),
-                Some('o') | Some('O') => self.radix_literal("oO", 8),
-                Some('b') | Some('B') => self.radix_literal("bB", 2),
+                Some('x') | Some('X') => self.radix_literal(Radix::Hexadecimal),
+                Some('o') | Some('O') => self.radix_literal(Radix::Octal),
+                Some('b') | Some('B') => self.radix_literal(Radix::Binary),
                 _ => self.float_or_integer(),
             }
         } else {
@@ -119,20 +136,22 @@ impl Lexer<'_> {
     /// This will panic if the input does not start with '0' or '0', and then
     /// one of the characters in `letters`. It is the caller's responsibility to
     /// check for this.
-    fn radix_literal(
-        &mut self,
-        letters: &'static str,
-        radix: u32,
-    ) -> Result<TokenKind, Error> {
+    fn radix_literal(&mut self, radix: Radix) -> Result<TokenKind, Error> {
         self.char('0')
             .expect("Lexer::radix_literal expected a leading 0");
 
-        self.one_of(letters)
+        self.one_of(radix.letters())
             .expect("Lexer::radix_literal expected specific letters after a 0");
 
-        match self.consume_digits(radix) {
-            Some(_) => Ok(TokenKind::Hex),
-            None => Err(Error::EmptyRadixLiteral(self.location, radix)),
+        let kind = match radix {
+            Radix::Binary => TokenKind::Bin,
+            Radix::Octal => TokenKind::Oct,
+            Radix::Hexadecimal => TokenKind::Hex,
+        };
+
+        match self.consume_digits(radix as _) {
+            Some(_) => Ok(kind),
+            None => Err(Error::EmptyRadixLiteral(self.location, radix as _)),
         }
     }
 
@@ -258,5 +277,52 @@ mod tests {
         let mut lexer = Lexer::new(".5");
         assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
         assert!(!lexer.is_empty());
+    }
+
+    #[test]
+    fn hexadecimal() {
+        let mut lexer = Lexer::new("0xcafe 0");
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Hex);
+        assert!(!lexer.is_empty());
+    }
+
+    #[test]
+    fn hexadecimal_big_x() {
+        let mut lexer = Lexer::new("0XFACE");
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Hex);
+        assert!(lexer.is_empty());
+    }
+
+    #[test]
+    fn hexadecimal_underscores() {
+        let mut lexer = Lexer::new("0xDEAD_BEEF");
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Hex);
+        assert!(lexer.is_empty());
+    }
+
+    #[test]
+    fn binary() {
+        let mut lexer = Lexer::new("0b010");
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Bin);
+        assert!(lexer.is_empty());
+    }
+
+    #[test]
+    fn binary_not_binary_digit() {
+        let mut lexer = Lexer::new("0b2");
+        assert!(lexer.token().is_err());
+    }
+
+    #[test]
+    fn octal() {
+        let mut lexer = Lexer::new("0o777");
+        assert_eq!(lexer.token().unwrap().kind(), TokenKind::Oct);
+        assert!(lexer.is_empty());
+    }
+
+    #[test]
+    fn octal_digit_too_big() {
+        let mut lexer = Lexer::new("0O8");
+        assert!(lexer.token().is_err());
     }
 }

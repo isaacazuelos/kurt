@@ -19,7 +19,10 @@ use super::{Parse, Syntax};
 pub enum Kind {
     Bool,
     Char,
-    Number,
+    Decimal,
+    Hexadecimal,
+    Octal,
+    Binary,
     Float,
     String,
     Unit,
@@ -68,7 +71,10 @@ impl<'a> Parse<'a> for Literal<'a> {
         let kind = match token.kind() {
             TokenKind::Bool => ast::LiteralKind::Bool,
             TokenKind::Char => ast::LiteralKind::Char,
-            TokenKind::Bin | TokenKind::Hex |  TokenKind::Int | TokenKind::Oct => ast::LiteralKind::Number,
+            TokenKind::Bin => ast::LiteralKind::Binary,
+            TokenKind::Hex => ast::LiteralKind::Hexadecimal,
+            TokenKind::Int => ast::LiteralKind::Decimal,
+            TokenKind::Oct => ast::LiteralKind::Octal,
             TokenKind::Float => ast::LiteralKind::Float,
             TokenKind::String => ast::LiteralKind::String,
             k => unreachable!("Token::is_literal and Parser::literal disagrees about {:?} being a literal", k),
@@ -87,7 +93,7 @@ mod parser_tests {
         let mut parser = Parser::new("0 a").unwrap();
         let literal = parser.parse::<Literal>();
         assert!(literal.is_ok());
-        assert_eq!(literal.unwrap().kind(), Kind::Number);
+        assert_eq!(literal.unwrap().kind(), Kind::Decimal);
 
         assert!(!parser.is_empty());
     }
