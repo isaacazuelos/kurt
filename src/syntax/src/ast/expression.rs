@@ -22,14 +22,19 @@ impl<'a> Syntax for Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
-        match parser.peek() {
+        parser.increase_depth();
+
+        let e = match parser.peek() {
             Some(k) if k.is_literal() => {
                 Ok(Expression::Literal(Literal::parse_with(parser)?))
             }
 
             Some(_) => Err(Error::NotExpression),
             None => Err(Error::EOFExpectingExpression),
-        }
+        };
+        parser.decrease_depth();
+
+        e
     }
 }
 

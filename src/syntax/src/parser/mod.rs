@@ -2,18 +2,15 @@
 //!
 //! This takes some input
 
-// TODO: remove
-#![allow(unused)]
-
 mod error;
 
-use diagnostic::{Caret, Span};
+use diagnostic::Span;
 
 pub use self::error::Error;
 
 use crate::{
-    ast::{self, Parse, Syntax},
-    lexer::{Error as LexerError, Lexer, Token, TokenKind},
+    ast::Parse,
+    lexer::{Lexer, Token, TokenKind},
 };
 
 /// A parser.
@@ -127,17 +124,6 @@ impl<'a> Parser<'a> {
         self.cursor >= self.tokens.len()
     }
 
-    /// The caret is at the end of the last consumed token. If no tokens are
-    /// consumed (or there are no tokens to be consumed), then it's at the start
-    /// of the input.
-    pub(crate) fn caret(&self) -> Caret {
-        if self.cursor == 0 || self.tokens.is_empty() {
-            Caret::default()
-        } else {
-            self.tokens[self.cursor - 1].span().end()
-        }
-    }
-
     /// Returns the `TokenKind` of the next token, without consuming it.
     pub(crate) fn peek(&self) -> Option<TokenKind> {
         self.peek_nth(0)
@@ -228,8 +214,8 @@ mod parser_tests {
     fn consume() {
         let mut p = Parser::new(". a").unwrap();
         assert!(p.consume(TokenKind::Dot).is_some());
-        let before = p.caret();
+        let before = p.cursor;
         assert!(p.consume(TokenKind::Dot).is_none());
-        assert_eq!(before, p.caret(),);
+        assert_eq!(before, p.cursor);
     }
 }

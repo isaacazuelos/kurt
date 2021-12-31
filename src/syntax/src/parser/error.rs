@@ -2,9 +2,7 @@
 
 use std::{error, fmt};
 
-use diagnostic::Caret;
-
-use crate::lexer::{self, TokenKind};
+use crate::lexer;
 
 /// Lexical errors with all the contextual information needed present it nicely.
 #[derive(Debug)]

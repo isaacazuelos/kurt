@@ -175,7 +175,6 @@ pub enum Delimiter {
 /// Reserved words are words which can't be used by programmers, but instead
 /// are reserved for use by the language. Not all of these will be used, but
 /// reserving them ahead of time is a good call.
-#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reserved {
     Async,
@@ -324,7 +323,6 @@ impl ::std::fmt::Display for Reserved {
 //
 // We can include ways to identify item documentation, header documentation,
 // license headers, compiler directives, etc.
-#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Comment {
     /// Line comments start with `//` and go to the end of the line. Comments
