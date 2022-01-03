@@ -25,10 +25,9 @@ pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
 
-    top_level: Prototype,
-
     /// Code is compiled into [`Prototypes`] which are kept as a stack that
-    /// matches closure scopes in the source code.
+    /// matches closure scopes in the source code. This [`Vec`] should never be
+    /// empty, as the first element is the top-level's prototype.
     prototypes: Vec<Prototype>,
 }
 
@@ -57,9 +56,14 @@ impl Compiler {
     /// // Now you can do things with the module.
     /// ```
     pub fn new() -> Compiler {
+        let prototypes = {
+            let mut ps = Vec::new();
+            ps.push(Prototype::new_top_level());
+            ps
+        };
+
         Compiler {
-            top_level: Prototype::new_top_level(),
-            prototypes: Vec::new(),
+            prototypes,
             constants: Pool::default(),
         }
     }
@@ -97,18 +101,9 @@ impl Compiler {
     /// See the documentation for [`Compiler::new`] for an example of how this
     /// can be used.
     pub fn build(&self) -> Result<Module> {
-        let constants = self.constants.into_vec();
-
-        let prototypes = {
-            let mut ps = Vec::new();
-            ps.push(self.top_level.clone());
-            ps.extend(self.prototypes.iter().cloned());
-            ps
-        };
-
         Ok(Module {
-            prototypes,
-            constants,
+            constants: self.constants.into_vec(),
+            prototypes: self.prototypes.clone(),
         })
     }
 }
@@ -123,11 +118,9 @@ impl Compiler {
     /// Get a mutable reference to the active prototype. This will return the
     /// top level prototype if we're not compiling into a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut Prototype {
-        if let Some(current) = self.prototypes.last_mut() {
-            current
-        } else {
-            &mut self.top_level
-        }
+        self.prototypes
+            .last_mut()
+            .expect("Compiler.prototypes should never be empty.")
     }
 }
 
@@ -140,7 +133,7 @@ mod tests {
     #[test]
     fn active_prototype() {
         let mut c = Compiler::new();
-        assert!(c.prototypes.is_empty());
+        assert!(!c.prototypes.is_empty()); // since 0 should be the top-level
         let _ = c.active_prototype_mut(); // shouldn't panic
     }
 }
