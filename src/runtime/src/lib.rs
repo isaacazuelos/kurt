@@ -1,6 +1,7 @@
 //! The language runtime interface.
 
-use syntax::*;
+use compiler;
+use syntax;
 
 mod error;
 
@@ -23,8 +24,9 @@ impl Runtime {
     pub fn eval(&mut self, input: &[u8]) {
         fn eval_inner(input: &[u8]) -> Result<(), Error> {
             let input = syntax::verify_utf8(input)?;
-            let ast = syntax::Module::parse(input)?;
-            println!("{:#?}", ast);
+            let module = compiler::compile(&input)?;
+
+            println!("{:#?}", module);
             Ok(())
         }
 

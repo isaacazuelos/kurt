@@ -12,6 +12,7 @@ path = "bin/main.rs"
 [features]
 
 [dependencies]
+compiler = { path = "src/compiler" }
 diagnostic = { path = "src/diagnostic" }
 runtime = { path = "src/runtime" }
 syntax = { path = "src/syntax" }
