@@ -4,6 +4,7 @@ use compiler;
 use syntax;
 
 mod error;
+mod value;
 
 use crate::error::Error;
 
