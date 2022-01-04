@@ -2,8 +2,6 @@
 
 use std::{error, fmt};
 
-use syntax;
-
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]

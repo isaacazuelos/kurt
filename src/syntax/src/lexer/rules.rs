@@ -9,9 +9,7 @@ impl Lexer<'_> {
     /// This is the main entry point into the lexer internals. It dispatches to
     /// smaller handlers for more complicated token types.
     pub(crate) fn token_kind(&mut self) -> Result<TokenKind, Error> {
-        let next = self
-            .peek()
-            .ok_or_else(|| Error::UnexpectedEOF(self.location))?;
+        let next = self.peek().ok_or(Error::UnexpectedEOF(self.location))?;
 
         match next {
             '@' => {

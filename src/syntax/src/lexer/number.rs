@@ -90,11 +90,11 @@ impl Lexer<'_> {
 
         let next = self.peek();
 
-        if next == Some('e') || next == Some('E') {
-            self.float()
-        } else if next == Some('.')
-            && self.peek_nth(1).map(|c| c.is_digit(10)).unwrap_or(false)
-        {
+        let e_next = next == Some('e') || next == Some('E');
+        let dot_then_number_next = next == Some('.')
+            && self.peek_nth(1).map(|c| c.is_digit(10)).unwrap_or(false);
+
+        if e_next || dot_then_number_next {
             self.float()
         } else {
             Ok(TokenKind::Int)
@@ -109,16 +109,16 @@ impl Lexer<'_> {
         if let Some('.') = self.char('.') {
             let location = self.location;
             self.consume_digits(10)
-                .ok_or_else(|| Error::InvalidFloatFractional(location))?;
+                .ok_or(Error::InvalidFloatFractional(location))?;
         }
 
-        if let Some(_) = self.one_of("eE") {
+        if self.one_of("eE").is_some() {
             // if this returns `None`, it's fine as the sign is optional.
             self.one_of("+-");
 
             let location = self.location;
             self.consume_digits(10)
-                .ok_or_else(|| Error::InvalidFloatExponent(location))?;
+                .ok_or(Error::InvalidFloatExponent(location))?;
         }
 
         Ok(TokenKind::Float)

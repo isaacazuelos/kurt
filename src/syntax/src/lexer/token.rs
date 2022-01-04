@@ -37,7 +37,7 @@ impl<'a> Token<'a> {
 
     /// The way the token was represented in the source.
     pub fn body(&self) -> &'a str {
-        &self.body
+        self.body
     }
 }
 
@@ -151,10 +151,7 @@ impl Kind {
 
     pub(crate) fn is_literal(&self) -> bool {
         use Kind::*;
-        match self {
-            Bin | Bool | Char | Float | Hex | Int | Oct | String => true,
-            _ => false,
-        }
+        matches!(self, Bin | Bool | Char | Float | Hex | Int | Oct | String)
     }
 }
 

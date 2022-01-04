@@ -52,7 +52,7 @@ impl<'a> Literal<'a> {
 
     /// The text from the source for this literal value.
     pub fn body(&self) -> &str {
-        &self.body
+        self.body
     }
 }
 

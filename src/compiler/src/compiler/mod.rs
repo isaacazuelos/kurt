@@ -55,12 +55,9 @@ impl Compiler {
     ///
     /// // Now you can do things with the module.
     /// ```
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Compiler {
-        let prototypes = {
-            let mut ps = Vec::new();
-            ps.push(Prototype::new_top_level());
-            ps
-        };
+        let prototypes = vec![Prototype::new_top_level()];
 
         Compiler {
             prototypes,
@@ -102,7 +99,7 @@ impl Compiler {
     /// can be used.
     pub fn build(&self) -> Result<Module> {
         Ok(Module {
-            constants: self.constants.into_vec(),
+            constants: self.constants.as_vec(),
             prototypes: self.prototypes.clone(),
         })
     }

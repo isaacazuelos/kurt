@@ -43,7 +43,7 @@ impl Lexer<'_> {
             }
         }
 
-        self.char('"').ok_or_else(|| Error::UnclosedString(start))?;
+        self.char('"').ok_or(Error::UnclosedString(start))?;
 
         Ok(TokenKind::String)
     }
@@ -59,8 +59,7 @@ impl Lexer<'_> {
             Some(_) => {}
         };
 
-        self.char('\'')
-            .ok_or_else(|| Error::UnclosedCharacter(start))?;
+        self.char('\'').ok_or(Error::UnclosedCharacter(start))?;
         Ok(TokenKind::Char)
     }
 

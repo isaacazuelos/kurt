@@ -46,7 +46,7 @@ impl Pool {
 
     /// Turn this into a [`Vec<Constant>`] where each constant's position in teh
     /// array is it's [Index].
-    pub(crate) fn into_vec(&self) -> Vec<Constant> {
+    pub(crate) fn as_vec(&self) -> Vec<Constant> {
         let mut vec: Vec<_> = std::iter::repeat(Constant::Number(0))
             .take(self.constants.len())
             .collect();
@@ -85,6 +85,6 @@ mod tests {
         let mut pool = Pool::default();
         pool.insert(Constant::Number(6)).unwrap();
         pool.insert(Constant::Number(5)).unwrap();
-        assert_eq!(pool.into_vec(), [Constant::Number(6), Constant::Number(5)]);
+        assert_eq!(pool.as_vec(), [Constant::Number(6), Constant::Number(5)]);
     }
 }

@@ -2,9 +2,6 @@
 
 use std::{error, fmt};
 
-use compiler;
-use syntax;
-
 #[derive(Debug)]
 pub enum Error {
     Syntax(syntax::Error),

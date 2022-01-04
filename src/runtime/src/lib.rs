@@ -1,21 +1,13 @@
 //! The language runtime interface.
 
-use compiler;
-use syntax;
-
 mod error;
 mod value;
 
 use crate::error::Error;
 
 /// A struct that manages an instance of the language runtime.
+#[derive(Default)]
 pub struct Runtime {}
-
-impl Default for Runtime {
-    fn default() -> Runtime {
-        Runtime {}
-    }
-}
 
 impl Runtime {
     /// Attempts to evaluate some input.
@@ -25,7 +17,7 @@ impl Runtime {
     pub fn eval(&mut self, input: &[u8]) {
         fn eval_inner(input: &[u8]) -> Result<(), Error> {
             let input = syntax::verify_utf8(input)?;
-            let module = compiler::compile(&input)?;
+            let module = compiler::compile(input)?;
 
             println!("{:#?}", module);
             Ok(())
