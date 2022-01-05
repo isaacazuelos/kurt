@@ -47,6 +47,8 @@
 
 use std::ptr::NonNull;
 
+use crate::memory::{AnyManaged, Gc, Managed};
+
 /// A value which is either stored inline or a pointer to a garbage collected
 /// [`Managed`] value.
 #[derive(Clone)]
@@ -190,6 +192,17 @@ impl Value {
 
         Value(bits)
     }
+
+    /// Store a [`GC<T>`] as a [`Value`], erasing it's type `T`.
+    #[inline]
+    pub fn gc<T: Managed>(gc: Gc<T>) -> Value {
+        let bits = gc.as_ptr() as u64;
+        Value(
+            (Value::PAYLOAD_MASK & bits)
+                | Value::PACKED_MASK
+                | Tag::GcPtr as u64,
+        )
+    }
 }
 
 impl Value {
@@ -237,7 +250,7 @@ impl Value {
     /// this will always be between 0 and [`Value::MAX_NAT`], i.e it must fit in
     /// a 48-bit unsigned value.
     fn as_nat(&self) -> Option<u64> {
-        if self.is_int() {
+        if self.is_nat() {
             // We shift back and forth to get the right sign extension.
             Some(self.0 & Value::PAYLOAD_MASK)
         } else {
@@ -282,6 +295,41 @@ impl Value {
     /// want to use [`is_gc`][Value::is_gc].
     pub fn is_any_gc(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::GcPtr as u64
+    }
+
+    /// Is the value a pointer to a garbage collected [`T`]?
+    pub fn is_gc<T: Managed>(&self) -> bool {
+        self.as_gc::<T>().is_some()
+    }
+
+    /// Use this value as a Rust [`Gc`] if it's a pointer to a garbage collected
+    /// value.
+    fn as_gc_any(&self) -> Option<Gc<AnyManaged>> {
+        if self.is_any_gc() {
+            // SAFETY:
+            // - `as_raw_ptr_unchecked` was just satisfied by the `is_gc_ptr`
+            //   condition above.
+            //
+            // - `from_ptr` is being called on value that was once a `Gc` we got
+            //   through [`Value::gc`], and all these values should be properly
+            //   tracked and live through the collector.
+            let raw = unsafe { self.as_raw_ptr_unchecked::<AnyManaged>() };
+            let ptr = NonNull::new(raw)?;
+            let obj = unsafe { Gc::from_ptr(ptr) };
+            Some(obj)
+        } else {
+            None
+        }
+    }
+
+    /// Use this value as a Rust [`Gc<T>`] if it's a pointer to a garbage
+    /// collected value.
+    pub fn as_gc<T: Managed>(&self) -> Option<Gc<T>> {
+        if self.is_any_gc() {
+            self.as_gc_any().and_then(Gc::downcast)
+        } else {
+            None
+        }
     }
 }
 
@@ -461,6 +509,12 @@ mod tests {
 
         let negative = Value::int_i32(-987654);
         assert_eq!(negative.as_int(), Some(-987654));
+    }
+
+    #[test]
+    fn packing_nat_max() {
+        let large = Value::nat(Value::MAX_NAT).unwrap();
+        assert_eq!(large.as_nat(), Some(Value::MAX_NAT));
     }
 
     #[test]
