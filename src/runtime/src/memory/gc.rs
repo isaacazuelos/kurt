@@ -31,22 +31,47 @@ impl<T: Managed> Deref for Gc<T> {
 }
 
 impl<T: Managed> Gc<T> {
+    /// Create a new Gc pointer.
+    ///
+    /// # Safety
+    ///
+    /// This is generally only safe to do:
+    ///
+    /// - If the pointer came from calling [`Gc::as_ptr`].
+    ///
+    /// - If you're a garbage collected heap and creating a new [`Gc`] pointer
+    ///   which you're taking responsibility for tracking.
     pub unsafe fn from_ptr(ptr: NonNull<T>) -> Gc<T> {
         Gc { ptr }
     }
 
+    /// View this pointer as a raw mutable pointer.
     pub fn as_ptr(self) -> *mut T {
         self.ptr.as_ptr()
     }
 
-    pub fn downcast<S: Managed>(ptr: Gc<T>) -> Option<Gc<S>> {
-        if TypeId::of::<S>() == ptr.header().tag() {
+    /// Attempt to downcast an [`AnyManaged`] gc pointer to a specific
+    /// [`Managed`] type.
+    ///
+    /// This uses the [`Header`] type tag to verify the cast is okay, and is
+    /// checking for equality. That means we don't have sub-typing beyond the
+    /// one top type, this isn't really OO-like inheritance.
+    pub fn downcast(ptr: Gc<AnyManaged>) -> Option<Gc<T>> {
+        if TypeId::of::<T>() == ptr.header().tag() {
             Some(unsafe { std::mem::transmute(ptr) })
         } else {
             None
         }
     }
 
+    /// Upcast this pointer into a gc pointer to [`AnyManaged`].
+    ///
+    /// This lets collections safely store any garbage collected value in a
+    /// field, which is needed for things like tuples.
+    ///
+    /// # Notes
+    ///
+    /// See [`Gc::downcast`] for how to get back the original [`Managed`] type.
     pub fn as_any(self) -> Gc<AnyManaged> {
         Gc {
             ptr: unsafe { std::mem::transmute(self.ptr) },
@@ -55,6 +80,8 @@ impl<T: Managed> Gc<T> {
 }
 
 impl<T: Managed> Gc<T> {
+    /// Get a copy of the allocated object's [`Header`]. Note this isn't
+    /// mutable. Mutating a header is a _really_ bad idea.
     fn header(self) -> Header {
         let any = Gc::as_any(self);
         any.deref().header()

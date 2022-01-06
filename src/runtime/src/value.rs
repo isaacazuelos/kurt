@@ -325,11 +325,8 @@ impl Value {
     /// Use this value as a Rust [`Gc<T>`] if it's a pointer to a garbage
     /// collected value.
     pub fn as_gc<T: Managed>(&self) -> Option<Gc<T>> {
-        if self.is_any_gc() {
-            self.as_gc_any().and_then(Gc::downcast)
-        } else {
-            None
-        }
+        let ptr = self.as_gc_any()?;
+        Gc::downcast(ptr)
     }
 }
 
