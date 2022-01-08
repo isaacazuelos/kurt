@@ -135,3 +135,22 @@ fn unicode_identifier() {
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Semicolon);
     assert!(lexer.is_empty());
 }
+
+#[test]
+fn space_cadet() {
+    // Here are the symbols on the face of a [Space Cadet Keyboard][link], save
+    // for the floor and ceiling opening characters on Z and X. These should all
+    // be lexed as operators.
+    //
+    // [link]: https://en.wikipedia.org/wiki/Space-cadet_keyboard
+    let mut lexer = Lexer::new("∧ ∨ ∪ ∩ ⊂ ⊃ ∀ ∞ ∃ ∂ ⊥ ⊤ ⊢ ⊣ ↑ ↓ ← → ↔ ≠ ≃ ≡ ≤ ≥");
+
+    let mut count = 0;
+
+    while let Ok(token) = lexer.token() {
+        count += 1;
+        assert_eq!(token.kind(), TokenKind::Operator, "expected {} to be an operator.", token.body());
+    }
+
+    assert_eq!(count, 24);
+}
