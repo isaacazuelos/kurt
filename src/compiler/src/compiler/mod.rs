@@ -25,7 +25,7 @@ pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
 
-    /// Code is compiled into [`Prototypes`] which are kept as a stack that
+    /// Code is compiled into [`Prototype`]s which are kept as a stack that
     /// matches closure scopes in the source code. This [`Vec`] should never be
     /// empty, as the first element is the top-level's prototype.
     prototypes: Vec<Prototype>,

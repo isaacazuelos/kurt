@@ -1,7 +1,6 @@
 //! A module is the result of compiling some code
 //!
 //! It's ready to be loaded by the runtime.
-//!
 
 use crate::{constant::Constant, prototype::Prototype};
 
@@ -22,7 +21,9 @@ impl Module {
         self.constants.as_ref()
     }
 
+    /// Get a prototype by it's index. The top level is always prototype 0.
     pub fn get_prototype(&self, index: usize) -> Option<&Prototype> {
         self.prototypes.get(index)
     }
 }
+
