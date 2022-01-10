@@ -79,6 +79,25 @@ impl InitWith<&str> for String {
     }
 }
 
+impl InitWith<&[&str]> for String {
+    unsafe fn init_with(mut ptr: NonNull<Self>, args: &[&str]) {
+        ptr.as_ptr().write(String::default());
+
+        let string = ptr.as_mut();
+        string.len = args.iter().map(|s| s.len()).sum();
+
+        let mut offset = 0;
+        for s in args {
+            string.push_str_at(offset, s);
+            offset += s.len();
+        }
+    }
+
+    fn trailing_bytes_for(args: &&[&str]) -> Option<usize> {
+        Some(args.iter().map(|s| s.len()).sum())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::memory::{allocator::Allocator, system_alloc::SystemAllocator};
@@ -103,5 +122,18 @@ mod tests {
         assert!(!empty.is_empty());
         assert_eq!(empty.len(), 4);
         assert_eq!(empty.as_str(), "test");
+    }
+
+    #[test]
+    fn init_with_slice() {
+        let mut alloc = SystemAllocator::default();
+        let empty = alloc
+            .make_with::<String, _>(["hello, ", "world!"].as_slice())
+            .unwrap();
+
+        assert!(!empty.is_empty());
+        let expected = "hello, world!";
+        assert_eq!(empty.len(), expected.len());
+        assert_eq!(empty.as_str(), expected);
     }
 }
