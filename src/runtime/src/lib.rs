@@ -1,5 +1,7 @@
 //! The language runtime interface.
 
+#![allow(unused)]
+
 mod error;
 mod memory;
 mod value;

@@ -11,51 +11,21 @@
 //!
 //! [top]: https://en.wikipedia.org/wiki/Top_type
 
-use super::{Header, Managed};
+use crate::memory::{
+    collector::{Trace, WorkList},
+    Managed,
+};
 
 /// A value representing any [`Managed`] type.
 ///
 /// You typically wouldn't want to create one of these directly, they're usually
 /// made by [`Gc::upcast`][crate::memory::gc::Gc::upcast].
-#[derive(Debug)]
-#[repr(C, align(8))]
-pub struct AnyManaged {
-    header: Header,
-}
+pub struct AnyManaged;
 
-unsafe impl Managed for AnyManaged {}
+impl Managed for AnyManaged {}
 
-impl AnyManaged {
-    /// Create a new managed value with no other properties.
-    ///
-    /// This isn't particularity useful.
-    #[allow(unused)]
-    fn new() -> AnyManaged {
-        AnyManaged {
-            header: Header::new::<AnyManaged>(),
-        }
-    }
-
-    /// Get a copy of the [`Header`] for this value.
-    ///
-    /// Note that the header returned will contain the type tag with the actual
-    /// [`TypeID`][std::any::TypeId] of the _actual_ type.
-    ///
-    /// We don't have inheritance, other than this one top type.
-    pub fn header(&self) -> Header {
-        self.header
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::any::Any;
-
-    use super::AnyManaged;
-
-    #[test]
-    fn type_ids() {
-        let a = AnyManaged::new();
-        assert_eq!(a.header().tag(), a.type_id());
+impl Trace for AnyManaged {
+    fn trace(&mut self, _worklist: &mut WorkList) {
+        todo!("How do we downcast dynamically to trace?")
     }
 }

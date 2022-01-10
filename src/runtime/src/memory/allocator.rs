@@ -7,6 +7,8 @@ use std::{alloc::Layout, ptr::NonNull};
 
 use crate::memory::{Gc, Managed};
 
+use super::gc::GcCell;
+
 /// An abstraction over what we can use as an allocator for managing our memory.
 ///
 /// The idea here is the API should be powerful enough that we can swap out
@@ -40,13 +42,11 @@ pub(crate) unsafe trait Allocator {
     /// For this to be safe the following must be true:
     ///
     /// 1. The pointer was allocated by this allocator.
-    /// 2. The layout provided matches the layout of the original call to
-    ///    [`allocate`][Allocator::allocate] that created the pointer.
-    /// 3. There are no other live copies of the pointer.
+    /// 2. There are no other live copies of the pointer.
     ///
     /// I'm be a little vague on what 'live' means above. This is on purpose --
     /// I don't know.
-    unsafe fn deallocate(&mut self, ptr: NonNull<u8>, layout: Layout);
+    unsafe fn deallocate(&mut self, ptr: NonNull<u8>);
 
     /// Did some pointer come from this allocator?
     ///
@@ -63,14 +63,11 @@ pub(crate) unsafe trait Allocator {
     ///
     /// If the allocation fails for any reason, this will return [`None`].
     fn make<T: Managed + Default>(&mut self) -> Option<Gc<T>> {
-        let layout = Layout::new::<T>();
-        let ptr = self.allocate(layout)?.cast::<T>();
+        let layout = Layout::new::<GcCell<T>>();
+        let ptr = self.allocate(layout)?.cast::<GcCell<T>>();
+        let gc = unsafe { Gc::init(ptr) };
 
-        // SAFETY: The requirements are met because ptr came from `allocate`,
-        //         which tells us the pointer fits `T` and is valid for writes.
-        unsafe { ptr.as_ptr().write(T::default()) };
-
-        Some(unsafe { Gc::from_ptr(ptr) })
+        Some(gc)
     }
 
     /// Create a new gc pointer to a `T` which was initialized with some
@@ -81,12 +78,19 @@ pub(crate) unsafe trait Allocator {
         &mut self,
         args: A,
     ) -> Option<Gc<T>> {
-        let layout = T::layout(&args)?;
-        let ptr = self.allocate(layout)?.cast::<T>();
+        let trailing = T::trailing_bytes_for(&args)?;
+        let cell_layout_without_trailing = Layout::new::<GcCell<T>>();
 
-        unsafe { T::init_with(ptr, args) };
+        let layout = unsafe {
+            Layout::from_size_align_unchecked(
+                cell_layout_without_trailing.size() + trailing,
+                cell_layout_without_trailing.align(),
+            )
+        };
 
-        Some(unsafe { Gc::from_ptr(ptr) })
+        let ptr = self.allocate(layout)?.cast::<GcCell<T>>();
+
+        Some(unsafe { Gc::init_with(ptr, args) })
     }
 }
 
@@ -114,10 +118,10 @@ pub trait InitWith<Arg>: Managed {
     /// initialized memory or the value there will not be properly dropped.
     unsafe fn init_with(ptr: NonNull<Self>, args: Arg);
 
-    /// The [`Layout`] needed to initialize an instance of this type with the
-    /// arguments specified.
+    /// The _extra_ number of bytes needed to initialize an instance of this type
+    /// with the arguments specified, as compared to the
     ///
     /// This can return [`None`] if the resulting layout doesn't make sense (see
     /// [`LayoutError`][std::alloc::LayoutError] for more.)
-    fn layout(args: &Arg) -> Option<Layout>;
+    fn trailing_bytes_for(args: &Arg) -> Option<usize>;
 }

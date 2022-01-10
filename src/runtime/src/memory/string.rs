@@ -1,18 +1,16 @@
 //! Runtime representation of UTF-8 strings.
 
-// Right now things is mostly a test of our abstractions. These will get used
-// eventually.
-#![allow(unused)]
-
 use std::{alloc::Layout, io::Write, ptr::NonNull};
 
-use crate::memory::{Header, Managed};
-
-use super::allocator::InitWith;
+use crate::memory::{
+    allocator::InitWith,
+    collector::{Trace, WorkList},
+    Header, Managed,
+};
 
 /// An immutable UTF-8 string.
+#[derive(Default)]
 pub struct String {
-    header: Header,
     len: usize,
     bytes: [u8; 1],
 }
@@ -59,17 +57,13 @@ impl String {
     }
 }
 
-impl Default for String {
-    fn default() -> String {
-        String {
-            header: Header::new::<String>(),
-            len: 0,
-            bytes: [0],
-        }
+impl Managed for String {}
+
+impl Trace for String {
+    fn trace(&mut self, worklist: &mut WorkList) {
+        // Nothing ot trace since String doesn't retain any GC pointers.
     }
 }
-
-unsafe impl Managed for String {}
 
 impl InitWith<&str> for String {
     unsafe fn init_with(mut ptr: NonNull<Self>, args: &str) {
@@ -80,10 +74,8 @@ impl InitWith<&str> for String {
         s.push_str_at(0, args);
     }
 
-    fn layout(args: &&str) -> Option<Layout> {
-        let align = std::mem::align_of::<String>();
-        let size = std::mem::size_of::<String>() - 1 + args.len();
-        Layout::from_size_align(size, align).ok()
+    fn trailing_bytes_for(args: &&str) -> Option<usize> {
+        Some(args.len())
     }
 }
 

@@ -43,8 +43,6 @@
 //! just an `f64`. The reason we _want_ to use these types then should be
 //! _because they're never imprecise_, not because they are larger.
 
-#![allow(unused)]
-
 use std::ptr::NonNull;
 
 use crate::memory::{AnyManaged, Gc, Managed};
@@ -196,7 +194,7 @@ impl Value {
     /// Store a [`GC<T>`] as a [`Value`], erasing it's type `T`.
     #[inline]
     pub fn gc<T: Managed>(gc: Gc<T>) -> Value {
-        let bits = gc.as_ptr() as u64;
+        let bits = Gc::as_cell_ptr(gc).as_ptr() as u64;
         Value(
             (Value::PAYLOAD_MASK & bits)
                 | Value::PACKED_MASK
@@ -310,12 +308,12 @@ impl Value {
             // - `as_raw_ptr_unchecked` was just satisfied by the `is_gc_ptr`
             //   condition above.
             //
-            // - `from_ptr` is being called on value that was once a `Gc` we got
-            //   through [`Value::gc`], and all these values should be properly
-            //   tracked and live through the collector.
-            let raw = unsafe { self.as_raw_ptr_unchecked::<AnyManaged>() };
+            // - `from_cell_ptr` is being called on value that was once a `Gc`
+            //   we got through [`Value::gc`], and all these values should be
+            //   properly tracked and live through the collector.
+            let raw = unsafe { self.as_raw_ptr_unchecked::<_>() };
             let ptr = NonNull::new(raw)?;
-            let obj = unsafe { Gc::from_ptr(ptr) };
+            let obj = unsafe { Gc::from_cell_ptr(ptr) };
             Some(obj)
         } else {
             None
