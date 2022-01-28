@@ -342,7 +342,7 @@ impl Value {
     const unsafe fn as_raw_ptr_unchecked<T>(&self) -> *mut T {
         let bits: usize;
 
-        #[cfg(target_arch = "x64_64")]
+        #[cfg(target_arch = "x86_64")]
         {
             bits = Value::bits_to_ptr_x86_64(self.0 as usize);
         }
@@ -354,9 +354,7 @@ impl Value {
 
         #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
         {
-            // This panic won't let this compile (at least until `const_panic`).
-            // Which is good, we shouldn't let it.
-            panic!("Your target_arch isn't supported!")
+            std::compile_error!("Your target_arch isn't supported!")
         }
 
         bits as _
@@ -372,12 +370,12 @@ impl Value {
     //
     // Note that they count bits from 0–63, so it's the high 16 bits that need
     // to be a sign carry for the high bit of the 48 used by the pointer.
-    #[cfg(target_arch = "x64_64")]
+    #[cfg(target_arch = "x86_64")]
     #[inline(always)]
-    const unsafe fn bits_to_ptr_x86_64(_bits: usize) -> usize {
+    const unsafe fn bits_to_ptr_x86_64(bits: usize) -> usize {
         // arithmetic right shift is used for signed numbers, so we do some
         // casting.
-        (((bits << 16) as isize) >> 16)
+        (((bits << 16) as isize) >> 16) as usize
     }
 
     // Arm Architecture Reference Manual Armv8 D5.1.3 says there are a few
