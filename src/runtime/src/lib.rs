@@ -3,7 +3,6 @@
 #![allow(unused)]
 
 mod error;
-mod memory;
 mod value;
 
 use crate::error::Error;
