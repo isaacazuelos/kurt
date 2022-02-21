@@ -18,5 +18,8 @@ runtime = { path = "src/runtime" }
 syntax = { path = "src/syntax" }
 
 [dependencies.clap]
-version = "2.33"
-features = [ "suggestions", "color", "wrap_help" ]
+version = "3.1.1"
+features = ["suggestions", "color", "wrap_help", "derive"]
+
+[dependencies.rustyline]
+version = "9.1.0"

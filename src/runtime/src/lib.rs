@@ -16,9 +16,8 @@ impl Runtime {
     ///
     /// For now 'evaluate' means [`Debug`] pretty print however far into the
     /// pipeline we are, or the [`Debug`] representation for any errors.
-    pub fn eval(&mut self, input: &[u8]) {
-        fn eval_inner(input: &[u8]) -> Result<(), Error> {
-            let input = syntax::verify_utf8(input)?;
+    pub fn eval(&mut self, input: &str) {
+        fn eval_inner(input: &str) -> Result<(), Error> {
             let module = compiler::compile(input)?;
 
             println!("{:#?}", module);
@@ -29,5 +28,13 @@ impl Runtime {
             Ok(()) => {}
             Err(e) => eprintln!("{} [ {:?} ]", e, e),
         }
+    }
+
+    /// Print the last 'result' value to standard out.
+    ///
+    /// This is useful for implementing interactive things. For now it doesn't
+    /// show anything meaningful.
+    pub fn print(&mut self, prefix: &str) {
+        println!("{} <cannot eval>", prefix)
     }
 }
