@@ -11,6 +11,12 @@ pub struct Module {
     pub(crate) main: Prototype,
 }
 
+impl Default for Module {
+    fn default() -> Self {
+        Module::new()
+    }
+}
+
 impl Module {
     /// Create a new empty module.
     pub fn new() -> Module {

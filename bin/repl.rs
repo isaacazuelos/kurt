@@ -5,6 +5,7 @@ use std::io::Write;
 use compiler::Compiler;
 use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
+use syntax::{Module, Parse};
 
 /// Start an interactive session
 #[derive(clap::Parser)]
@@ -21,6 +22,7 @@ impl ReplArgs {
 struct Repl {
     editor: Editor<()>,
     runtime: Runtime,
+    compiler: Compiler,
 }
 
 impl Default for Repl {
@@ -30,7 +32,11 @@ impl Default for Repl {
         let runtime = Runtime::default();
         let compiler = Compiler::new();
 
-        Repl { editor, runtime }
+        Repl {
+            editor,
+            runtime,
+            compiler,
+        }
     }
 }
 
@@ -42,26 +48,37 @@ impl Repl {
     const RESULT_PROMPT: &'static str = "//> ";
 
     fn start(mut self) {
-        println!(
-            "// Please note that the repl does keep previous context yet."
-        );
         loop {
             match self.step() {
                 Ok(()) => continue,
                 Err(ReplError::Clear) => continue,
                 Err(ReplError::Exit) => break,
-                Err(ReplError::ReadlineError(e)) => {
+                Err(ReplError::Readline(e)) => {
                     println!("{}", e);
                     println!("  (press control-d to exit)");
+                }
+                Err(other) => {
+                    println!("{}", other);
                 }
             }
         }
     }
 
     fn step(&mut self) -> Result<(), ReplError> {
-        let line = self.read()?;
+        let input = self.read()?;
 
-        self.runtime.eval(&line);
+        let syntax = Module::parse(&input)?;
+
+        // We clone and compile, so that if there's a compile time error we
+        // still have `self.compiler` as the last-known-good state.
+        let compiler = self.compiler.clone();
+        self.compiler = compiler.compile(&syntax)?;
+
+        let updated_main = self.compiler.build();
+        self.runtime.reload_main(updated_main)?;
+
+        self.runtime.resume()?;
+
         self.runtime.print(Repl::RESULT_PROMPT);
         self.flush();
 
@@ -85,7 +102,7 @@ impl Repl {
                 Err(ReplError::Exit)
             }
 
-            Err(e) => Err(ReplError::ReadlineError(e)),
+            Err(e) => Err(ReplError::Readline(e)),
         }
     }
 
@@ -98,7 +115,11 @@ impl Repl {
 enum ReplError {
     Clear,
     Exit,
-    ReadlineError(ReadlineError),
+
+    Readline(ReadlineError),
+    Syntax(syntax::Error),
+    CompileTime(compiler::Error),
+    Runtime(runtime::Error),
 }
 
 impl std::error::Error for ReplError {}
@@ -108,9 +129,28 @@ impl std::fmt::Display for ReplError {
         match self {
             ReplError::Clear => write!(f, "^C"),
             ReplError::Exit => write!(f, "^D"),
-            ReplError::ReadlineError(e) => {
-                write!(f, "error reading input: {}", e)
-            }
+            ReplError::Readline(e) => write!(f, "{}", e),
+            ReplError::Syntax(e) => write!(f, "{}", e),
+            ReplError::CompileTime(e) => write!(f, "{}", e),
+            ReplError::Runtime(e) => write!(f, "{}", e),
         }
+    }
+}
+
+impl From<syntax::Error> for ReplError {
+    fn from(e: syntax::Error) -> Self {
+        ReplError::Syntax(e)
+    }
+}
+
+impl From<compiler::Error> for ReplError {
+    fn from(e: compiler::Error) -> Self {
+        ReplError::CompileTime(e)
+    }
+}
+
+impl From<runtime::Error> for ReplError {
+    fn from(e: runtime::Error) -> Self {
+        ReplError::Runtime(e)
     }
 }

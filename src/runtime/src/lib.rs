@@ -6,11 +6,11 @@ mod error;
 mod module;
 mod value;
 
-use compiler::{constant::Constant, Module as ModuleDescription};
+use compiler::{self, constant::Constant};
 use module::Module;
 use value::Value;
 
-use crate::error::{Error, Result};
+pub use crate::error::{Error, Result};
 
 /// A struct that manages an instance of the language runtime.
 #[derive(Debug, Default)]
@@ -46,32 +46,39 @@ impl Runtime {
     fn eval_inner(&mut self, input: &str) -> Result<()> {
         let object = compiler::compile(input)?;
 
-        self.load(object)?;
+        self.reload_main(object)?;
+        self.run()
+    }
+
+    pub fn reload_main(&mut self, module: compiler::Module) -> Result<()> {
+        let mut constants = Vec::with_capacity(module.constants().len());
+
+        for constant in module.constants() {
+            let value = self.inflate(constant)?;
+            constants.push(value);
+        }
+
+        // TODO: We could do some verification here that what we're reloading
+        //       looks sane.
+
+        self.main = Module {
+            constants,
+            main: module.get_main().clone(),
+            prototypes: module.get_prototypes().to_owned(),
+        };
+
+        Ok(())
+    }
+
+    /// Resume the runtime. If it hasn't been started before this will also
+    /// start it.
+    pub fn resume(&mut self) -> Result<()> {
+        // TODO: sanity checks.
         self.run()
     }
 }
 
 impl Runtime {
-    /// Load a module. For now, we only support one module, `main`, so every
-    /// time something loads it replaces it.
-    fn load(&mut self, description: ModuleDescription) -> Result<()> {
-        let mut constants = Vec::with_capacity(description.constants().len());
-
-        for constant in description.constants() {
-            let value = self.inflate(constant)?;
-            constants.push(value);
-        }
-
-        let module = Module {
-            constants,
-            main: description.get_main().clone(),
-            prototypes: description.get_prototypes().to_owned(),
-        };
-
-        self.main = module;
-        Ok(())
-    }
-
     fn inflate(&mut self, constant: &Constant) -> Result<Value> {
         match constant {
             Constant::Character(c) => Ok(Value::char(*c)),

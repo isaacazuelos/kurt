@@ -33,6 +33,12 @@ pub struct Compiler {
     prototypes: Vec<Prototype>,
 }
 
+impl Default for Compiler {
+    fn default() -> Self {
+        Compiler::new()
+    }
+}
+
 impl Compiler {
     /// Create a new compiler.
     ///
@@ -49,15 +55,13 @@ impl Compiler {
     ///
     /// // You can push code to the module the compiler is building.
     /// let code = ast::Module::parse(r#" "Hello, world!"; "#).unwrap();
-    /// compiler.compile(&code).unwrap();
     ///
     /// // Once you're ready to build a module the runtime can work with you
     /// // need to call `build`.
-    /// let module = compiler.build().unwrap();
+    /// let module = compiler.compile(&code).unwrap().build();
     ///
     /// // Now you can do things with the module.
     /// ```
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Compiler {
         Compiler {
             main: Prototype::new_main(),
@@ -67,28 +71,31 @@ impl Compiler {
     }
 
     /// Push some code through the compiler (and in a sense on to the end of the
-    /// currently-compiling module).
+    /// currently-compiling module). This consumes the compiler, returning it
+    /// only if the new code can safely be compiled. This lets us avoid trying
+    /// to backtrack the compiler state to some previously known-good state.
+    ///
+    /// One side effect of this is if an input source like the reply tries to
+    /// pass two statements at once, even if the first succeeds in compiling,
+    /// the input overall will not.
+    ///
+    /// Whereas  python `print('hi'); unbound` will print something before
+    /// producing a NameError, our language will not.
     ///
     /// The input must be valid top-level code (which is the same as what's
     /// allowed in a module for now).
+    ///
+    /// Note that this consumes the compiler, returning it only if the new
+    /// syntax can be compiled. If you need that old compiler state, [`Clone`]
+    /// the compiler.
     ///
     /// # Examples
     ///
     /// See the documentation for [`Compiler::new`] for an example of how this
     /// can be used.
-    pub fn compile(&mut self, syntax: &ast::Module) -> Result<()> {
-        // This is on hold as I'm not really sure how to handle pushing code
-        // that produces an error.
-        //
-        // - Is the compiler just in a potentially invalid state after, and
-        //   caller have to [`Clone`] first?
-        // - Do we have some sort of 'waypoint'/'backtrack' system to backtrack?
-        // - How far back can we go -- maybe each top-level item is reversible,
-        //   that way we only need to 'backtrack' in the top_level prototype?
-        //
-        // How do we handle pushing code that's incomplete -- say ends in the
-        // middle of a closure or something?
-        self.module(syntax)
+    pub fn compile(mut self, syntax: &ast::Module) -> Result<Self> {
+        self.module(syntax)?;
+        Ok(self)
     }
 
     /// Convert the current compiler state into a new module that can be loaded
@@ -98,12 +105,12 @@ impl Compiler {
     ///
     /// See the documentation for [`Compiler::new`] for an example of how this
     /// can be used.
-    pub fn build(&self) -> Result<Module> {
-        Ok(Module {
+    pub fn build(&self) -> Module {
+        Module {
             main: self.main.clone(),
             constants: self.constants.as_vec(),
             prototypes: self.prototypes.clone(),
-        })
+        }
     }
 }
 
@@ -134,7 +141,9 @@ mod tests {
     #[test]
     fn active_prototype() {
         let mut c = Compiler::new();
-        assert!(!c.prototypes.is_empty()); // since 0 should be the top-level
-        let _ = c.active_prototype_mut(); // shouldn't panic
+        assert!(c.prototypes.is_empty());
+        // active_prototype is main when prototypes is empty, casting is to do
+        // pointer equality (i.e. identity).
+        assert_eq!(c.active_prototype_mut() as *mut _, &mut c.main as *mut _);
     }
 }

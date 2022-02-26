@@ -27,5 +27,5 @@ pub fn compile(input: &str) -> error::Result<Module> {
     let mut compiler = Compiler::new();
 
     compiler.module(&syntax)?;
-    compiler.build()
+    Ok(compiler.build())
 }
