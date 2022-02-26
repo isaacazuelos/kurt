@@ -2,10 +2,13 @@
 
 use std::{error, fmt};
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug)]
 pub enum Error {
     Syntax(syntax::Error),
     Compiler(compiler::Error),
+    NumberTooBig,
 }
 
 impl fmt::Display for Error {
@@ -14,6 +17,7 @@ impl fmt::Display for Error {
         match self {
             Syntax(e) => write!(f, "syntax error: {}", e),
             Compiler(e) => write!(f, "compiler error: {}", e),
+            NumberTooBig => write!(f, "number too big"),
         }
     }
 }

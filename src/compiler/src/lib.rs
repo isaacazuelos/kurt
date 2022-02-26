@@ -2,11 +2,12 @@
 
 mod code;
 mod compiler;
-mod constant;
 mod error;
 mod module;
 mod opcode;
-mod prototype;
+
+pub mod constant;
+pub mod prototype;
 
 pub use crate::{compiler::Compiler, error::Error, module::Module};
 

@@ -384,6 +384,8 @@ impl std::fmt::Debug for Value {
             write!(f, "{}", b)
         } else if let Some(c) = self.as_char() {
             write!(f, "{:?}", c)
+        } else if let Some(n) = self.as_nat() {
+            write!(f, "{}", n)
         } else if let Some(i) = self.as_int() {
             write!(f, "{}", i)
         } else {

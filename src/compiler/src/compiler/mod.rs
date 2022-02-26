@@ -25,9 +25,11 @@ pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
 
+    /// The top-level code for current module.
+    main: Prototype,
+
     /// Code is compiled into [`Prototype`]s which are kept as a stack that
-    /// matches closure scopes in the source code. This [`Vec`] should never be
-    /// empty, as the first element is the top-level's prototype.
+    /// matches closure scopes in the source code.
     prototypes: Vec<Prototype>,
 }
 
@@ -57,10 +59,9 @@ impl Compiler {
     /// ```
     #[allow(clippy::new_without_default)]
     pub fn new() -> Compiler {
-        let prototypes = vec![Prototype::new_top_level()];
-
         Compiler {
-            prototypes,
+            main: Prototype::new_main(),
+            prototypes: Vec::new(),
             constants: Pool::default(),
         }
     }
@@ -99,6 +100,7 @@ impl Compiler {
     /// can be used.
     pub fn build(&self) -> Result<Module> {
         Ok(Module {
+            main: self.main.clone(),
             constants: self.constants.as_vec(),
             prototypes: self.prototypes.clone(),
         })
@@ -113,11 +115,13 @@ impl Compiler {
     }
 
     /// Get a mutable reference to the active prototype. This will return the
-    /// top level prototype if we're not compiling into a closure.
+    /// prototype used by `main` if we're not compiling a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut Prototype {
-        self.prototypes
-            .last_mut()
-            .expect("Compiler.prototypes should never be empty.")
+        if let Some(proto) = self.prototypes.last_mut() {
+            proto
+        } else {
+            &mut self.main
+        }
     }
 }
 

@@ -2,6 +2,7 @@
 
 use std::io::Write;
 
+use compiler::Compiler;
 use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
 
@@ -27,6 +28,7 @@ impl Default for Repl {
         let editor = Editor::<()>::new();
         // TODO: Read history here.
         let runtime = Runtime::default();
+        let compiler = Compiler::new();
 
         Repl { editor, runtime }
     }
@@ -40,6 +42,9 @@ impl Repl {
     const RESULT_PROMPT: &'static str = "//> ";
 
     fn start(mut self) {
+        println!(
+            "// Please note that the repl does keep previous context yet."
+        );
         loop {
             match self.step() {
                 Ok(()) => continue,

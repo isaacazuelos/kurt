@@ -14,6 +14,7 @@ impl Evaluate {
     pub fn run(&self) {
         let mut runtime = Runtime::default();
         runtime.eval(&self.input);
-        runtime.print("");
+        runtime.print("{}");
+        println!();
     }
 }

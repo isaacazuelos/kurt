@@ -4,16 +4,21 @@
 
 use crate::{constant::Constant, prototype::Prototype};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub(crate) constants: Vec<Constant>,
     pub(crate) prototypes: Vec<Prototype>,
+    pub(crate) main: Prototype,
 }
 
 impl Module {
     /// Create a new empty module.
     pub fn new() -> Module {
-        Module::default()
+        Module {
+            constants: Vec::new(),
+            prototypes: Vec::new(),
+            main: Prototype::new_main(),
+        }
     }
 
     /// Get a reference to the module's constants.
@@ -21,9 +26,18 @@ impl Module {
         self.constants.as_ref()
     }
 
-    /// Get a prototype by it's index. The top level is always prototype 0.
+    /// Borrow the module's `main`, i.e. the top-level code.
+    pub fn get_main(&self) -> &Prototype {
+        &self.main
+    }
+
+    /// Get a prototype by it's index. Note that this does not include `main`.
     pub fn get_prototype(&self, index: usize) -> Option<&Prototype> {
         self.prototypes.get(index)
     }
-}
 
+    /// View the prototypes as a slice. Note that this does not include `main`.
+    pub fn get_prototypes(&self) -> &[Prototype] {
+        &self.prototypes
+    }
+}
