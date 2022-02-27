@@ -71,15 +71,13 @@ impl Repl {
 
         // We clone and compile, so that if there's a compile time error we
         // still have `self.compiler` as the last-known-good state.
-        let compiler = self.compiler.clone();
-        self.compiler = compiler.compile(&syntax)?;
+        let new_compiler_state = self.compiler.clone().compile(&syntax)?;
+        let updated_main = new_compiler_state.build()?;
+        self.compiler = new_compiler_state;
 
-        let updated_main = self.compiler.build();
         self.runtime.reload_main(updated_main)?;
-
         self.runtime.resume()?;
-
-        self.runtime.print(Repl::RESULT_PROMPT);
+        println!("{}{:?}", Repl::RESULT_PROMPT, self.runtime.last_result());
         self.flush();
 
         Ok(())

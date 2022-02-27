@@ -12,6 +12,7 @@ pub enum Error {
     ParseFloat(std::num::ParseFloatError),
 
     TooManyConstants,
+    CodeTooLong,
 }
 
 impl fmt::Display for Error {

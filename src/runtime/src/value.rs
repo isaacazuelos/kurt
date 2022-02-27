@@ -47,7 +47,7 @@ use std::ptr::NonNull;
 
 /// A value which is either stored inline or a pointer to a garbage collected
 /// [`Managed`] value.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Value(u64);
 
 impl Default for Value {

@@ -10,8 +10,15 @@ impl Compiler {
     /// Note this is one of the few `pub` entry points into the compiler for
     /// various syntax.
     pub fn module(&mut self, syntax: &syntax::Module) -> Result<()> {
-        for statement in syntax.statements() {
+        for (i, statement) in syntax.statements().iter().enumerate() {
             self.statement(statement)?;
+
+            // If we have a statement after this one, we want to pop this result
+            // off the stack.
+            if i < syntax.semicolons().len() {
+                let span = syntax.semicolons()[i];
+                self.emit(Op::Pop, span)?;
+            }
         }
 
         Ok(())

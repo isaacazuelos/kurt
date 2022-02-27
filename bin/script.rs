@@ -27,6 +27,9 @@ impl Script {
         }
 
         let mut runtime = Runtime::default();
-        runtime.eval(&input);
+
+        if let Err(e) = runtime.eval(&input) {
+            eprintln!("{}", e);
+        }
     }
 }

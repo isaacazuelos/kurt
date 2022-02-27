@@ -1,15 +1,31 @@
 //! The instructions our VM will use.
 
-use crate::constant::Index;
+use crate::{constant::Constant, index::Index};
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
+    /// Stop the program.
+    Halt,
+
+    /// Does nothing.
+    Nop,
+
+    /// Discard the value on the top of the stack, if there is one.
+    Pop,
+
+    /// Push a `true` to the top of the stack.
     True,
+
+    /// Push a `false` to the top of the stack.
     False,
+
+    /// Push a `()` to the top of the stack.
     Unit,
 
-    LoadConstant(Index),
+    /// Load the constant at the specified constant index to the top of the
+    /// stack. The currently executing module's constant pool is used.
+    LoadConstant(Index<Constant>),
 }
 
 #[cfg(test)]

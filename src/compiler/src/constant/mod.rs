@@ -5,7 +5,7 @@ use crate::error::Result;
 
 mod pool;
 
-pub use self::pool::{Index, Pool};
+pub use self::pool::Pool;
 
 /// A constant value (or part of value in the case of closures) which occurs in
 /// a module. Some values like `true` don't need to be turned into constants

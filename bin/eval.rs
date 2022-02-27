@@ -13,8 +13,12 @@ impl Evaluate {
     /// Run the subcommand, evaluating and printing it's results.
     pub fn run(&self) {
         let mut runtime = Runtime::default();
-        runtime.eval(&self.input);
-        runtime.print("{}");
-        println!();
+
+        if let Err(e) = runtime.eval(&self.input) {
+            eprintln!("{}", e);
+            println!("runtime state: {:#?}", runtime);
+        } else {
+            println!("{:?}", runtime.last_result());
+        }
     }
 }

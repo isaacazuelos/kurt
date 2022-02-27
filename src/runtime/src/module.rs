@@ -2,17 +2,21 @@
 
 use std::{collections::HashMap, iter::Product};
 
-use crate::value::Value;
+use crate::{
+    error::{Error, Result},
+    value::Value,
+};
 
-use compiler::prototype::Prototype;
+use compiler::{
+    constant::Constant,
+    index::{Index, Indexable},
+    prototype::Prototype,
+};
 
 #[derive(Debug)]
 pub struct Module {
     /// All the constants in this module.
     pub(crate) constants: Vec<Value>,
-
-    /// The prototype for this modules `_main`, i.e. the top level code.
-    pub(crate) main: Prototype,
 
     /// The other prototypes used by this modules functions.
     pub(crate) prototypes: Vec<Prototype>,
@@ -21,11 +25,28 @@ pub struct Module {
 impl Default for Module {
     fn default() -> Self {
         Module {
+            prototypes: vec![Prototype::new_main()],
             constants: Vec::new(),
-            prototypes: Vec::new(),
-            main: Prototype::new_main(),
         }
     }
 }
 
-impl Module {}
+impl Module {
+    /// Look up a constant by an [`Index`].
+    pub(crate) fn constant(&self, index: Index<Constant>) -> Result<Value> {
+        self.constants
+            .get(index.as_usize())
+            .cloned()
+            .ok_or(Error::ConstantIndexOutOfRange)
+    }
+
+    /// Look up a prototype by an [`Index`].
+    pub(crate) fn prototype(
+        &self,
+        index: Index<Prototype>,
+    ) -> Result<&Prototype> {
+        self.prototypes
+            .get(index.as_usize())
+            .ok_or(Error::PrototypeIndexOutOfRange)
+    }
+}

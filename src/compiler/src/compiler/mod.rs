@@ -25,11 +25,9 @@ pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
 
-    /// The top-level code for current module.
-    main: Prototype,
-
     /// Code is compiled into [`Prototype`]s which are kept as a stack that
-    /// matches closure scopes in the source code.
+    /// matches closure scopes in the source code. This should never be empty,
+    /// with the first element being the module's top-level code.
     prototypes: Vec<Prototype>,
 }
 
@@ -64,8 +62,7 @@ impl Compiler {
     /// ```
     pub fn new() -> Compiler {
         Compiler {
-            main: Prototype::new_main(),
-            prototypes: Vec::new(),
+            prototypes: vec![Prototype::new_main()],
             constants: Pool::default(),
         }
     }
@@ -75,12 +72,12 @@ impl Compiler {
     /// only if the new code can safely be compiled. This lets us avoid trying
     /// to backtrack the compiler state to some previously known-good state.
     ///
-    /// One side effect of this is if an input source like the reply tries to
+    /// One consequence of this is if an input source like the reply tries to
     /// pass two statements at once, even if the first succeeds in compiling,
     /// the input overall will not.
     ///
-    /// Whereas  python `print('hi'); unbound` will print something before
-    /// producing a NameError, our language will not.
+    /// Whereas  python `print('hi'); unbound` will print 'hi' before producing
+    /// a NameError, our language will not.
     ///
     /// The input must be valid top-level code (which is the same as what's
     /// allowed in a module for now).
@@ -94,6 +91,26 @@ impl Compiler {
     /// See the documentation for [`Compiler::new`] for an example of how this
     /// can be used.
     pub fn compile(mut self, syntax: &ast::Module) -> Result<Self> {
+        // Suppose we called `build` on this _before_ this call to compile, and
+        // run that module.
+        //
+        // The call to build injected a `Op::Halt` that the program counter is
+        // on right now. We need to account for that, so we'll put in a no-op to
+        // keep the program counter aligned before the next _real_ instruction.
+        self.prototypes[0].emit_synthetic(Op::Nop)?;
+
+        // If the module is being restarted, the stack has either zero or one
+        // values on it.
+        //
+        // The stack may be empty due to an empty module or a trailing ';' to
+        // suppress the last value, or it may have the one un-suppressed last
+        // statement's value on it.
+        //
+        // We don't need to worry about which, since [`Op::Pop`] is a no-op on
+        // an empty stack.
+        self.prototypes[0].emit_synthetic(Op::Pop)?;
+
+        // So we're good to just keep compiling statements.
         self.module(syntax)?;
         Ok(self)
     }
@@ -105,12 +122,15 @@ impl Compiler {
     ///
     /// See the documentation for [`Compiler::new`] for an example of how this
     /// can be used.
-    pub fn build(&self) -> Module {
-        Module {
-            main: self.main.clone(),
+    pub fn build(&self) -> Result<Module> {
+        let mut prototypes = self.prototypes.clone();
+
+        prototypes[0].emit_synthetic(Op::Halt)?;
+
+        Ok(Module {
             constants: self.constants.as_vec(),
-            prototypes: self.prototypes.clone(),
-        }
+            prototypes,
+        })
     }
 }
 
@@ -124,11 +144,9 @@ impl Compiler {
     /// Get a mutable reference to the active prototype. This will return the
     /// prototype used by `main` if we're not compiling a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut Prototype {
-        if let Some(proto) = self.prototypes.last_mut() {
-            proto
-        } else {
-            &mut self.main
-        }
+        // This is safe as a all modules have at least one prototype -- 'main',
+        // the top-level code.
+        self.prototypes.last_mut().unwrap()
     }
 }
 
@@ -136,14 +154,15 @@ impl Compiler {
 mod tests {
     use super::*;
 
-    // Not a lot of tests as there's not really much happening right now.
-
     #[test]
     fn active_prototype() {
         let mut c = Compiler::new();
-        assert!(c.prototypes.is_empty());
+        assert_eq!(c.prototypes.len(), 1);
         // active_prototype is main when prototypes is empty, casting is to do
         // pointer equality (i.e. identity).
-        assert_eq!(c.active_prototype_mut() as *mut _, &mut c.main as *mut _);
+        assert_eq!(
+            c.active_prototype_mut() as *mut _,
+            &mut c.prototypes[0] as *mut _
+        );
     }
 }

@@ -4,9 +4,10 @@ mod code;
 mod compiler;
 mod error;
 mod module;
-mod opcode;
 
 pub mod constant;
+pub mod index;
+pub mod opcode;
 pub mod prototype;
 
 pub use crate::{compiler::Compiler, error::Error, module::Module};
@@ -24,8 +25,5 @@ use syntax::Parse;
 /// ```
 pub fn compile(input: &str) -> error::Result<Module> {
     let syntax = syntax::Module::parse(input)?;
-    let mut compiler = Compiler::new();
-
-    compiler.module(&syntax)?;
-    Ok(compiler.build())
+    Compiler::new().compile(&syntax)?.build()
 }
