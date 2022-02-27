@@ -143,13 +143,19 @@ fn space_cadet() {
     // be lexed as operators.
     //
     // [link]: https://en.wikipedia.org/wiki/Space-cadet_keyboard
-    let mut lexer = Lexer::new("∧ ∨ ∪ ∩ ⊂ ⊃ ∀ ∞ ∃ ∂ ⊥ ⊤ ⊢ ⊣ ↑ ↓ ← → ↔ ≠ ≃ ≡ ≤ ≥");
+    let mut lexer =
+        Lexer::new("∧ ∨ ∪ ∩ ⊂ ⊃ ∀ ∞ ∃ ∂ ⊥ ⊤ ⊢ ⊣ ↑ ↓ ← → ↔ ≠ ≃ ≡ ≤ ≥");
 
     let mut count = 0;
 
     while let Ok(token) = lexer.token() {
         count += 1;
-        assert_eq!(token.kind(), TokenKind::Operator, "expected {} to be an operator.", token.body());
+        assert_eq!(
+            token.kind(),
+            TokenKind::Operator,
+            "expected {} to be an operator.",
+            token.body()
+        );
     }
 
     assert_eq!(count, 24);

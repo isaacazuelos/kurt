@@ -43,8 +43,6 @@
 //! just an `f64`. The reason we _want_ to use these types then should be
 //! _because they're never imprecise_, not because they are larger.
 
-use std::ptr::NonNull;
-
 /// A value which is either stored inline or a pointer to a garbage collected
 /// [`Managed`] value.
 #[derive(Clone, Copy)]
@@ -294,6 +292,7 @@ impl Value {
     ///
     /// All safety consideration for using this must be made by the caller.
     /// Nothing is guaranteed.
+    #[allow(unused)]
     const unsafe fn as_raw_ptr_unchecked<T>(&self) -> *mut T {
         let bits: usize;
 

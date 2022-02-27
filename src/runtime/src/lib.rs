@@ -1,7 +1,5 @@
 //! The language runtime interface.
 
-#![allow(unused)]
-
 mod address;
 mod error;
 mod machine;
@@ -10,11 +8,8 @@ mod value;
 
 use address::Address;
 use compiler::{
-    self,
-    constant::Constant,
-    index::Indexable,
-    opcode::Op,
-    prototype::{self, Prototype},
+    self, constant::Constant, index::Indexable, opcode::Op,
+    prototype::Prototype,
 };
 use module::Module;
 use value::Value;

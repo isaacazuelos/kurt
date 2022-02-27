@@ -3,4 +3,4 @@
 pub mod caret;
 pub mod span;
 
-pub use self::{span::Span, caret::Caret};
+pub use self::{caret::Caret, span::Span};

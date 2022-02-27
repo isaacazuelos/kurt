@@ -1,17 +1,11 @@
 //! Runtime module representation.
 
-use std::{collections::HashMap, iter::Product};
-
 use crate::{
     error::{Error, Result},
     value::Value,
 };
 
-use compiler::{
-    constant::Constant,
-    index::{Index, Indexable},
-    prototype::Prototype,
-};
+use compiler::{constant::Constant, index::Index, prototype::Prototype};
 
 #[derive(Debug)]
 pub struct Module {

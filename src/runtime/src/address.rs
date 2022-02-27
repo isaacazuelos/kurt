@@ -1,15 +1,8 @@
-use std::iter::Inspect;
-use std::process;
-
 use compiler::index::Index;
-use compiler::opcode;
 use compiler::opcode::Op;
-use compiler::prototype::{self, Prototype};
+use compiler::prototype::Prototype;
 
-use crate::{
-    error::{Error, Result},
-    Runtime,
-};
+use crate::error::{Error, Result};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Address {

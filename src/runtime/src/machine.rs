@@ -1,18 +1,8 @@
 //! The virtual machine methods for our runtime.
 
-use std::marker::PhantomData;
+use compiler::{constant::Constant, index::Index, opcode::Op};
 
-use compiler::{
-    constant::Constant,
-    index::{Index, Indexable},
-    opcode::Op,
-};
-
-use crate::{
-    error::{Error, Result},
-    value::Value,
-    Exit, Runtime,
-};
+use crate::{error::Result, value::Value, Exit, Runtime};
 
 impl Runtime {
     /// Start the VM up again.
