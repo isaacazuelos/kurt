@@ -3,6 +3,7 @@
 mod address;
 mod error;
 mod machine;
+mod memory;
 mod module;
 mod value;
 
