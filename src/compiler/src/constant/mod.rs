@@ -60,7 +60,7 @@ impl Constant {
                 debug_assert!(!input.is_empty());
                 debug_assert_eq!(input.chars().next(), Some('\''));
                 debug_assert_eq!(input.chars().last(), Some('\''));
-                let body = &input[0..input.len() - 1];
+                let body = &input[1..input.len() - 1];
                 let c = body.parse()?;
                 Ok(c)
             }
