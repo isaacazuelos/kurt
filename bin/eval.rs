@@ -16,7 +16,6 @@ impl Evaluate {
 
         if let Err(e) = runtime.eval(&self.input) {
             eprintln!("{}", e);
-            println!("runtime state: {:#?}", runtime);
         } else {
             println!("{:?}", runtime.last_result());
         }

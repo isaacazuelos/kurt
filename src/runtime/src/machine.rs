@@ -20,7 +20,6 @@ impl Runtime {
                 Op::Unit => self.stack.push(Value::UNIT),
                 Op::LoadConstant(i) => self.load_constant(i)?,
             }
-            eprintln!("{:#?}", self);
         }
     }
 }

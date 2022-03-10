@@ -12,8 +12,12 @@ use compiler::{
     self, constant::Constant, index::Indexable, opcode::Op,
     prototype::Prototype,
 };
-use module::Module;
-use value::Value;
+
+use crate::{
+    memory::{string::String, GcObj},
+    module::Module,
+    value::Value,
+};
 
 pub use crate::error::{Error, Result};
 
@@ -112,7 +116,10 @@ impl Runtime {
             Constant::Character(c) => Ok(Value::char(*c)),
             Constant::Number(n) => Value::nat(*n).ok_or(Error::NumberTooBig),
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
-            Constant::String(_) => todo!("types which alloc not yet supported"),
+            Constant::String(s) => {
+                let string: GcObj = self.make_from::<String, _>(s.as_str());
+                Ok(Value::object(string))
+            }
         }
     }
 }

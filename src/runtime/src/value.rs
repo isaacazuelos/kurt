@@ -43,6 +43,10 @@
 //! just an `f64`. The reason we _want_ to use these types then should be
 //! _because they're never imprecise_, not because they are larger.
 
+use std::ptr::NonNull;
+
+use crate::memory::{GcObj, Object};
+
 /// A value which is either stored inline or a pointer to a garbage collected
 /// [`Managed`] value.
 #[derive(Clone, Copy)]
@@ -186,6 +190,18 @@ impl Value {
 
         Value(bits)
     }
+
+    /// Store a [`Gc`] pointer to any object as a [`Value`].
+    #[inline]
+    pub fn object(gc: GcObj) -> Value {
+        let bits: u64 = unsafe { std::mem::transmute(gc) };
+
+        Value(
+            (bits & Value::PAYLOAD_MASK)
+                | Value::PACKED_MASK
+                | Tag::Object as u64,
+        )
+    }
 }
 
 impl Value {
@@ -276,8 +292,21 @@ impl Value {
     ///
     /// If you need to know if the pointer is to a specific managed type, you
     /// want to use [`is_gc`][Value::is_gc].
-    pub fn is_any_gc(&self) -> bool {
-        self.0 & Value::TAG_BITS_MASK == Tag::GcPtr as u64
+    pub fn is_object(&self) -> bool {
+        self.0 & Value::TAG_BITS_MASK == Tag::Object as u64
+    }
+
+    /// View this value as a reference to an [`Object`].
+    pub fn as_object(&self) -> Option<GcObj> {
+        if self.is_object() {
+            unsafe {
+                let raw = self.as_raw_ptr_unchecked() as *mut Object;
+                let non_null = NonNull::new(raw)?;
+                Some(GcObj::from_non_null(non_null))
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -286,14 +315,12 @@ impl Value {
 // This is where the *magic* (i.e. horribly unsafe code) is.
 impl Value {
     /// View the packed bits as a raw pointer. Nothing is checked, not even that
-    /// the [`Tag`] indicates this should be used as pointer.
+    /// the [`Tag`] indicates this should be used as pointer. This has no
+    /// guarantees here beyond what you'd expect of any `*mut` pointer.
     ///
-    /// # Safety
-    ///
-    /// All safety consideration for using this must be made by the caller.
-    /// Nothing is guaranteed.
-    #[allow(unused)]
-    const unsafe fn as_raw_ptr_unchecked<T>(&self) -> *mut T {
+    /// Note that this is _not_ really a pointer to a `u8`, I just need to give
+    /// it something with a size so the compiler's happy here.
+    const unsafe fn as_raw_ptr_unchecked(&self) -> *mut u8 {
         let bits: usize;
 
         #[cfg(target_arch = "x86_64")]
@@ -365,8 +392,8 @@ impl PartialEq for Value {
         // comparing payloads.
         if self.is_float() && other.is_float() {
             self.as_float() == other.as_float()
-        } else if self.is_any_gc() && other.is_any_gc() {
-            unimplemented!("gc types don't have polymorphic equality yet")
+        } else if self.is_object() && other.is_object() {
+            self.as_object() == other.as_object()
         } else {
             self.0 == other.0
         }
@@ -387,8 +414,10 @@ impl std::fmt::Debug for Value {
             write!(f, "{}", n)
         } else if let Some(i) = self.as_int() {
             write!(f, "{}", i)
+        } else if let Some(obj) = self.as_object() {
+            write!(f, "{}", obj)
         } else {
-            write!(f, "<ptr: {:x}>", self.0)
+            write!(f, "<unknown: {:x}>", self.0)
         }
     }
 }
@@ -406,7 +435,7 @@ enum Tag {
     Int = 0x0004_0000_0000_0000,
     _Reserved0 = 0x0005_0000_0000_0000,
     _Reserved1 = 0x0006_0000_0000_0000,
-    GcPtr = 0x0007_0000_0000_0000,
+    Object = 0x0007_0000_0000_0000,
 }
 
 #[cfg(test)]
