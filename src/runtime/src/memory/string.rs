@@ -3,7 +3,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use super::{class::Class, object::Tag, InitFrom, Object};
+use super::{class::Class, InitFrom, Object};
 
 #[repr(C, align(8))]
 pub struct String {
@@ -11,7 +11,8 @@ pub struct String {
     base: Object,
 
     /// The array that we overflow to store our string, since `String` is
-    /// actually a DST in disguise.
+    /// actually a DST in disguise. This is actually the start of an array
+    /// that's much longer which can be calculated with [`Self::len`].
     ///
     /// This one byte serves two purposes:
     ///
@@ -30,9 +31,7 @@ impl Debug for String {
     }
 }
 
-impl Class for String {
-    const TAG: Tag = Tag::String;
-}
+impl Class for String {}
 
 impl InitFrom<&str> for String {
     fn size(arg: &&str) -> usize {
@@ -43,8 +42,13 @@ impl InitFrom<&str> for String {
         let dst = addr_of_mut!((*ptr).data) as _;
         let src = args.as_ptr();
 
+        // SAFETY: We know it'll fit from the requirements of InitFrom::init. We
+        //         know they don't overlap because the non-object fields are
+        //         uninitialized.
         std::ptr::copy_nonoverlapping(src, dst, args.len());
 
+        // Our strings know their lengths, but also are null-terminated so we
+        // can use them as C-strings. See the note on the `data` field.
         *dst.offset(args.len() as _) = b'\0';
     }
 }
@@ -55,13 +59,16 @@ impl InitFrom<(&str, &str)> for String {
     }
 
     unsafe fn init(ptr: *mut Self, (a, b): (&str, &str)) {
+        // SAFETY: See the notes on the InitFrom<&str>::init impl for some of
+        //         the safety arguments, since these are pretty similar.
+
         // copy first string
         let dst = addr_of_mut!((*ptr).data) as _;
         let src = a.as_ptr();
         std::ptr::copy_nonoverlapping(src, dst, a.len());
 
         // copy second string
-        let dst = dst.offset(a.len() as _);
+        let dst = dst.offset(a.len() as _); // move forward by a.len()
         let src = b.as_ptr();
         std::ptr::copy_nonoverlapping(src, dst, b.len());
 
@@ -84,11 +91,15 @@ impl String {
 
     /// View the underlying UTF-8 bytes of the string as a slice.
     pub fn as_bytes(&self) -> &[u8] {
+        // SAFETY: Doing this is exactly what we created the `data` for. See the
+        //         note there too.
         unsafe { std::slice::from_raw_parts(self.data.as_ptr(), self.len()) }
     }
 
     /// View this String object's contents as a [`str`].
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
+        // SAFETY: We know the bytes are UTF-8 because all init methods for
+        //         string check.
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
     }
 }

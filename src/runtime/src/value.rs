@@ -91,9 +91,13 @@ impl Value {
     pub const MAX_NAT: u64 = 281_474_976_710_655u64;
 
     /// The largest valid (signed) integer value that can be stored inline.
+    ///
+    /// This is the largest 48-bit int.
     pub const MAX_INT: i64 = 140_737_488_355_327i64;
 
     /// The smallest valid (signed) integer value that can be stored inline.
+    ///
+    /// This is the smallest 48-bit int.
     pub const MIN_INT: i64 = -140_737_488_355_328i64;
 
     /// Do the bits of this value represent some other value packed inside a
@@ -426,6 +430,14 @@ impl std::fmt::Debug for Value {
 ///
 /// Note that there isn't a tag for floating point values because floats are
 /// assumed for any non-NaN (and some NaN) values.
+///
+/// These tags must all fit in the 3 bits between the bits which signal a NaN
+/// and the 48 bits we use for our payloads, which is why we can only have 8
+/// types tagged this way.
+///
+/// If we need more later, we can merge types smaller than 48 bits (like Bool,
+/// Unit, Char) to a single 'Small' tag and use the bits in the third byte
+/// instead of the second to further differentiate.
 #[repr(u64)]
 enum Tag {
     Unit = 0x0000_0000_0000_0000,
