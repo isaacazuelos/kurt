@@ -45,7 +45,10 @@
 
 use std::ptr::NonNull;
 
-use crate::memory::{GcObj, Object};
+use crate::memory::{
+    trace::{Trace, WorkList},
+    Gc, Object,
+};
 
 /// A value which is either stored inline or a pointer to a garbage collected
 /// [`Managed`] value.
@@ -197,7 +200,7 @@ impl Value {
 
     /// Store a [`Gc`] pointer to any object as a [`Value`].
     #[inline]
-    pub fn object(gc: GcObj) -> Value {
+    pub fn object(gc: Gc) -> Value {
         let bits: u64 = unsafe { std::mem::transmute(gc) };
 
         Value(
@@ -301,12 +304,12 @@ impl Value {
     }
 
     /// View this value as a reference to an [`Object`].
-    pub fn as_object(&self) -> Option<GcObj> {
+    pub fn as_object(&self) -> Option<Gc> {
         if self.is_object() {
             unsafe {
                 let raw = self.as_raw_ptr_unchecked() as *mut Object;
                 let non_null = NonNull::new(raw)?;
-                Some(GcObj::from_non_null(non_null))
+                Some(Gc::from_non_null(non_null))
             }
         } else {
             None
@@ -379,6 +382,14 @@ impl Value {
     #[inline(always)]
     const unsafe fn bits_to_ptr_aarch64(bits: usize) -> usize {
         bits & 0x0000_FFFF_FFFF_FFFF
+    }
+}
+
+impl Trace for Value {
+    fn enqueue_gc_references(&self, worklist: &mut WorkList) {
+        if let Some(ptr) = self.as_object() {
+            worklist.enqueue(ptr);
+        }
     }
 }
 

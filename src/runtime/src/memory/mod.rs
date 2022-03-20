@@ -17,14 +17,16 @@
 use std::{alloc::Layout, ptr::NonNull};
 
 mod class;
+mod collector;
 mod gc;
 mod object;
 
 pub mod string;
+pub mod trace;
 
 use crate::{memory::class::Class, Runtime};
 
-pub use self::gc::GcObj;
+pub use self::gc::Gc;
 
 pub(crate) use self::object::Object;
 
@@ -76,7 +78,7 @@ impl Runtime {
     /// Allocate a new [`Object`] and initialize it using it's [`Default`]
     /// instance.
     #[allow(dead_code)]
-    pub(crate) fn make<C>(&mut self) -> GcObj
+    pub(crate) fn make<C>(&mut self) -> Gc
     where
         C: Class + Default,
     {
@@ -84,7 +86,7 @@ impl Runtime {
     }
 
     /// Allocate a new [`Object`], initializing it from the given argument.
-    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> GcObj
+    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> Gc
     where
         C: Class + InitFrom<A>,
     {
@@ -107,7 +109,12 @@ impl Runtime {
             let ptr = NonNull::new_unchecked(raw);
 
             // SAFETY: We know it's initialized because we just initialized it.
-            GcObj::from_non_null(ptr)
+            let gc = Gc::from_non_null(ptr);
+
+            //
+            self.register_gc_ptr(gc);
+
+            gc
         }
     }
 
@@ -125,13 +132,32 @@ impl Runtime {
     ///
     /// # Safety
     ///
-    /// This memory isn't tracked in any way, so it will leak. The caller is
-    /// responsible for ensuring it is freed appropriately.
-    ///
     /// The pointer returned satisfies the layout, is not null, but is not
     /// initialized either.
+    ///
+    /// This memory isn't tracked in any way, and it will leak.
+    ///
+    /// If the object is to be managed by the collector, the caller is
+    /// responsible for calling [`register_gc_ptr`][crate::memory::collector]
+    /// after the object is initialized into a full-fledged [`Gc`] pointer.
+    ///
+    /// Otherwise it's the caller's responsibility to ensure it is freed
+    /// appropriately.
     unsafe fn allocate(&mut self, layout: Layout) -> *mut Object {
-        // Just leaks for now.
+        self.collect_garbage();
+
         std::alloc::alloc(layout) as _
+    }
+
+    /// Deallocate the memory used by a GC pointer.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must not be reachable. Good luck!
+    pub(crate) unsafe fn deallocate(&mut self, gc: Gc) {
+        let layout =
+            Layout::from_size_align_unchecked(gc.deref().size(), Object::ALIGN);
+        let ptr = std::mem::transmute(gc);
+        std::alloc::dealloc(ptr, layout)
     }
 }

@@ -14,7 +14,7 @@ use compiler::{
 };
 
 use crate::{
-    memory::{string::String, GcObj},
+    memory::{string::String, Gc},
     module::Module,
     value::Value,
 };
@@ -31,9 +31,16 @@ pub enum Exit {
 /// A struct that manages an instance of the language runtime.
 #[derive(Debug, Default)]
 pub struct Runtime {
+    // Loaded code
     main: Module, // TODO: make this a vec with indexes that are linked.
+
+    // VM
     pc: Address,
     stack: Vec<Value>,
+
+    // Heap
+    heap_head: Option<Gc>,
+    interned_constants: Vec<Gc>,
 }
 
 impl Runtime {
@@ -117,7 +124,8 @@ impl Runtime {
             Constant::Number(n) => Value::nat(*n).ok_or(Error::NumberTooBig),
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {
-                let string: GcObj = self.make_from::<String, _>(s.as_str());
+                let string: Gc = self.make_from::<String, _>(s.as_str());
+                self.interned_constants.push(string);
                 Ok(Value::object(string))
             }
         }

@@ -3,7 +3,11 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use super::{class::Class, InitFrom, Object};
+use crate::memory::{
+    class::Class,
+    trace::{Trace, WorkList},
+    InitFrom, Object,
+};
 
 #[repr(C, align(8))]
 pub struct String {
@@ -33,6 +37,12 @@ impl Debug for String {
 
 impl Class for String {}
 
+impl Trace for String {
+    fn enqueue_gc_references(&self, _: &mut WorkList) {
+        // strings have no references to other objects
+    }
+}
+
 impl InitFrom<&str> for String {
     fn size(arg: &&str) -> usize {
         arg.len()
@@ -49,7 +59,7 @@ impl InitFrom<&str> for String {
 
         // Our strings know their lengths, but also are null-terminated so we
         // can use them as C-strings. See the note on the `data` field.
-        *dst.offset(args.len() as _) = b'\0';
+        *dst.add(args.len()) = b'\0';
     }
 }
 
@@ -68,12 +78,12 @@ impl InitFrom<(&str, &str)> for String {
         std::ptr::copy_nonoverlapping(src, dst, a.len());
 
         // copy second string
-        let dst = dst.offset(a.len() as _); // move forward by a.len()
+        let dst = dst.add(a.len());
         let src = b.as_ptr();
         std::ptr::copy_nonoverlapping(src, dst, b.len());
 
         // write null byte
-        *dst.offset((a.len() + b.len()) as _) = b'\0';
+        *dst.add(a.len() + b.len()) = b'\0';
     }
 }
 

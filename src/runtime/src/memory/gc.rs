@@ -1,22 +1,18 @@
 //! Pointers to values managed by the garbage collector.
-//!
-//! There isn't a garbage collector yet, so these are more like pointers to
-//! leaks. Hopefully this changes.
 
 use std::any::TypeId;
 use std::{fmt, ptr::NonNull};
 
-use super::string::String;
-use super::Object;
+use crate::memory::{string::String, Object};
 
 /// A type-erased pointer to a garbage collected value.
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct GcObj {
+pub struct Gc {
     ptr: NonNull<Object>,
 }
 
-impl GcObj {
+impl Gc {
     /// Crate a new [`GcObj`] from a pointer. This should only be called by the
     /// heap after initializing a value.
     ///
@@ -26,8 +22,8 @@ impl GcObj {
     ///
     /// This does nothing to manage the pointer, which is why it should only be
     /// called by the heap when allocating.
-    pub(crate) unsafe fn from_non_null(ptr: NonNull<Object>) -> GcObj {
-        GcObj { ptr }
+    pub(crate) unsafe fn from_non_null(ptr: NonNull<Object>) -> Gc {
+        Gc { ptr }
     }
 
     /// View the pointer as a regular Rust reference to an [`Object`].
@@ -46,15 +42,15 @@ impl GcObj {
     }
 }
 
-impl Clone for GcObj {
+impl Clone for Gc {
     fn clone(&self) -> Self {
-        GcObj { ptr: self.ptr }
+        Gc { ptr: self.ptr }
     }
 }
 
-impl Copy for GcObj {}
+impl Copy for Gc {}
 
-impl PartialEq for GcObj {
+impl PartialEq for Gc {
     fn eq(&self, other: &Self) -> bool {
         let lhs = self.deref();
         let rhs = other.deref();
@@ -63,7 +59,7 @@ impl PartialEq for GcObj {
     }
 }
 
-impl fmt::Display for GcObj {
+impl fmt::Display for Gc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let obj = self.deref();
 

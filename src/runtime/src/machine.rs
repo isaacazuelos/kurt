@@ -9,6 +9,7 @@ impl Runtime {
     pub fn run(&mut self) -> Result<Exit> {
         loop {
             let op = self.fetch()?;
+
             match op {
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Nop => continue,

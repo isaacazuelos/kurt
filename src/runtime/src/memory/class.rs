@@ -12,7 +12,7 @@
 
 use std::{any::TypeId, fmt::Debug};
 
-use super::Object;
+use crate::memory::{trace::Trace, Object};
 
 /// Each of our runtime types must implement this trait to allow for proper
 /// resource management by the runtime.
@@ -34,7 +34,7 @@ use super::Object;
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub(crate) trait Class: 'static + Debug + Sized {
+pub(crate) trait Class: 'static + Debug + Sized + Trace {
     /// View our value as an [`Object`].
     fn upcast(&self) -> &Object {
         unsafe { std::mem::transmute(self) }
