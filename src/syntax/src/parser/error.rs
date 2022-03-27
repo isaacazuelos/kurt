@@ -2,14 +2,15 @@
 
 use std::{error, fmt};
 
-use crate::lexer;
+use crate::lexer::{self, TokenKind as Kind};
 
 /// Lexical errors with all the contextual information needed present it nicely.
 #[derive(Debug)]
 pub enum Error {
     NotExpression,
-    EOFExpectingExpression,
-    EOFExpectingStatement,
+    EOFExpecting(&'static str),
+
+    Unexpected { wanted: Kind, found: Kind },
 
     UnusedInput,
     LexerError(lexer::Error),
@@ -24,11 +25,17 @@ impl fmt::Display for Error {
         use Error::*;
         match self {
             NotExpression => write!(f, "Not the start of an expression"),
-            EOFExpectingExpression => {
-                write!(f, "Hit end of input when expecting an expression")
+            EOFExpecting(expected) => {
+                write!(f, "Hit end of input when expecting {}", expected)
             }
-            EOFExpectingStatement => {
-                write!(f, "Hit end of input when expecting a statement")
+
+            Unexpected { wanted, found } => {
+                write!(
+                    f,
+                    "Expected a {} but found a {}",
+                    wanted.name(),
+                    found.name()
+                )
             }
 
             UnusedInput => write!(f, "there was unused input when parsing"),

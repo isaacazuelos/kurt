@@ -27,9 +27,15 @@ impl Compiler {
     /// Compile a statement.
     fn statement(&mut self, syntax: &ast::Statement) -> Result<()> {
         match syntax {
+            ast::Statement::Binding(_) => self.binding(),
             ast::Statement::Empty(_) => self.empty_statement(),
             ast::Statement::Expression(e) => self.expression(e),
         }
+    }
+
+    /// Compile a binding statement, something like `let a = b` or `var x = y`.
+    fn binding(&mut self) -> Result<()> {
+        todo!()
     }
 
     /// Compiles an empty statement
@@ -42,8 +48,13 @@ impl Compiler {
     /// Compile an expression
     fn expression(&mut self, syntax: &ast::Expression) -> Result<()> {
         match syntax {
+            ast::Expression::Identifier(i) => self.identifier(i),
             ast::Expression::Literal(l) => self.literal(l),
         }
+    }
+
+    fn identifier(&mut self, _syntax: &ast::Identifier) -> Result<()> {
+        todo!()
     }
 
     /// Compile a literal

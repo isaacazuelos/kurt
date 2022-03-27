@@ -75,11 +75,14 @@ pub enum Kind {
     /// A String literal like `"Hello World!\n"`.
     String,
 
-    /// Things like `foo` are identifies.
+    /// Things like `foo` are identifies, names for things.
     Identifier,
-    /// Things like `+`, `=` or `>>=` are operators.
+    /// Things like `+`, `==` or `>>=` are operators. Notably, a single `=` is
+    /// not.
     Operator,
 
+    /// `->` or `→`
+    Arrow,
     /// `@`
     At,
     /// A single backtick, i.e. a _Grave Accent_
@@ -88,10 +91,10 @@ pub enum Kind {
     Colon,
     /// `,`
     Comma,
-    /// `->` or `→`
-    Arrow,
     /// `=>` or `⇒`
     DoubleArrow,
+    ///`=`
+    Equals,
     /// `;`
     Semicolon,
 
@@ -110,6 +113,7 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// The user-facing name of this kind of token.
     pub fn name(&self) -> &str {
         use self::Comment::*;
         use Delimiter::*;
@@ -130,12 +134,13 @@ impl Kind {
             String => "string",
             Identifier => "identifier",
             Operator => "operator",
+            Arrow => "arrow (->)",
             At => "at sign (@)",
             Backtick => "backtick (`)",
             Colon => "colon (:)",
             Comma => "comma (,)",
-            Arrow => "arrow (->)",
             DoubleArrow => "double arrow (=>)",
+            Equals => "equals sign (=)",
             Semicolon => "semicolon (;)",
             Dot => "period (.)",
             Range => "range (..)",

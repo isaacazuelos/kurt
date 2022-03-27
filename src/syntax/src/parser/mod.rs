@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
     /// assert!(module.is_ok());
     ///
     /// let mut parser = Parser::new("not okay :(").unwrap();
-    /// let statement = parser.parse::<ast::Statement>();
+    /// let statement = parser.parse::<ast::Module>();
     /// assert!(statement.is_err());
     /// ```
     pub fn parse<T: Parse<'a>>(&mut self) -> Result<T, Error> {

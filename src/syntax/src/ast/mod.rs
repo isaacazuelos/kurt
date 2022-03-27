@@ -2,7 +2,9 @@
 
 use diagnostic::Span;
 
+mod binding;
 mod expression;
+mod ident;
 mod literal;
 mod module;
 mod statement;
@@ -10,7 +12,9 @@ mod statement;
 use crate::parser::{Error, Parser};
 
 pub use self::{
+    binding::Binding,
     expression::Expression,
+    ident::Identifier,
     literal::{Kind as LiteralKind, Literal},
     module::Module,
     statement::Statement,

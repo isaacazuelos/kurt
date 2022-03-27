@@ -16,6 +16,7 @@ use super::*;
 pub enum Statement<'a> {
     Empty(Span),
     Expression(Expression<'a>),
+    Binding(Binding<'a>),
 }
 
 impl<'a> Syntax for Statement<'a> {
@@ -23,6 +24,7 @@ impl<'a> Syntax for Statement<'a> {
         match self {
             Statement::Empty(s) => *s,
             Statement::Expression(s) => s.span(),
+            Statement::Binding(b) => b.span(),
         }
     }
 }
@@ -34,7 +36,7 @@ impl<'a> Parse<'a> for Statement<'a> {
                 Ok(Statement::Empty(parser.next_span().unwrap()))
             }
             Some(_) => Ok(Statement::Expression(parser.parse()?)),
-            None => Err(Error::EOFExpectingStatement),
+            None => Err(Error::EOFExpecting("a statement")),
         }
     }
 }

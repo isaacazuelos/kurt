@@ -114,6 +114,7 @@ impl Lexer<'_> {
             "" => unreachable!(
                 "Lexer::operator should only be called after an operator start"
             ),
+            "=" => Ok(TokenKind::Equals),
             "->" => Ok(TokenKind::Arrow),
             "=>" => Ok(TokenKind::DoubleArrow),
             _ => Ok(TokenKind::Operator),

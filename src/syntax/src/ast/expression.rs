@@ -2,6 +2,8 @@
 
 use super::*;
 
+use crate::lexer::TokenKind;
+
 /// This type is a syntax tree enum, like those found in the [`syn`][syn-crate]
 /// crate. This means it's an `enum` to dispatch on different types of
 /// expressions, each of which is their own actual struct.
@@ -10,11 +12,13 @@ use super::*;
 #[derive(Debug)]
 pub enum Expression<'a> {
     Literal(Literal<'a>),
+    Identifier(Identifier<'a>),
 }
 
 impl<'a> Syntax for Expression<'a> {
     fn span(&self) -> Span {
         match self {
+            Expression::Identifier(i) => i.span(),
             Expression::Literal(e) => e.span(),
         }
     }
@@ -25,12 +29,15 @@ impl<'a> Parse<'a> for Expression<'a> {
         parser.increase_depth();
 
         let e = match parser.peek() {
+            Some(TokenKind::Identifier) => {
+                parser.parse().map(Expression::Identifier)
+            }
             Some(k) if k.is_literal() => {
-                Ok(Expression::Literal(Literal::parse_with(parser)?))
+                parser.parse().map(Expression::Literal)
             }
 
             Some(_) => Err(Error::NotExpression),
-            None => Err(Error::EOFExpectingExpression),
+            None => Err(Error::EOFExpecting("start of an expression")),
         };
         parser.decrease_depth();
 
@@ -45,9 +52,12 @@ mod parser_tests {
 
     #[test]
     fn parse_expression_literal() {
-        let mut parser = Parser::new("0 ").unwrap();
+        let mut parser = Parser::new("0 x").unwrap();
         let literal = parser.parse::<Expression>();
         assert!(matches!(literal, Ok(Expression::Literal(_))));
+
+        let ident = parser.parse::<Expression>();
+        assert!(matches!(ident, Ok(Expression::Identifier(_))));
         assert!(parser.is_empty());
     }
 }
