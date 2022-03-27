@@ -1,5 +1,7 @@
 //! Identifiers
 
+// TODO: UTF-8 Normalization?
+
 use crate::lexer::{Token, TokenKind};
 
 use super::*;
@@ -7,6 +9,13 @@ use super::*;
 #[derive(Debug)]
 pub struct Identifier<'a> {
     token: Token<'a>,
+}
+
+impl<'a> Identifier<'a> {
+    /// View the identifier as a `&str`.
+    pub fn as_str(&'a self) -> &'a str {
+        self.token.body()
+    }
 }
 
 impl<'a> Syntax for Identifier<'a> {

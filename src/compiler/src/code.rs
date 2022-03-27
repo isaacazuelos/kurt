@@ -36,6 +36,10 @@ impl Code {
         let span = self.spans.last().cloned().unwrap_or_default();
         self.emit(op, span)
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.opcodes.is_empty()
+    }
 }
 
 impl Indexable<Op> for Code {

@@ -1,6 +1,6 @@
 //! The virtual machine methods for our runtime.
 
-use compiler::{constant::Constant, index::Index, opcode::Op};
+use compiler::{constant::Constant, index::Index, local::Local, opcode::Op};
 
 use crate::{error::Result, value::Value, Exit, Runtime};
 
@@ -20,6 +20,7 @@ impl Runtime {
                 Op::False => self.stack.push(Value::FALSE),
                 Op::Unit => self.stack.push(Value::UNIT),
                 Op::LoadConstant(i) => self.load_constant(i)?,
+                Op::LoadLocal(i) => self.load_local(i)?,
             }
         }
     }
@@ -38,5 +39,10 @@ impl Runtime {
         let value = self.current_module()?.constant(index)?;
         self.stack.push(value);
         Ok(())
+    }
+
+    #[inline]
+    fn load_local(&mut self, _index: Index<Local>) -> Result<()> {
+        todo!()
     }
 }

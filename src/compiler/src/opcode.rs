@@ -1,6 +1,6 @@
 //! The instructions our VM will use.
 
-use crate::{constant::Constant, index::Index};
+use crate::{constant::Constant, index::Index, local::Local};
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +26,9 @@ pub enum Op {
     /// Load the constant at the specified constant index to the top of the
     /// stack. The currently executing module's constant pool is used.
     LoadConstant(Index<Constant>),
+
+    /// Load a local variable.
+    LoadLocal(Index<Local>),
 }
 
 #[cfg(test)]

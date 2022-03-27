@@ -11,6 +11,9 @@ pub enum Error {
     ParseInt(std::num::ParseIntError),
     ParseFloat(std::num::ParseFloatError),
 
+    MutationNotSupported,
+    UndefinedLocal,
+
     TooManyConstants,
     CodeTooLong,
 }
@@ -23,6 +26,7 @@ impl fmt::Display for Error {
             ParseChar(e) => write!(f, "cannot parse character literal: {}", e),
             ParseInt(e) => write!(f, "cannot parse integer literal: {}", e),
             ParseFloat(e) => write!(f, "cannot parse float literal: {}", e),
+
             e => write!(f, "error: {:?}", e),
         }
     }

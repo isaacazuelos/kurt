@@ -12,11 +12,13 @@
 use diagnostic::Span;
 use syntax::ast;
 
+pub(crate) mod binding;
+
+mod visitor;
+
 use crate::{
     constant::Pool, error::Result, opcode::Op, prototype::Prototype, Module,
 };
-
-mod rules;
 
 /// A compiler turns source code into a module the runtime can work with. It
 /// keeps track of all the state used when compiling a module.
@@ -97,8 +99,7 @@ impl Compiler {
         // The call to build injected a `Op::Halt` that the program counter is
         // on right now. We need to account for that, so we'll put in a no-op to
         // keep the program counter aligned before the next _real_ instruction.
-        self.prototypes[0].emit_synthetic(Op::Nop)?;
-
+        //
         // If the module is being restarted, the stack has either zero or one
         // values on it.
         //
@@ -108,7 +109,10 @@ impl Compiler {
         //
         // We don't need to worry about which, since [`Op::Pop`] is a no-op on
         // an empty stack.
-        self.prototypes[0].emit_synthetic(Op::Pop)?;
+        if !self.prototypes[0].is_empty() {
+            self.prototypes[0].emit_synthetic(Op::Nop)?;
+            self.prototypes[0].emit_synthetic(Op::Pop)?;
+        }
 
         // So we're good to just keep compiling statements.
         self.module(syntax)?;

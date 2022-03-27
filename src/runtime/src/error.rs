@@ -8,11 +8,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     Syntax(syntax::Error),
     Compiler(compiler::Error),
+
     NumberTooBig,
     EndOfCode,
-    PrototypeIndexOutOfRange,
-    OpIndexOutOfRange,
+
     ConstantIndexOutOfRange,
+    LocalIndexOutOfRange,
+    OpIndexOutOfRange,
+    PrototypeIndexOutOfRange,
 }
 
 impl fmt::Display for Error {
@@ -21,14 +24,17 @@ impl fmt::Display for Error {
         match self {
             Syntax(e) => write!(f, "syntax error: {}", e),
             Compiler(e) => write!(f, "compiler error: {}", e),
+
             NumberTooBig => write!(f, "number too big"),
             EndOfCode => write!(f, "code ended unexpectedly"),
-            PrototypeIndexOutOfRange => {
-                write!(f, "function prototype index is out of range")
-            }
-            OpIndexOutOfRange => write!(f, "op code index is out of range"),
+
             ConstantIndexOutOfRange => {
                 write!(f, "a constant index was out of range")
+            }
+            LocalIndexOutOfRange => write!(f, "local is out of range"),
+            OpIndexOutOfRange => write!(f, "op code index is out of range"),
+            PrototypeIndexOutOfRange => {
+                write!(f, "function prototype index is out of range")
             }
         }
     }

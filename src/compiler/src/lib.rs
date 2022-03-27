@@ -7,6 +7,7 @@ mod module;
 
 pub mod constant;
 pub mod index;
+pub mod local;
 pub mod opcode;
 pub mod prototype;
 

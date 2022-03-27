@@ -1,6 +1,6 @@
 //! Statements
 
-use crate::lexer::TokenKind;
+use crate::lexer::{Reserved, TokenKind};
 
 use super::*;
 
@@ -37,6 +37,10 @@ impl<'a> Parse<'a> for Statement<'a> {
             Some(TokenKind::Semicolon) => {
                 Ok(Statement::Empty(parser.next_span().unwrap()))
             }
+            Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {
+                Ok(Statement::Binding(parser.parse()?))
+            }
+
             Some(_) => Ok(Statement::Expression(parser.parse()?)),
             None => Err(Error::EOFExpecting("a statement")),
         }
@@ -64,6 +68,14 @@ mod parser_tests {
         let mut parser = Parser::new(";").unwrap();
         let literal = parser.parse::<Statement>();
         assert!(matches!(literal, Ok(Statement::Empty(_))));
+        assert!(!parser.is_empty());
+    }
+
+    #[test]
+    fn parse_binding() {
+        let mut parser = Parser::new("let x = 1;").unwrap();
+        let literal = parser.parse::<Statement>();
+        assert!(matches!(literal, Ok(Statement::Binding(_))));
         assert!(!parser.is_empty());
     }
 

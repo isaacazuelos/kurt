@@ -44,6 +44,10 @@ impl Prototype {
     pub(crate) fn emit_synthetic(&mut self, op: Op) -> Result<()> {
         self.code.emit_synthetic(op)
     }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.code.is_empty()
+    }
 }
 
 impl Indexable<Op> for Prototype {

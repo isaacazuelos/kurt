@@ -1,8 +1,13 @@
-//! The rules for walking the syntax.
+//! The rules for walking a syntax tree.
 
 use syntax::{ast, Syntax};
 
-use crate::{constant::Constant, error::Result, opcode::Op, Compiler};
+use crate::{
+    constant::Constant,
+    error::{Error, Result},
+    opcode::Op,
+    Compiler,
+};
 
 impl Compiler {
     /// Compile a module.
@@ -27,15 +32,25 @@ impl Compiler {
     /// Compile a statement.
     fn statement(&mut self, syntax: &ast::Statement) -> Result<()> {
         match syntax {
-            ast::Statement::Binding(_) => self.binding(),
+            ast::Statement::Binding(b) => self.binding(b),
             ast::Statement::Empty(_) => self.empty_statement(),
             ast::Statement::Expression(e) => self.expression(e),
         }
     }
 
     /// Compile a binding statement, something like `let a = b` or `var x = y`.
-    fn binding(&mut self) -> Result<()> {
-        todo!()
+    fn binding(&mut self, syntax: &ast::Binding) -> Result<()> {
+        if syntax.is_var() {
+            return Err(Error::MutationNotSupported);
+        }
+
+        self.expression(syntax.body())?;
+        self.bind_local(syntax.name());
+
+        // We're keeping this slot on the stack.
+        self.emit(Op::Unit, syntax.span())?;
+
+        Ok(())
     }
 
     /// Compiles an empty statement
@@ -48,13 +63,23 @@ impl Compiler {
     /// Compile an expression
     fn expression(&mut self, syntax: &ast::Expression) -> Result<()> {
         match syntax {
-            ast::Expression::Identifier(i) => self.identifier(i),
+            ast::Expression::Identifier(i) => self.identifier_expression(i),
             ast::Expression::Literal(l) => self.literal(l),
         }
     }
 
-    fn identifier(&mut self, _syntax: &ast::Identifier) -> Result<()> {
-        todo!()
+    /// Compile a identifier used as an expression.
+    ///
+    /// For now we only have local variables.
+    fn identifier_expression(
+        &mut self,
+        syntax: &ast::Identifier,
+    ) -> Result<()> {
+        if let Some(index) = self.lookup_local(syntax) {
+            self.emit(Op::LoadLocal(index), syntax.span())
+        } else {
+            Err(Error::UndefinedLocal)
+        }
     }
 
     /// Compile a literal
