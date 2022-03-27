@@ -1,33 +1,37 @@
-use syntax::{ast, parser::Parser};
+use syntax::{ast, Parse};
 
 #[test]
 fn literal() {
-    let mut parser = Parser::new("123").unwrap();
-    let literal: Result<ast::Literal, _> = parser.parse();
-    assert!(literal.is_ok());
+    let syntax = ast::Literal::parse("123");
+    assert!(syntax.is_ok());
+}
+
+#[test]
+fn binding() {
+    let syntax = ast::Binding::parse("let x = 0");
+    assert!(syntax.is_ok());
+
+    let syntax = ast::Binding::parse("var x = 0");
+    assert!(syntax.is_ok());
 }
 
 #[test]
 fn empty_module() {
-    let mut parser = Parser::new("").unwrap();
-    let literal: Result<ast::Module, _> = parser.parse();
-    assert!(literal.is_ok());
+    let syntax = ast::Module::parse("");
+    assert!(syntax.is_ok());
 }
 
 #[test]
 fn empty_statements() {
-    let mut parser = Parser::new(";;;;").unwrap();
-    let literal: Result<ast::Module, _> = parser.parse();
-    assert!(literal.is_ok());
+    let syntax = ast::Module::parse(";;;;");
+    assert!(syntax.is_ok());
 }
 
 #[test]
 fn module_trailing_semicolon_optional() {
-    let mut parser = Parser::new("0;").unwrap();
-    let literal: Result<ast::Module, _> = parser.parse();
-    assert!(literal.is_ok());
+    let syntax = ast::Module::parse("0;");
+    assert!(syntax.is_ok());
 
-    let mut parser = Parser::new("0").unwrap();
-    let literal: Result<ast::Module, _> = parser.parse();
-    assert!(literal.is_ok());
+    let syntax = ast::Module::parse("0");
+    assert!(syntax.is_ok());
 }

@@ -10,6 +10,8 @@ pub struct Identifier<'a> {
 }
 
 impl<'a> Syntax for Identifier<'a> {
+    const NAME: &'static str = "an identifier";
+
     fn span(&self) -> Span {
         self.token.span()
     }
@@ -22,7 +24,7 @@ impl<'a> Parse<'a> for Identifier<'a> {
         match token.kind() {
             TokenKind::Identifier => Ok(Identifier { token }),
             found => Err(Error::Unexpected {
-                wanted: TokenKind::Identifier,
+                wanted: Self::NAME,
                 found,
             }),
         }

@@ -20,6 +20,8 @@ pub enum Statement<'a> {
 }
 
 impl<'a> Syntax for Statement<'a> {
+    const NAME: &'static str = "a statement";
+
     fn span(&self) -> Span {
         match self {
             Statement::Empty(s) => *s,

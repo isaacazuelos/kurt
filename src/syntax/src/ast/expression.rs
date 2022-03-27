@@ -16,6 +16,8 @@ pub enum Expression<'a> {
 }
 
 impl<'a> Syntax for Expression<'a> {
+    const NAME: &'static str = "an expression";
+
     fn span(&self) -> Span {
         match self {
             Expression::Identifier(i) => i.span(),
@@ -32,13 +34,16 @@ impl<'a> Parse<'a> for Expression<'a> {
             Some(TokenKind::Identifier) => {
                 parser.parse().map(Expression::Identifier)
             }
+
             Some(k) if k.is_literal() => {
                 parser.parse().map(Expression::Literal)
             }
 
-            Some(_) => Err(Error::NotExpression),
+            Some(_) => Err(Error::NotStartOf("expression")),
+
             None => Err(Error::EOFExpecting("start of an expression")),
         };
+
         parser.decrease_depth();
 
         e

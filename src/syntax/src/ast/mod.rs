@@ -21,11 +21,22 @@ pub use self::{
 };
 
 pub trait Syntax: std::fmt::Debug {
+    /// A user-facing name for this piece of syntax.
+    ///
+    /// These should singular, and include the 'a' or 'an' at the start -- like
+    /// 'an expression' or 'a statement'.
+    const NAME: &'static str;
+
+    /// The [`Span`] in the original source code that this piece of syntax came
+    /// from.
     fn span(&self) -> Span;
 }
 
 pub trait Parse<'a>: Sized + Syntax {
     /// Consume the beginning of the input to parse the expected part of syntax.
+    ///
+    /// The input may not be empty afterwards, but the parser will have consumed
+    /// as much of the input as it can.
     fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error>;
 
     /// Parse the input to produce the expected syntax type.

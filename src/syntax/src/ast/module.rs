@@ -44,6 +44,8 @@ impl<'a> Module<'a> {
 }
 
 impl<'a> Syntax for Module<'a> {
+    const NAME: &'static str = "a module";
+
     fn span(&self) -> Span {
         if let Some(first) = self.statements.first() {
             first.span() + self.statements.last().unwrap().span()
@@ -61,10 +63,18 @@ impl<'a> Parse<'a> for Module<'a> {
         while !parser.is_empty() {
             statements.push(parser.parse()?);
 
-            if parser.is_empty() {
-                break;
-            } else if let Some(sep) = parser.consume(TokenKind::Semicolon) {
-                semicolons.push(sep.span);
+            match parser.peek() {
+                // If we see a semicolon, save it and continue
+                Some(t) if t == TokenKind::Semicolon => {
+                    let sep = parser.advance().unwrap();
+                    semicolons.push(sep.span);
+                }
+                // end of input is a valid end ot a module after a statement.
+                None => break,
+
+                // If it's not the end of input or a semicolon, whatever's at
+                // the end isn't part of the module.
+                Some(_) => break,
             }
         }
 
@@ -110,7 +120,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn parse_module_trailing() {
+    fn parse_module_trailing_semicolon() {
         let mut parser = Parser::new("0;").unwrap();
         let literal = parser.parse::<Module>();
         assert!(matches!(literal, Ok(ref m) if m.statements().len() == 1));
@@ -125,5 +135,17 @@ mod parser_tests {
         assert!(matches!(literal, Ok(ref m) if m.statements().len() == 3));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 3));
         assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_module_trailing() {
+        let mut parser = Parser::new("1 1").unwrap();
+        let literal = parser.parse::<Module>();
+        assert!(
+            matches!(literal, Ok(ref m) if m.statements().len() == 1),
+            "expected 1 statement, but got {:#?}",
+            literal
+        );
+        assert!(!parser.is_empty());
     }
 }

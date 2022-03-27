@@ -57,6 +57,8 @@ impl<'a> Literal<'a> {
 }
 
 impl<'a> Syntax for Literal<'a> {
+    const NAME: &'static str = "a value literal";
+
     fn span(&self) -> Span {
         self.span
     }

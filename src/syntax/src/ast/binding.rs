@@ -41,6 +41,8 @@ impl Binding<'_> {
 }
 
 impl Syntax for Binding<'_> {
+    const NAME: &'static str = "a `let` or `var` binding";
+
     fn span(&self) -> Span {
         self.keyword.span() + self.body.span()
     }
@@ -48,13 +50,29 @@ impl Syntax for Binding<'_> {
 
 impl<'a> Parse<'a> for Binding<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Binding<'a>, Error> {
-        // TODO: we should really do parallel compound error message types, and
-        //       handle the first token being wrong if we're doing this kind of
-        //       'enterable-at-sub-grammar' stuff.
+        let keyword = match parser.peek() {
+            Some(Kind::Reserved(Reserved::Let | Reserved::Var)) => {
+                let token = parser.advance().unwrap();
+                Ok(token)
+            }
+            Some(found) => Err(Error::Unexpected {
+                wanted: Binding::NAME,
+                found,
+            }),
+            None => Err(Error::EOFExpecting(Binding::NAME)),
+        }?;
 
-        let keyword = parser.advance().unwrap();
         let name = parser.parse()?;
-        let equals = parser.consume(Kind::Equals).unwrap();
+
+        let equals = match parser.peek() {
+            None => Err(Error::EOFExpecting(Kind::Equals.name())),
+            Some(Kind::Equals) => Ok(parser.advance().unwrap()),
+            Some(found) => Err(Error::Unexpected {
+                wanted: Kind::Equals.name(),
+                found,
+            }),
+        }?;
+
         let body = parser.parse()?;
 
         Ok(Binding {

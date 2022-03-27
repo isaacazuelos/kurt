@@ -64,7 +64,17 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Parse the input into syntax.
+    /// Consume input to produce the specified piece of [`Parse`]able
+    /// [`Syntax`][crate::Syntax].
+    ///
+    /// # Note
+    ///
+    /// Generally you'll want to use [`Parse::parse`] instead, as it ensures
+    /// that all input is consumed. This method is instead used for _making_
+    /// parsers.
+    ///
+    /// A lot of productions can be empty, so it's not unusual for calls to this
+    /// to return succeed but consume nothing.
     ///
     /// # Example
     ///
@@ -74,12 +84,25 @@ impl<'a> Parser<'a> {
     /// let module = parser.parse::<ast::Module>();
     /// assert!(module.is_ok());
     ///
-    /// let mut parser = Parser::new("not okay :(").unwrap();
-    /// let statement = parser.parse::<ast::Module>();
-    /// assert!(statement.is_err());
+    /// // Note that because we don't need to consume all input, you can get
+    /// // surprising results.
+    /// //
+    /// // This consumes the prefix of the input that's a valid module, in
+    /// // this case the the identifier `surprisingly`. The parser is left with
+    /// // just "okay".
+    ///
+    /// let mut parser = Parser::new("surprisingly okay").unwrap();
+    /// let module = parser.parse::<ast::Module>();
+    /// assert!(module.is_ok());
+    /// assert!(!parser.is_empty());
     /// ```
     pub fn parse<T: Parse<'a>>(&mut self) -> Result<T, Error> {
         T::parse_with(self)
+    }
+
+    /// Has the parser consumed all of the input?
+    pub fn is_empty(&self) -> bool {
+        self.cursor >= self.tokens.len()
     }
 }
 
@@ -119,11 +142,6 @@ impl<'a> Parser<'a> {
 
 // Parsing methods
 impl<'a> Parser<'a> {
-    /// Has the parser hit the end of the input?
-    pub(crate) fn is_empty(&self) -> bool {
-        self.cursor >= self.tokens.len()
-    }
-
     /// Returns the `TokenKind` of the next token, without consuming it.
     pub(crate) fn peek(&self) -> Option<TokenKind> {
         self.peek_nth(0)
@@ -152,17 +170,6 @@ impl<'a> Parser<'a> {
         self.cursor += 1;
         token
     }
-
-    /// Advance a token, if it's the specified reserved word.
-    ///
-    /// This returns `None` if there are no more tokens to consume, or the next
-    /// token isn't the expected type.
-    pub(crate) fn consume(&mut self, expected: TokenKind) -> Option<Token<'a>> {
-        match self.peek() {
-            Some(t) if t == expected => self.advance(),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -170,7 +177,6 @@ mod parser_tests {
     use diagnostic::{Caret, Span};
 
     use super::*;
-    use crate::lexer::TokenKind;
 
     #[test]
     fn is_empty() {
@@ -208,14 +214,5 @@ mod parser_tests {
         assert!(p.advance().is_some());
         assert!(p.is_empty());
         assert!(p.advance().is_none());
-    }
-
-    #[test]
-    fn consume() {
-        let mut p = Parser::new(". a").unwrap();
-        assert!(p.consume(TokenKind::Dot).is_some());
-        let before = p.cursor;
-        assert!(p.consume(TokenKind::Dot).is_none());
-        assert_eq!(before, p.cursor);
     }
 }
