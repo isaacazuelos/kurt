@@ -1,13 +1,15 @@
 //! The language runtime interface.
 
 mod address;
+mod call_stack;
 mod error;
 mod machine;
 mod memory;
 mod module;
+mod stack;
 mod value;
 
-use address::Address;
+use call_stack::{CallFrame, CallStack};
 use compiler::{
     self, constant::Constant, index::Indexable, opcode::Op,
     prototype::Prototype,
@@ -16,6 +18,7 @@ use compiler::{
 use crate::{
     memory::{string::String, Gc},
     module::Module,
+    stack::Stack,
     value::Value,
 };
 
@@ -35,8 +38,8 @@ pub struct Runtime {
     main: Module, // TODO: make this a vec with indexes that are linked.
 
     // VM
-    pc: Address,
-    stack: Vec<Value>,
+    stack: Stack,
+    call_stack: CallStack,
 
     // Heap
     heap_head: Option<Gc>,
@@ -58,12 +61,7 @@ impl Runtime {
     // A [`Display`][std::fmt::Display]-able view of the last result left on the
     // stack. This is useful for the `repl` and `eval` subcommands.
     pub fn last_result(&self) -> Value {
-        if let Some(last) = self.stack.last() {
-            // FIXME: This is almost certainly a bad idea for the GC.
-            *last
-        } else {
-            Value::UNIT
-        }
+        self.stack.last()
     }
 
     /// A helper for [`Runtime::eval`] but returning a [`Result`].
@@ -102,17 +100,27 @@ impl Runtime {
 
     /// The currently-executing prototype.
     fn current_prototype(&self) -> Result<&Prototype> {
-        let index = self.pc.prototype;
+        let index = self.current_frame().pc.prototype;
         self.current_module()?.prototype(index)
     }
 
     /// The currently-executing opcode.
     fn current_op(&self) -> Result<Op> {
-        let index = self.pc.instruction;
+        let index = self.current_frame().pc.instruction;
         self.current_prototype()?
             .get(index)
             .cloned()
             .ok_or(Error::OpIndexOutOfRange)
+    }
+
+    /// The current call frame.
+    fn current_frame(&self) -> &CallFrame {
+        self.call_stack.frame()
+    }
+
+    /// The current call frame.
+    fn current_frame_mut(&mut self) -> &mut CallFrame {
+        self.call_stack.frame_mut()
     }
 }
 

@@ -27,8 +27,11 @@ pub enum Op {
     /// stack. The currently executing module's constant pool is used.
     LoadConstant(Index<Constant>),
 
-    /// Load a local variable.
+    /// Load a local binding.
     LoadLocal(Index<Local>),
+
+    /// Define the top of the stack as a local.
+    DefineLocal,
 }
 
 #[cfg(test)]

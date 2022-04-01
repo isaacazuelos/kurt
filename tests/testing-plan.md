@@ -8,14 +8,14 @@ non-cargo test runner eventually for end-to-end testing.
 This `tests` directory is for tests of the binary produced by the `bin`
 directory. While we try to lean what `cargo test` can do for us, Rust currently
 doesn't have great end-to-end binary testing so we'll have to come up with
-something later. 
+something soon.
 
 Most rust files should have [unit tests][ut] at the bottom of the file. The test
 names should describe what's being tested.
 
 Anything public for a crate should have [documentation tests][dt] which show
 intended use, but like other functions there should be normal unit tests for
-other behaviour (failure states, edge cases, etc.) as well. 
+other behaviour (failure states, edge cases, etc.) as well.
 
 I've largely moved away from having multiple examples or doing a lot of doc
 tests because they're noticeable _much_ slower to run. They make good

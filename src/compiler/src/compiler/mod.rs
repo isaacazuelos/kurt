@@ -10,14 +10,13 @@
 //! [`Compiler::build`].
 
 use diagnostic::Span;
-use syntax::ast;
-
-pub(crate) mod binding;
+use syntax::ast::{self, Identifier};
 
 mod visitor;
 
 use crate::{
-    constant::Pool, error::Result, opcode::Op, prototype::Prototype, Module,
+    constant::Pool, error::Result, index::Index, local::Local, opcode::Op,
+    prototype::Prototype, Module,
 };
 
 /// A compiler turns source code into a module the runtime can work with. It
@@ -31,6 +30,12 @@ pub struct Compiler {
     /// matches closure scopes in the source code. This should never be empty,
     /// with the first element being the module's top-level code.
     prototypes: Vec<Prototype>,
+
+    /// Scopes are tracked by the number of locals bindings in them.
+    scopes: Vec<usize>,
+
+    /// All local bindings in scope.
+    locals: Vec<Local>,
 }
 
 impl Default for Compiler {
@@ -66,6 +71,9 @@ impl Compiler {
         Compiler {
             prototypes: vec![Prototype::new_main()],
             constants: Pool::default(),
+
+            scopes: vec![0],
+            locals: Vec::new(),
         }
     }
 
@@ -138,7 +146,7 @@ impl Compiler {
     }
 }
 
-// Local Helpers
+// Helpers used by the visitors
 impl Compiler {
     /// This is just a shorthand for emitting to the current active prototype.
     pub(crate) fn emit(&mut self, op: Op, span: Span) -> Result<()> {
@@ -151,6 +159,52 @@ impl Compiler {
         // This is safe as a all modules have at least one prototype -- 'main',
         // the top-level code.
         self.prototypes.last_mut().unwrap()
+    }
+}
+
+// Bindings and scopes
+impl Compiler {
+    pub(crate) fn _begin_scope(&mut self) {
+        self.scopes.push(0);
+    }
+
+    pub(crate) fn _end_scope(&mut self) {
+        let going_out_of_scope_count =
+            self.scopes.pop().expect("scopes cannot be empty");
+
+        self.locals
+            .truncate(self.locals.len() - going_out_of_scope_count);
+    }
+
+    pub(crate) fn bind_local(&mut self, id: &Identifier) {
+        // Do we have space for another local in this scope?
+        let current_scope_count =
+            self.scopes.last().cloned().unwrap_or_default();
+
+        if current_scope_count >= u32::MAX as usize {
+            panic!(
+                "cannot have more than {} (i.e. u32::MAX) locals.",
+                u32::MAX
+            );
+        }
+
+        // Okay, we can actually bind it.
+        let local = Local::from(id);
+        self.locals.push(local);
+
+        // We need to update our scope tracking too.
+        if let Some(current_scope_count) = self.scopes.last_mut() {
+            *current_scope_count += 1;
+        }
+    }
+
+    pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
+        for (i, local) in self.locals.iter().enumerate().rev() {
+            if local.as_str() == name {
+                return Some(Index::new(i as _));
+            }
+        }
+        None
     }
 }
 

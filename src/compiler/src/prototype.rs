@@ -41,10 +41,15 @@ impl Prototype {
         self.code.emit(op, span)
     }
 
+    /// Emit, but for synthetic opcodes, i.e. ones which don't have a meaningful
+    /// location in the original source code.
     pub(crate) fn emit_synthetic(&mut self, op: Op) -> Result<()> {
         self.code.emit_synthetic(op)
     }
 
+    /// Is this prototype empty?
+    ///
+    /// A prototype is empty when no code has been compiled for it yet.
     pub(crate) fn is_empty(&self) -> bool {
         self.code.is_empty()
     }

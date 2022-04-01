@@ -130,7 +130,7 @@ impl Runtime {
 impl Trace for Runtime {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         // Values on th stack are reachable.
-        for value in &self.stack {
+        for value in self.stack.as_slice() {
             value.enqueue_gc_references(worklist);
         }
 

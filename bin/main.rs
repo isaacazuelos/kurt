@@ -30,7 +30,9 @@ fn main() {
 
     match &args.command {
         Some(Command::Script(script)) => script.run(),
-        Some(Command::Repl(args)) => args.run(),
+        Some(Command::Repl(_args)) => {
+            panic!("repl broken, reloading needs work")
+        }
         Some(Command::Eval(eval)) => eval.run(),
 
         None => unreachable!("arg parser should print help"),

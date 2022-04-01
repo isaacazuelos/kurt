@@ -15,15 +15,15 @@ impl Compiler {
     /// Note this is one of the few `pub` entry points into the compiler for
     /// various syntax.
     pub fn module(&mut self, syntax: &syntax::Module) -> Result<()> {
-        for (i, statement) in syntax.statements().iter().enumerate() {
+        for statement in syntax.statements() {
             self.statement(statement)?;
+        }
 
-            // If we have a statement after this one, we want to pop this result
-            // off the stack.
-            if i < syntax.semicolons().len() {
-                let span = syntax.semicolons()[i];
-                self.emit(Op::Pop, span)?;
-            }
+        // If we have a semicolon on the end, we should replace the top of the stack with unit.
+        if syntax.semicolons().len() == syntax.statements().len() {
+            let span = syntax.span();
+            self.emit(Op::Pop, span)?;
+            self.emit(Op::Unit, span)?;
         }
 
         Ok(())
@@ -48,7 +48,7 @@ impl Compiler {
         self.bind_local(syntax.name());
 
         // We're keeping this slot on the stack.
-        self.emit(Op::Unit, syntax.span())?;
+        self.emit(Op::DefineLocal, syntax.span())?;
 
         Ok(())
     }
@@ -75,7 +75,9 @@ impl Compiler {
         &mut self,
         syntax: &ast::Identifier,
     ) -> Result<()> {
-        if let Some(index) = self.lookup_local(syntax) {
+        let name = syntax.as_str();
+
+        if let Some(index) = self.resolve_local(name) {
             self.emit(Op::LoadLocal(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal)

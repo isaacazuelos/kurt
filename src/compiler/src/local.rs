@@ -1,20 +1,37 @@
 use diagnostic::Span;
+use syntax::{ast::Identifier, Syntax};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Local {
     name: String,
-    _definition_site: Span,
+    span: Span,
 }
 
 impl Local {
-    pub fn new(name: &str, _definition_site: Span) -> Local {
+    /// Crate a new local binding definition.
+    pub fn new(name: &str, span: Span) -> Local {
         Local {
             name: name.into(),
-            _definition_site,
+            span,
         }
     }
 
+    /// The local binding's name, as a `&str`.
     pub fn as_str(&self) -> &str {
         &self.name
+    }
+
+    /// Where the local binding was defined.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl<'a> From<&Identifier<'a>> for Local {
+    fn from(id: &Identifier) -> Self {
+        Local {
+            name: id.as_str().into(),
+            span: id.span(),
+        }
     }
 }

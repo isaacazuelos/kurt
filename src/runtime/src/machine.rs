@@ -7,6 +7,14 @@ use crate::{error::Result, value::Value, Exit, Runtime};
 impl Runtime {
     /// Start the VM up again.
     pub fn run(&mut self) -> Result<Exit> {
+        let result = self.run_inner();
+
+        dbg!(&self);
+
+        result
+    }
+
+    fn run_inner(&mut self) -> Result<Exit> {
         loop {
             let op = self.fetch()?;
 
@@ -18,9 +26,13 @@ impl Runtime {
                 }
                 Op::True => self.stack.push(Value::TRUE),
                 Op::False => self.stack.push(Value::FALSE),
+
                 Op::Unit => self.stack.push(Value::UNIT),
+
                 Op::LoadConstant(i) => self.load_constant(i)?,
+
                 Op::LoadLocal(i) => self.load_local(i)?,
+                Op::DefineLocal => self.define_local()?,
             }
         }
     }
@@ -30,7 +42,7 @@ impl Runtime {
     #[inline]
     fn fetch(&mut self) -> Result<Op> {
         let op = self.current_op()?;
-        self.pc.increment()?;
+        self.current_frame_mut().pc.increment()?;
         Ok(op)
     }
 
@@ -42,7 +54,15 @@ impl Runtime {
     }
 
     #[inline]
-    fn load_local(&mut self, _index: Index<Local>) -> Result<()> {
-        todo!()
+    fn load_local(&mut self, local: Index<Local>) -> Result<()> {
+        let base = self.current_frame().bp;
+        let local = self.stack.get_local(base, local)?;
+        self.stack.push(local);
+        Ok(())
+    }
+
+    #[inline]
+    fn define_local(&mut self) -> Result<()> {
+        Ok(())
     }
 }

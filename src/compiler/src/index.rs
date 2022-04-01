@@ -91,6 +91,18 @@ impl<T> std::fmt::Debug for Index<T> {
 }
 
 impl<T> Index<T> {
+    /// Create a new index from a u32.
+    ///
+    /// # Safety
+    ///
+    /// This mostly undoes the point of these [`Index`] types, but an escape
+    /// hatch is useful. It's not `unsafe` since that feels a little too big a
+    /// red flag for using this, but be careful!
+    #[inline(always)]
+    pub fn new(n: u32) -> Index<T> {
+        Index(n as u32, PhantomData)
+    }
+
     /// Cast the [`Index`] into a [`usize`].
     #[inline(always)]
     pub fn as_usize(self) -> usize {
