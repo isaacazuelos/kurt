@@ -1,5 +1,5 @@
-//! Constants are thing like numbers, strings, and other values which a module
-//! references.
+//! Constants are thing like numbers, strings, and other static non-compound
+//! values.
 
 use crate::error::Result;
 
@@ -8,7 +8,7 @@ mod pool;
 pub use self::pool::Pool;
 
 /// A constant value (or part of value in the case of closures) which occurs in
-/// a module. Some values like `true` don't need to be turned into constants
+/// some code. Some values like `true` don't need to be turned into constants
 /// since they can be produced with opcodes directly.
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Constant {
@@ -71,7 +71,7 @@ impl Constant {
     ///
     /// Since our numeric literals don't have have signs (i.e. `-4` is a unary
     /// minus operator) we can used an unsigned integer. It's up to the runtime
-    /// to complain when loading the module if a constant cannot be represented.
+    /// to complain during loading if a constant cannot be represented.
     ///
     /// This is weird, but it means the runtime can support different precisions
     /// for numbers or have multiple representations for other constants.
@@ -95,18 +95,15 @@ impl Constant {
 
     /// Parse a floating point number into an [`f64`].
     ///
-    /// Since our numeric literals don't have have signs (i.e. `-4` is a unary
-    /// minus operator) we can used an unsigned integer. It's up to the runtime
-    /// to complain when loading the module if a constant cannot be represented.
-    ///
-    /// This is weird, but it means the runtime can support different precisions
-    /// for numbers or have multiple representations for other constants.
+    /// See the note on [`Constant::parse_int`] about negative values.
     pub fn parse_float(input: &str) -> Result<f64> {
         let f = input.parse()?;
         Ok(f)
     }
 
     /// Parse a string literal.
+    ///
+    /// For now, escape codes aren't implemented and panic.
     pub fn parse_string(input: &str) -> Result<String> {
         let mut buf = String::new();
 

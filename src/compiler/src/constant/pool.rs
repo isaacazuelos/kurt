@@ -9,9 +9,9 @@ use crate::{
     index::Index,
 };
 
-/// A pool of constants in the module, indexable by an [`Index`]. Inserting a
-/// constant returns an index, and if the constant is already in the pool its
-/// existing index is reused.
+/// A pool of constants, indexable by an [`Index`]. Inserting a constant returns
+/// the index, and if the constant is already in the pool its existing index is
+/// reused.
 #[derive(Default, Clone)]
 pub struct Pool {
     constants: HashMap<Constant, Index<Constant>>,

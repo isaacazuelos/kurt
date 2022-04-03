@@ -3,21 +3,21 @@
 use diagnostic::Span;
 
 mod binding;
+mod entry;
 mod expression;
 mod ident;
 mod literal;
-mod module;
 mod statement;
 
 use crate::parser::{Error, Parser};
 
 pub use self::{
     binding::Binding,
+    entry::{Module, TopLevel},
     expression::Expression,
     ident::Identifier,
     literal::{Kind as LiteralKind, Literal},
-    module::Module,
-    statement::Statement,
+    statement::{Statement, StatementSequence},
 };
 
 pub trait Syntax: std::fmt::Debug {
@@ -32,7 +32,7 @@ pub trait Syntax: std::fmt::Debug {
     fn span(&self) -> Span;
 }
 
-pub trait Parse<'a>: Sized + Syntax {
+pub trait Parse<'a>: Sized {
     /// Consume the beginning of the input to parse the expected part of syntax.
     ///
     /// The input may not be empty afterwards, but the parser will have consumed

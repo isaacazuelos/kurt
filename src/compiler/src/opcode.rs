@@ -7,8 +7,11 @@ use crate::{constant::Constant, index::Index, local::Local};
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Op {
-    /// Stop the program.
+    /// Stop the program for good.
     Halt,
+
+    /// Stop but in a way where it could be resumed.
+    Yield,
 
     /// Does nothing.
     Nop,
@@ -40,6 +43,7 @@ impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             Op::Halt => write!(f, "Halt"),
+            Op::Yield => write!(f, "Yield"),
             Op::Nop => write!(f, "Nop"),
             Op::Pop => write!(f, "Pop"),
             Op::True => write!(f, "True"),

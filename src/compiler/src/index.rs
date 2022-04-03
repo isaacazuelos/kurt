@@ -5,15 +5,13 @@
 //! takes a type parameter for the thing the index is for.
 //!
 //! This is better than just using `u32`s everywhere since we can have
-//! associated constants, and the type checker will prevent us from trying to
-//! get a prototype from a module by using a number that's meant to be an index
-//! into some chunk of code.
+//! associated constants, and the type checker will prevent us from using
+//! indexes in the wrong places.
 //!
 //! It also lets us have an overridable (but not dynamically dispatched)
-//! [`get`][self::Indexable::get] method, which is neat if not especially
-//! useful.
+//! [`get`][self::Indexable::get] method, which is neat.
 //!
-//! Since it's a struct with `PhantomData`, we also know it won't take up any
+//! Since it's a struct with [`PhantomData`], we also know it won't take up any
 //! extra space to do things this way.
 //!
 //! [0]: https://doc.rust-lang.org/rust-by-example/generics/new_types.html
@@ -38,13 +36,21 @@ impl Index<Op> {
     pub const START: Self = Index(0, PhantomData);
 
     /// The next index, returns `None` if it would overflow. This _is not_
-    /// checking the underlying module to see if here's actually another module.
+    /// checking the underlying collection to see if here's actually another
+    /// opcode.
     pub fn next(self) -> Option<Self> {
         if self.0 == u32::MAX {
             None
         } else {
             Some(Index(self.0 + 1, PhantomData))
         }
+    }
+
+    /// The previous index.
+    ///
+    /// However if the index is the start, it remains the start.
+    pub fn pred_saturating(self) -> Self {
+        Index(self.0.saturating_sub(1), PhantomData)
     }
 }
 
@@ -54,7 +60,7 @@ impl Index<Constant> {
 }
 
 impl Index<Prototype> {
-    /// The [`Index`] used to refer to a module's top-level code.
+    /// The [`Index`] used to refer to the top level or main code.
     pub const MAIN: Self = Index(0, PhantomData);
 }
 

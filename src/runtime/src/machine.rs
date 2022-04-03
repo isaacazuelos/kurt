@@ -16,13 +16,15 @@ impl Runtime {
 
             match op {
                 Op::Halt => return Ok(Exit::Halt),
+                Op::Yield => return Ok(Exit::Yield),
+
                 Op::Nop => continue,
                 Op::Pop => {
                     self.stack.pop();
                 }
+
                 Op::True => self.stack.push(Value::TRUE),
                 Op::False => self.stack.push(Value::FALSE),
-
                 Op::Unit => self.stack.push(Value::UNIT),
 
                 Op::LoadConstant(i) => self.load_constant(i)?,
@@ -59,6 +61,7 @@ impl Runtime {
 
     #[inline]
     fn define_local(&mut self) -> Result<()> {
+        self.stack.push(Value::UNIT);
         Ok(())
     }
 }

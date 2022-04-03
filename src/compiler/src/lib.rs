@@ -1,9 +1,10 @@
-//! Compiler - Turns syntax trees into modules the runtime can load
+//! Turns syntax trees into [`Object`] values that the runtime can
+//! load and run.
 
 mod code;
 mod compiler;
 mod error;
-mod module;
+mod object;
 
 pub mod constant;
 pub mod index;
@@ -11,20 +12,25 @@ pub mod local;
 pub mod opcode;
 pub mod prototype;
 
-pub use crate::{compiler::Compiler, error::Error, module::Module};
+pub use crate::{compiler::Compiler, error::Error, object::Object};
 
-use syntax::Parse;
+use syntax::{Module, Parse};
 
-/// Compile a module in one go.
+/// Compile in one go.
+///
+/// If you need to keep the compiler state around for an interactive session,
+/// you'll want to look at the documentation for [Compiler].
 ///
 /// # Example
 ///
 /// ```
 /// # use compiler::compile;
-/// let module = compile(r#" "Hello, world!" "#);
-/// // do things with the module here
+/// let object = compile(r#" "Hello, world!" "#).unwrap();
+/// // Do things with the object here.
 /// ```
-pub fn compile(input: &str) -> error::Result<Module> {
-    let syntax = syntax::Module::parse(input)?;
-    Compiler::new().compile(&syntax)?.build()
+pub fn compile(input: &str) -> error::Result<Object> {
+    let syntax = Module::parse(input)?;
+    let mut compiler = Compiler::default();
+    compiler.module(&syntax)?;
+    compiler.build()
 }

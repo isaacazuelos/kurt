@@ -1,5 +1,6 @@
 //! The rules for walking a syntax tree.
 
+use diagnostic::Span;
 use syntax::{ast, Syntax};
 
 use crate::{
@@ -12,28 +13,48 @@ use crate::{
 impl Compiler {
     /// Compile a module.
     ///
-    /// Note this is one of the few `pub` entry points into the compiler for
-    /// various syntax.
+    /// Note that this emits a 'Halt', so you can't really compile more code
+    /// meaningfully after this.
     pub fn module(&mut self, syntax: &syntax::Module) -> Result<()> {
-        for statement in syntax.statements() {
-            self.statement(statement)?;
+        self.statement_sequence(syntax.statements())?;
+        self.emit(Op::Halt, syntax.span())
+    }
+
+    /// Compile a TopLevel.
+    ///
+    /// The code is added to main, and finished with a [`Op::Yield`] so the
+    /// program can be restarted if more code is added later.
+    pub fn top_level(&mut self, syntax: &syntax::TopLevel) -> Result<()> {
+        self.statement_sequence(syntax.statements())?;
+        self.emit(Op::Yield, syntax.span())
+    }
+
+    /// Compile a sequence of statements.
+    fn statement_sequence(
+        &mut self,
+        syntax: &ast::StatementSequence,
+    ) -> Result<()> {
+        // each statement with a semicolon gets compiled
+        for i in 0..syntax.semicolons().len() {
+            self.statement(&syntax.statements()[i])?;
+            self.emit(Op::Pop, syntax.semicolons()[i])?;
         }
 
-        // If we have a semicolon on the end, we should replace the top of the stack with unit.
-        if syntax.semicolons().len() == syntax.statements().len() {
-            let span = syntax.span();
-            self.emit(Op::Pop, span)?;
-            self.emit(Op::Unit, span)?;
+        if syntax.statements().is_empty() || syntax.has_trailing() {
+            self.emit(Op::Unit, syntax.span())
+        } else {
+            self.statement(syntax.statements().last().unwrap())
         }
-
-        Ok(())
     }
 
     /// Compile a statement.
+    ///
+    /// Each statement should leave it's resulting value as a new value on the
+    /// top of the stack, without consuming anything.
     fn statement(&mut self, syntax: &ast::Statement) -> Result<()> {
         match syntax {
             ast::Statement::Binding(b) => self.binding(b),
-            ast::Statement::Empty(_) => self.empty_statement(),
+            ast::Statement::Empty(span) => self.empty_statement(*span),
             ast::Statement::Expression(e) => self.expression(e),
         }
     }
@@ -55,9 +76,9 @@ impl Compiler {
 
     /// Compiles an empty statement
     ///
-    /// For now this does nothing, mostly for completeness.
-    fn empty_statement(&mut self) -> Result<()> {
-        Ok(())
+    /// Empty statements have a value of `()`, so we need to push one to the stack.
+    fn empty_statement(&mut self, span: Span) -> Result<()> {
+        self.emit(Op::Unit, span)
     }
 
     /// Compile an expression

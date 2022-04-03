@@ -28,8 +28,11 @@ pub use crate::error::{Error, Result};
 /// Each [`Exit`] is a reason a [`Runtime`] may have stopped running (which
 /// isn't an [`Error`]).
 pub enum Exit {
-    /// The runtime hit the end of the main module.
+    /// The runtime hit the end of it's code.
     Halt,
+
+    /// The runtime hit a yield point, which for now means the end of repl code.
+    Yield,
 }
 
 /// A struct that manages an instance of the language runtime.
@@ -77,10 +80,10 @@ impl Runtime {
     /// A helper for [`Runtime::eval`] but returning a [`Result`].
     ///
     /// Reload the main module specifically.
-    pub fn reload_main(&mut self, module: compiler::Module) -> Result<()> {
-        let mut constants = Vec::with_capacity(module.constants().len());
+    pub fn reload_main(&mut self, object: compiler::Object) -> Result<()> {
+        let mut constants = Vec::with_capacity(object.constants().len());
 
-        for constant in module.constants() {
+        for constant in object.constants() {
             let value = self.inflate(constant)?;
             constants.push(value);
         }
@@ -89,8 +92,9 @@ impl Runtime {
         //       looks sane.
 
         self.main = Module {
+            main: object.main().clone(),
             constants,
-            prototypes: module.prototypes().to_owned(),
+            prototypes: object.prototypes().to_owned(),
         };
 
         Ok(())
@@ -100,6 +104,7 @@ impl Runtime {
     /// start it.
     pub fn resume(&mut self) -> Result<Exit> {
         // TODO: sanity checks.
+        self.stack.pop(); // TODO: Why?
         self.run()
     }
 

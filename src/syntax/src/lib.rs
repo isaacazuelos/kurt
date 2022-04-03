@@ -5,7 +5,7 @@ pub mod lexer;
 pub mod parser;
 
 pub use crate::{
-    ast::{Module, Parse, Syntax},
+    ast::{Module, Parse, Syntax, TopLevel},
     parser::Error,
 };
 

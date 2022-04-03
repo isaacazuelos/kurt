@@ -5,7 +5,7 @@ use std::io::Write;
 use compiler::Compiler;
 use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
-use syntax::{Module, Parse};
+use syntax::{Parse, TopLevel};
 
 use crate::Args;
 
@@ -42,7 +42,7 @@ impl ReplState {
         let mut runtime = Runtime::default();
         runtime.set_tracing(args.trace);
 
-        let compiler = Compiler::new();
+        let compiler = Compiler::default();
 
         ReplState {
             editor,
@@ -71,11 +71,16 @@ impl ReplState {
     fn step(&mut self) -> Result<(), ReplError> {
         let input = self.read()?;
 
-        let syntax = Module::parse(&input)?;
+        let syntax = TopLevel::parse(&input)?;
 
-        // We clone and compile, so that if there's a compile time error we
-        // still have `self.compiler` as the last-known-good state.
-        let new_compiler_state = self.compiler.clone().compile(&syntax)?;
+        // Compiling bad code messes up the compiler state.
+        //
+        // To get around this, we clone a known-good state, compile the new code
+        // and rebuild the object, and if all that's successful update our
+        // known-good state.
+
+        let mut new_compiler_state = self.compiler.clone();
+        new_compiler_state.top_level(&syntax)?;
         let updated_main = new_compiler_state.build()?;
         self.compiler = new_compiler_state;
 

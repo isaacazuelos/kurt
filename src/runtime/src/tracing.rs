@@ -1,7 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
 
-use compiler::index::Indexable;
-
 use crate::Runtime;
 
 impl Runtime {
@@ -21,16 +19,8 @@ impl Display for Runtime {
 
 impl Runtime {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
-        let pc = self.current_frame().pc;
-        let prototype = self.main.prototypes.get(pc.prototype.as_usize());
-        let op = prototype.and_then(|p| p.get(pc.instruction));
-        let span = prototype.and_then(|p| p.span_for_op(pc.instruction));
-
-        if let Some(op) = op {
+        if let Ok(op) = self.current_op() {
             write!(f, "op: {op}")?;
-            if let Some(span) = span {
-                write!(f, " at {span}")?;
-            }
         } else {
             write!(f, "op: <none>")?;
         }

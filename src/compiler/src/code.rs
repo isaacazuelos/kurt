@@ -30,19 +30,14 @@ impl Code {
         }
     }
 
-    /// Push an [`Op`] to the of the code segment, but repeating the last
-    /// opcode's span.
-    pub(crate) fn emit_synthetic(&mut self, op: Op) -> Result<()> {
-        let span = self.spans.last().cloned().unwrap_or_default();
-        self.emit(op, span)
-    }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.opcodes.is_empty()
-    }
-
+    /// The span which produced some op code.
     pub fn get_span(&self, index: Index<Op>) -> Option<Span> {
         self.spans.get(index.as_usize()).cloned()
+    }
+
+    /// Does this code block have no opcodes?
+    pub fn is_empty(&self) -> bool {
+        self.opcodes.is_empty()
     }
 }
 

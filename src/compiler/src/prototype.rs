@@ -20,7 +20,7 @@ impl Prototype {
 
     /// Crate a prototype for a new closure.
     ///
-    /// If you're trying to create one for the top level code of a module, use
+    /// If you're trying to create one for the top level code, use
     /// [`Prototype::new_main`] instead.
     pub(crate) fn new() -> Prototype {
         Prototype {
@@ -31,9 +31,9 @@ impl Prototype {
 
     /// Create a new prototype for the top level of a module.
     pub fn new_main() -> Prototype {
-        let mut proto = Prototype::new();
-        proto.name = Some(String::from(Prototype::MAIN_NAME));
-        proto
+        let mut prototype = Prototype::new();
+        prototype.name = Some(String::from(Prototype::MAIN_NAME));
+        prototype
     }
 
     /// Emit into this prototype's code segment.
@@ -41,21 +41,14 @@ impl Prototype {
         self.code.emit(op, span)
     }
 
-    /// Emit, but for synthetic opcodes, i.e. ones which don't have a meaningful
-    /// location in the original source code.
-    pub(crate) fn emit_synthetic(&mut self, op: Op) -> Result<()> {
-        self.code.emit_synthetic(op)
-    }
-
-    /// Is this prototype empty?
-    ///
-    /// A prototype is empty when no code has been compiled for it yet.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.code.is_empty()
-    }
-
+    /// The span which created a specific opcode.
     pub fn span_for_op(&self, index: Index<Op>) -> Option<Span> {
         self.code.get_span(index)
+    }
+
+    /// Is this prototype empty, as in no code has been compiled to it?
+    pub fn is_empty(&self) -> bool {
+        self.code.is_empty()
     }
 }
 
