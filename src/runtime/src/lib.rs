@@ -7,6 +7,7 @@ mod machine;
 mod memory;
 mod module;
 mod stack;
+mod tracing;
 mod value;
 
 use call_stack::{CallFrame, CallStack};
@@ -32,8 +33,10 @@ pub enum Exit {
 }
 
 /// A struct that manages an instance of the language runtime.
-#[derive(Debug, Default)]
+#[derive(Default, Debug)]
 pub struct Runtime {
+    tracing: bool,
+
     // Loaded code
     main: Module, // TODO: make this a vec with indexes that are linked.
 
@@ -44,6 +47,13 @@ pub struct Runtime {
     // Heap
     heap_head: Option<Gc>,
     interned_constants: Vec<Gc>,
+}
+
+impl Runtime {
+    /// Set the runtime's tracing.
+    pub fn set_tracing(&mut self, tracing: bool) {
+        self.tracing = tracing;
+    }
 }
 
 impl Runtime {
@@ -105,7 +115,7 @@ impl Runtime {
     }
 
     /// The currently-executing opcode.
-    fn current_op(&self) -> Result<Op> {
+    pub(crate) fn current_op(&self) -> Result<Op> {
         let index = self.current_frame().pc.instruction;
         self.current_prototype()?
             .get(index)
@@ -116,6 +126,11 @@ impl Runtime {
     /// The current call frame.
     fn current_frame(&self) -> &CallFrame {
         self.call_stack.frame()
+    }
+
+    /// The values on the stack after the current stack frame.
+    fn current_stack(&self) -> &[Value] {
+        &self.stack.as_slice()[self.current_frame().bp.as_usize()..]
     }
 
     /// The current call frame.

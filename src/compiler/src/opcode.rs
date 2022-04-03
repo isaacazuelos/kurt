@@ -1,5 +1,7 @@
 //! The instructions our VM will use.
 
+use std::fmt::{Display, Formatter, Result};
+
 use crate::{constant::Constant, index::Index, local::Local};
 
 /// These are the individual instructions that our VM interprets.
@@ -32,6 +34,22 @@ pub enum Op {
 
     /// Define the top of the stack as a local.
     DefineLocal,
+}
+
+impl Display for Op {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            Op::Halt => write!(f, "Halt"),
+            Op::Nop => write!(f, "Nop"),
+            Op::Pop => write!(f, "Pop"),
+            Op::True => write!(f, "True"),
+            Op::False => write!(f, "False"),
+            Op::Unit => write!(f, "Unit"),
+            Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_u32()),
+            Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
+            Op::DefineLocal => write!(f, "DefineLocal"),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -40,6 +40,10 @@ impl Code {
     pub(crate) fn is_empty(&self) -> bool {
         self.opcodes.is_empty()
     }
+
+    pub fn get_span(&self, index: Index<Op>) -> Option<Span> {
+        self.spans.get(index.as_usize()).cloned()
+    }
 }
 
 impl Indexable<Op> for Code {

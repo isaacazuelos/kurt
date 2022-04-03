@@ -7,45 +7,49 @@ use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
 use syntax::{Module, Parse};
 
+use crate::Args;
+
 /// Start an interactive session
 #[derive(clap::Parser)]
-pub struct ReplArgs; // For now there are no repl settings.
+pub struct Repl; // For now there are no repl settings.
 
-impl ReplArgs {
+impl Repl {
     /// Run a repl with the given settings.
-    pub fn run(&self) {
-        let repl = Repl::default();
+    pub(crate) fn run(&self, args: &Args) {
+        let repl = ReplState::new(args);
         repl.start()
     }
 }
 
-struct Repl {
+struct ReplState {
     editor: Editor<()>,
     runtime: Runtime,
     compiler: Compiler,
 }
 
-impl Default for Repl {
-    fn default() -> Self {
-        let editor = Editor::<()>::new();
-        // TODO: Read history here.
-        let runtime = Runtime::default();
-        let compiler = Compiler::new();
-
-        Repl {
-            editor,
-            runtime,
-            compiler,
-        }
-    }
-}
-
-impl Repl {
+impl ReplState {
     /// The prompt used to ask for more input.
     const PROMPT: &'static str = ">>> ";
 
     /// Lines which are the result of execution begin with this.
     const RESULT_PROMPT: &'static str = "//> ";
+
+    fn new(args: &Args) -> ReplState {
+        let editor = Editor::<()>::new();
+
+        // TODO: Read history here.
+
+        let mut runtime = Runtime::default();
+        runtime.set_tracing(args.trace);
+
+        let compiler = Compiler::new();
+
+        ReplState {
+            editor,
+            runtime,
+            compiler,
+        }
+    }
 
     fn start(mut self) {
         loop {
@@ -77,7 +81,11 @@ impl Repl {
 
         self.runtime.reload_main(updated_main)?;
         self.runtime.resume()?;
-        println!("{}{:?}", Repl::RESULT_PROMPT, self.runtime.last_result());
+        println!(
+            "{}{:?}",
+            ReplState::RESULT_PROMPT,
+            self.runtime.last_result()
+        );
         self.flush();
 
         Ok(())
@@ -87,7 +95,7 @@ impl Repl {
         // TODO: We want to have a continuation prompt when the block of code on
         //       that line could continue.
 
-        let line = self.editor.readline(Repl::PROMPT);
+        let line = self.editor.readline(ReplState::PROMPT);
         match line {
             Ok(line) => Ok(line),
             Err(ReadlineError::Interrupted) => {

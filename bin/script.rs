@@ -4,6 +4,8 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use runtime::Runtime;
 
+use crate::Args;
+
 /// Run a file as a script.
 #[derive(clap::Parser)]
 pub struct Script {
@@ -12,7 +14,7 @@ pub struct Script {
 
 impl Script {
     /// Run the file `filename` as a script.
-    pub fn run(&self) {
+    pub(crate) fn run(&self, args: &Args) {
         let mut input = String::new();
 
         if let Err(e) = File::open(&self.filename)
@@ -27,6 +29,7 @@ impl Script {
         }
 
         let mut runtime = Runtime::default();
+        runtime.set_tracing(args.trace);
 
         if let Err(e) = runtime.eval(&input) {
             eprintln!("{}", e);

@@ -7,15 +7,11 @@ use crate::{error::Result, value::Value, Exit, Runtime};
 impl Runtime {
     /// Start the VM up again.
     pub fn run(&mut self) -> Result<Exit> {
-        let result = self.run_inner();
-
-        dbg!(&self);
-
-        result
-    }
-
-    fn run_inner(&mut self) -> Result<Exit> {
         loop {
+            if self.tracing {
+                self.trace();
+            }
+
             let op = self.fetch()?;
 
             match op {

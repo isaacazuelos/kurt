@@ -53,6 +53,10 @@ impl Prototype {
     pub(crate) fn is_empty(&self) -> bool {
         self.code.is_empty()
     }
+
+    pub fn span_for_op(&self, index: Index<Op>) -> Option<Span> {
+        self.code.get_span(index)
+    }
 }
 
 impl Indexable<Op> for Prototype {
