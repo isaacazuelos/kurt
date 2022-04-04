@@ -6,7 +6,7 @@ use crate::{error::Result, value::Value, Exit, Runtime};
 
 impl Runtime {
     /// Start the VM up again.
-    pub fn run(&mut self) -> Result<Exit> {
+    pub(crate) fn run(&mut self) -> Result<Exit> {
         loop {
             if self.tracing {
                 self.trace();

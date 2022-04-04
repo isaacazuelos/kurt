@@ -13,7 +13,7 @@ mod value;
 use call_stack::{CallFrame, CallStack};
 use compiler::{
     self, constant::Constant, index::Indexable, opcode::Op,
-    prototype::Prototype,
+    prototype::Prototype, Object,
 };
 
 use crate::{
@@ -41,7 +41,7 @@ pub struct Runtime {
     tracing: bool,
 
     // Loaded code
-    main: Module, // TODO: make this a vec with indexes that are linked.
+    modules: Vec<Module>,
 
     // VM
     stack: Stack,
@@ -53,34 +53,77 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    /// Set the runtime's tracing.
+    /// Set the Runtime's tracing mode.
+    ///
+    /// When tracing is on (`true`) the runtime will print some extra
+    /// information.
     pub fn set_tracing(&mut self, tracing: bool) {
         self.tracing = tracing;
+    }
+
+    /// Is the runtime's tracing mode on?
+    pub fn tracing(&self) -> bool {
+        self.tracing
     }
 }
 
 impl Runtime {
-    /// Attempts to evaluate some input.
-    ///
-    /// For now 'evaluate' means [`Debug`] pretty print however far into the
-    /// pipeline we are, or the [`Debug`] representation for any errors.
-    pub fn eval(&mut self, input: &str) -> Result<Exit> {
-        let object = compiler::compile(input)?;
+    /// Create a new runtime with `object` as it's main module.
+    pub fn new(object: Object) -> Result<Runtime> {
+        let mut rt = Runtime {
+            tracing: false,
 
-        self.reload_main(object)?;
+            modules: Vec::new(),
+
+            stack: Stack::default(),
+            call_stack: CallStack::default(),
+
+            heap_head: None,
+            interned_constants: Vec::new(),
+        };
+
+        let main = rt.make_module(object)?;
+        rt.modules.push(main);
+
+        Ok(rt)
+    }
+
+    /// A string containing a representation of the last value on the stack.
+    ///
+    /// This is useful for the `repl` and `eval` subcommands.
+    pub fn last_result(&self) -> std::string::String {
+        format!("{:?}", self.stack.last())
+    }
+
+    pub fn start(&mut self) -> Result<Exit> {
+        // TODO: checks.
         self.run()
     }
 
-    // A [`Display`][std::fmt::Display]-able view of the last result left on the
-    // stack. This is useful for the `repl` and `eval` subcommands.
-    pub fn last_result(&self) -> Value {
-        self.stack.last()
+    /// Resume the runtime. If it hasn't been started before this will also
+    /// start it.
+    pub fn resume(&mut self) -> Result<Exit> {
+        // TODO: checks.
+
+        // Since we're resuming, the result of the previous computation is on
+        // the top of the stack, which we need to clean up.
+        self.stack.pop();
+
+        self.run()
     }
 
-    /// A helper for [`Runtime::eval`] but returning a [`Result`].
-    ///
     /// Reload the main module specifically.
-    pub fn reload_main(&mut self, object: compiler::Object) -> Result<()> {
+    pub fn reload_main(&mut self, main: Object) -> Result<()> {
+        // TODO: We should replace this with a generic `reload`.
+        // TODO: We should do some sanity checks here.
+        let new = self.make_module(main)?;
+        self.modules[0] = new;
+        Ok(())
+    }
+}
+
+impl Runtime {
+    fn make_module(&mut self, object: Object) -> Result<Module> {
         let mut constants = Vec::with_capacity(object.constants().len());
 
         for constant in object.constants() {
@@ -88,29 +131,19 @@ impl Runtime {
             constants.push(value);
         }
 
-        // TODO: We could do some verification here that what we're reloading
-        //       looks sane.
-
-        self.main = Module {
+        Ok(Module {
             main: object.main().clone(),
             constants,
             prototypes: object.prototypes().to_owned(),
-        };
-
-        Ok(())
-    }
-
-    /// Resume the runtime. If it hasn't been started before this will also
-    /// start it.
-    pub fn resume(&mut self) -> Result<Exit> {
-        // TODO: sanity checks.
-        self.stack.pop(); // TODO: Why?
-        self.run()
+        })
     }
 
     /// The module which contains the currently-executing code.
     fn current_module(&self) -> Result<&Module> {
-        Ok(&self.main)
+        let index = self.current_frame().pc.module;
+        self.modules
+            .get(index.as_usize())
+            .ok_or(Error::ModuleIndexOutOfRange)
     }
 
     /// The currently-executing prototype.

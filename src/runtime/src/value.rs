@@ -43,6 +43,8 @@
 //! just an `f64`. The reason we _want_ to use these types then should be
 //! _because they're never imprecise_, not because they are larger.
 
+#![allow(unused)]
+
 use std::ptr::NonNull;
 
 use crate::memory::{

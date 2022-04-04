@@ -14,14 +14,27 @@ pub struct Evaluate {
 impl Evaluate {
     /// Run the subcommand, evaluating and printing it's results.
     pub(crate) fn run(&self, args: &Args) {
-        let mut runtime = Runtime::default();
+        let main = match compiler::compile(&self.input) {
+            Ok(object) => object,
+            Err(e) => return eprintln!("{e}"),
+        };
+
+        if args.dump {
+            println!("{main}");
+            return;
+        }
+
+        let mut runtime = match Runtime::new(main) {
+            Ok(rt) => rt,
+            Err(e) => return eprintln!("{e}"),
+        };
 
         runtime.set_tracing(args.trace);
 
-        if let Err(e) = runtime.eval(&self.input) {
+        if let Err(e) = runtime.start() {
             eprintln!("{}", e);
         } else {
-            println!("{:?}", runtime.last_result());
+            println!("{}", runtime.last_result())
         }
     }
 }

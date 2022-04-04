@@ -2,6 +2,8 @@
 //!
 //! It's ready for the runtime. Like a python `.pyc` or C `.o` file.
 
+use std::fmt::{self, Display, Formatter};
+
 use crate::{
     constant::Constant,
     index::{Index, Indexable},
@@ -53,5 +55,12 @@ impl Indexable<Prototype> for Object {
 impl Indexable<Constant> for Object {
     fn get(&self, index: Index<Constant>) -> Option<&Constant> {
         self.constants.get(index.as_usize())
+    }
+}
+
+impl Display for Object {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        // TODO: make this prettier!
+        write!(f, "{:#?}", self)
     }
 }

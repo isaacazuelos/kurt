@@ -28,10 +28,24 @@ impl Script {
             std::process::exit(1);
         }
 
-        let mut runtime = Runtime::default();
+        let main = match compiler::compile(&input) {
+            Ok(object) => object,
+            Err(e) => return eprintln!("{e}"),
+        };
+
+        if args.dump {
+            println!("{main}");
+            return;
+        }
+
+        let mut runtime = match Runtime::new(main) {
+            Ok(rt) => rt,
+            Err(e) => return eprintln!("{e}"),
+        };
+
         runtime.set_tracing(args.trace);
 
-        if let Err(e) = runtime.eval(&input) {
+        if let Err(e) = runtime.start() {
             eprintln!("{}", e);
         }
     }

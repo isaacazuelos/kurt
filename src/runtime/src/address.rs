@@ -1,11 +1,13 @@
-use compiler::index::Index;
-use compiler::opcode::Op;
-use compiler::prototype::Prototype;
+use compiler::{index::Index, opcode::Op, prototype::Prototype};
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    module::Module,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Address {
+    pub(crate) module: Index<Module>,
     pub(crate) prototype: Index<Prototype>,
     pub(crate) instruction: Index<Op>,
 }
@@ -13,6 +15,7 @@ pub struct Address {
 impl Default for Address {
     fn default() -> Self {
         Address {
+            module: Index::new(0),
             prototype: Index::MAIN,
             instruction: Index::START,
         }

@@ -22,6 +22,7 @@ impl Repl {
 }
 
 struct ReplState {
+    dump: bool,
     editor: Editor<()>,
     runtime: Runtime,
     compiler: Compiler,
@@ -45,6 +46,7 @@ impl ReplState {
         let compiler = Compiler::default();
 
         ReplState {
+            dump: args.dump,
             editor,
             runtime,
             compiler,
@@ -83,6 +85,11 @@ impl ReplState {
         new_compiler_state.top_level(&syntax)?;
         let updated_main = new_compiler_state.build()?;
         self.compiler = new_compiler_state;
+
+        if self.dump {
+            println!("{updated_main}");
+            return Ok(());
+        }
 
         self.runtime.reload_main(updated_main)?;
         self.runtime.resume()?;
