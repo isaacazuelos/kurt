@@ -36,9 +36,9 @@ impl Prototype {
         prototype
     }
 
-    /// Emit into this prototype's code segment.
-    pub(crate) fn emit(&mut self, op: Op, span: Span) -> Result<()> {
-        self.code.emit(op, span)
+    /// The name of the module, if it has one.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     /// The span which created a specific opcode.
@@ -49,6 +49,16 @@ impl Prototype {
     /// Is this prototype empty, as in no code has been compiled to it?
     pub fn is_empty(&self) -> bool {
         self.code.is_empty()
+    }
+
+    /// Emit into this prototype's code segment.
+    pub(crate) fn emit(&mut self, op: Op, span: Span) -> Result<()> {
+        self.code.emit(op, span)
+    }
+
+    /// The code listing for this prototype.
+    pub(crate) fn code(&self) -> &Code {
+        &self.code
     }
 }
 

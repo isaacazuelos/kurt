@@ -1,6 +1,8 @@
 //! Constants are thing like numbers, strings, and other static non-compound
 //! values.
 
+use std::fmt::{self, Display, Formatter};
+
 use crate::error::Result;
 
 mod pool;
@@ -117,5 +119,16 @@ impl Constant {
         }
 
         Ok(buf)
+    }
+}
+
+impl Display for Constant {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Constant::Character(c) => write!(f, "char {c}"),
+            Constant::Number(n) => write!(f, "number {n}"),
+            Constant::Float(n) => write!(f, "float {}", f64::from_bits(*n)),
+            Constant::String(s) => write!(f, "string {s}"),
+        }
     }
 }

@@ -7,6 +7,7 @@ use std::fmt::{self, Display, Formatter};
 use crate::{
     constant::Constant,
     index::{Index, Indexable},
+    opcode::Op,
     prototype::Prototype,
 };
 
@@ -60,7 +61,48 @@ impl Indexable<Constant> for Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        // TODO: make this prettier!
-        write!(f, "{:#?}", self)
+        self.display_prototype(&self.main, f)?;
+
+        for prototype in self.prototypes() {
+            self.display_prototype(prototype, f)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Object {
+    fn display_prototype(
+        &self,
+        prototype: &Prototype,
+        f: &mut Formatter,
+    ) -> fmt::Result {
+        if let Some(name) = prototype.name() {
+            writeln!(f, "{}:", name)?;
+        } else {
+            writeln!(f, "<anonymous>:")?;
+        }
+
+        for (op, span) in prototype.code().iter() {
+            write!(
+                f,
+                "  {:03}:{:03} | ",
+                span.start().line(),
+                span.start().column()
+            )?;
+
+            match op {
+                Op::LoadConstant(i) => {
+                    if let Some(c) = self.get(*i) {
+                        writeln!(f, "{:<20} // {}", format!("{op}"), c)
+                    } else {
+                        writeln!(f, "{} // ???", op)
+                    }
+                }
+                op => writeln!(f, "{}", op),
+            }?;
+        }
+
+        Ok(())
     }
 }

@@ -1,5 +1,7 @@
 //! Code listings
 
+use std::iter::Iterator;
+
 use diagnostic::Span;
 
 use crate::{
@@ -38,6 +40,10 @@ impl Code {
     /// Does this code block have no opcodes?
     pub fn is_empty(&self) -> bool {
         self.opcodes.is_empty()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Op, &Span)> {
+        self.opcodes.iter().zip(self.spans.iter())
     }
 }
 
