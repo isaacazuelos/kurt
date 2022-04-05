@@ -73,8 +73,8 @@ impl<'a> Parser<'a> {
     /// that all input is consumed. This method is instead used for _making_
     /// parsers.
     ///
-    /// A lot of productions can be empty, so it's not unusual for calls to this
-    /// to return succeed but consume nothing.
+    /// Some productions could be empty, so it's not unusual for calls to to
+    /// return successfully but consume nothing.
     ///
     /// # Example
     ///

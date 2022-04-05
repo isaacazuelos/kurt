@@ -36,14 +36,14 @@ impl Compiler {
     ) -> Result<()> {
         // each statement with a semicolon gets compiled
         for i in 0..syntax.semicolons().len() {
-            self.statement(&syntax.statements()[i])?;
+            self.statement(&syntax.as_slice()[i])?;
             self.emit(Op::Pop, syntax.semicolons()[i])?;
         }
 
-        if syntax.statements().is_empty() || syntax.has_trailing() {
+        if syntax.as_slice().is_empty() || syntax.has_trailing() {
             self.emit(Op::Unit, syntax.span())
         } else {
-            self.statement(syntax.statements().last().unwrap())
+            self.statement(syntax.as_slice().last().unwrap())
         }
     }
 
@@ -84,9 +84,18 @@ impl Compiler {
     /// Compile an expression
     fn expression(&mut self, syntax: &ast::Expression) -> Result<()> {
         match syntax {
+            ast::Expression::Block(b) => self.block(b),
             ast::Expression::Identifier(i) => self.identifier_expression(i),
             ast::Expression::Literal(l) => self.literal(l),
         }
+    }
+
+    /// Compile a block expression.
+    fn block(&mut self, syntax: &ast::Block) -> Result<()> {
+        self.begin_scope();
+        self.statement_sequence(syntax.statements())?;
+        self.end_scope();
+        Ok(())
     }
 
     /// Compile a identifier used as an expression.
@@ -182,9 +191,4 @@ impl Compiler {
     fn unit(&mut self, syntax: &ast::Literal) -> Result<()> {
         self.emit(Op::Unit, syntax.span())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    // Not really anything to test as it's all just tree walking at this point.
 }

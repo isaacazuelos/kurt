@@ -3,6 +3,7 @@
 use diagnostic::Span;
 
 mod binding;
+mod block;
 mod entry;
 mod expression;
 mod ident;
@@ -13,6 +14,7 @@ use crate::parser::{Error, Parser};
 
 pub use self::{
     binding::Binding,
+    block::Block,
     entry::{Module, TopLevel},
     expression::Expression,
     ident::Identifier,

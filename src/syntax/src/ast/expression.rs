@@ -11,8 +11,9 @@ use crate::lexer::TokenKind;
 /// [syn-crate]: https://docs.rs/syn/1.0.84/syn/enum.Expr.html#syntax-tree-enums
 #[derive(Debug)]
 pub enum Expression<'a> {
-    Literal(Literal<'a>),
+    Block(Block<'a>),
     Identifier(Identifier<'a>),
+    Literal(Literal<'a>),
 }
 
 impl<'a> Syntax for Expression<'a> {
@@ -20,8 +21,9 @@ impl<'a> Syntax for Expression<'a> {
 
     fn span(&self) -> Span {
         match self {
-            Expression::Identifier(i) => i.span(),
+            Expression::Block(b) => b.span(),
             Expression::Literal(e) => e.span(),
+            Expression::Identifier(i) => i.span(),
         }
     }
 }
@@ -33,6 +35,12 @@ impl<'a> Parse<'a> for Expression<'a> {
         let e = match parser.peek() {
             Some(TokenKind::Identifier) => {
                 parser.parse().map(Expression::Identifier)
+            }
+
+            Some(TokenKind::Open(crate::lexer::Delimiter::Brace)) => {
+                // We'll need to do some backtracking here in the future to
+                // decide if it's a block or record literal.
+                parser.parse().map(Expression::Block)
             }
 
             Some(k) if k.is_literal() => {

@@ -75,7 +75,11 @@ impl<'a> Parse<'a> for StatementSequence<'a> {
         let mut semicolons = Vec::new();
 
         while !parser.is_empty() {
-            statements.push(parser.parse()?);
+            match parser.parse() {
+                Ok(statement) => statements.push(statement),
+                Err(Error::NotStartOf(_)) => {}
+                Err(e) => return Err(e),
+            }
 
             match parser.peek() {
                 // If we see a semicolon, save it and continue
@@ -112,8 +116,15 @@ impl<'a> StatementSequence<'a> {
         }
     }
 
+    pub fn empty() -> Self {
+        StatementSequence {
+            statements: Vec::new(),
+            semicolons: Vec::new(),
+        }
+    }
+
     /// The statements in the module in order.
-    pub fn statements(&self) -> &[Statement<'a>] {
+    pub fn as_slice(&self) -> &[Statement<'a>] {
         &self.statements
     }
 
@@ -181,7 +192,7 @@ mod parser_tests {
     fn parse_statements_empty() {
         let mut parser = Parser::new("  ").unwrap();
         let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.statements().is_empty()));
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().is_empty()));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().is_empty()));
 
         assert!(parser.is_empty());
@@ -191,8 +202,18 @@ mod parser_tests {
     fn parse_statements_empty_semicolon() {
         let mut parser = Parser::new(";").unwrap();
         let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.statements().len() == 1));
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 1));
+
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_statements_empty_semicolons_only() {
+        let mut parser = Parser::new("; ;;").unwrap();
+        let literal = parser.parse::<StatementSequence>();
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 3));
+        assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 3));
 
         assert!(parser.is_empty());
     }
@@ -201,7 +222,7 @@ mod parser_tests {
     fn parse_statements_no_trailing() {
         let mut parser = Parser::new("0").unwrap();
         let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.statements().len() == 1));
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().is_empty()));
         assert!(parser.is_empty());
     }
@@ -210,7 +231,7 @@ mod parser_tests {
     fn parse_statements_trailing_semicolon() {
         let mut parser = Parser::new("0;").unwrap();
         let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.statements().len() == 1));
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 1));
         assert!(parser.is_empty());
     }
@@ -219,7 +240,7 @@ mod parser_tests {
     fn parse_statements_extra_semicolons() {
         let mut parser = Parser::new(";;;").unwrap();
         let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.statements().len() == 3));
+        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 3));
         assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 3));
         assert!(parser.is_empty());
     }
@@ -229,7 +250,19 @@ mod parser_tests {
         let mut parser = Parser::new("1 1").unwrap();
         let literal = parser.parse::<StatementSequence>();
         assert!(
-            matches!(literal, Ok(ref m) if m.statements().len() == 1),
+            matches!(literal, Ok(ref m) if m.as_slice().len() == 1),
+            "expected 1 statement, but got {:#?}",
+            literal
+        );
+        assert!(!parser.is_empty());
+    }
+
+    #[test]
+    fn parse_with_extra() {
+        let mut parser = Parser::new("1 1").unwrap();
+        let literal = parser.parse::<StatementSequence>();
+        assert!(
+            matches!(literal, Ok(ref m) if m.as_slice().len() == 1),
             "expected 1 statement, but got {:#?}",
             literal
         );

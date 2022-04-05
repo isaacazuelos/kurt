@@ -82,11 +82,11 @@ impl Compiler {
 
 // Bindings and scopes
 impl Compiler {
-    pub(crate) fn _begin_scope(&mut self) {
+    pub(crate) fn begin_scope(&mut self) {
         self.scopes.push(0);
     }
 
-    pub(crate) fn _end_scope(&mut self) {
+    pub(crate) fn end_scope(&mut self) {
         let going_out_of_scope_count =
             self.scopes.pop().expect("scopes cannot be empty");
 
