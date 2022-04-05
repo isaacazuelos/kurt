@@ -7,7 +7,7 @@ macro_rules! test_eval {
             let obj = compiler::compile($input).unwrap();
             let mut rt = runtime::Runtime::new(obj).unwrap();
             rt.start().unwrap();
-            assert_eq!(rt.last_result(), $expected);
+            assert_eq!($expected, rt.last_result());
         }
     };
 }
@@ -27,3 +27,9 @@ test_eval! { let_local_lookup, "let x = 1; x", "1" }
 test_eval! { let_local_twice, "let x = 1; let y = 2; x", "1" }
 test_eval! { let_local_shadow, "let x = 1; let x = 2; x", "2" }
 test_eval! { let_local_complex, "let x = 1; 100; ;;; let y = 2; x; 10; y", "2" }
+
+// Scopes
+test_eval! { scope_empty, "{ ; }", "()" }
+test_eval! { scope_with_value, "{ 1 }", "1" }
+test_eval! { scope_with_trailing, "{ 1; }", "()" }
+test_eval! { scope_with_bindings, "{ let x = 1; x }", "1" }
