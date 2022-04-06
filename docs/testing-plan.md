@@ -20,9 +20,9 @@ other behaviour (failure states, edge cases, etc.) as well.
 I've largely moved away from having multiple examples or doing a lot of doc
 tests because they're noticeable _much_ slower to run. They make good
 documentation, and we should make sure our documentation is correct, but we can
-keep most of the tests as regular unit tests most of the time to make tests run
-quicker. For example, the 14 doc tests in syntax take 1.95 seconds to run but
-the 45 unit tests take 0.00
+keep most of the tests as unit tests most of the time. For example, at one early
+stage in development, 14 doc tests in syntax took 1.95 seconds to run but 45
+similar unit tests took 0.00
 
 Crates should also have [integration tests] for their public behaviour. For
 example, the `syntax` module has integration tests for the lexer and parser
