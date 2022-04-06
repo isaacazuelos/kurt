@@ -123,6 +123,7 @@ impl Compiler {
             ast::LiteralKind::Decimal => self.decimal(syntax),
             ast::LiteralKind::Float => self.float(syntax),
             ast::LiteralKind::Hexadecimal => self.hexadecimal(syntax),
+            ast::LiteralKind::Keyword => self.keyword(syntax),
             ast::LiteralKind::Octal => self.octal(syntax),
             ast::LiteralKind::String => self.string(syntax),
             ast::LiteralKind::Unit => self.unit(syntax),
@@ -171,6 +172,13 @@ impl Compiler {
     fn octal(&mut self, syntax: &ast::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 8)?;
         let index = self.constants.insert(n)?;
+        self.emit(Op::LoadConstant(index), syntax.span())
+    }
+
+    /// Compile a keyword literal
+    fn keyword(&mut self, syntax: &ast::Literal) -> Result<()> {
+        let kw = Constant::parse_keyword(syntax.body())?;
+        let index = self.constants.insert(kw)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 

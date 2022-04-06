@@ -21,6 +21,7 @@ mod collector;
 mod gc;
 mod object;
 
+pub mod keyword;
 pub mod string;
 pub mod trace;
 
@@ -51,10 +52,10 @@ where
     ///
     /// 1. The pointer must not be null.
     ///
-    /// 1. The pointer must be to uninitialized memory _other than the
-    ///    [`Object`] field._ Whatever is should will be overwritten without
-    ///    being dropped, by something like [`std::ptr::write`] or
-    ///    [`std::ptr::copy`].
+    /// 1. The pointer must be to uninitialized memory, other than the base
+    ///    [`Object`] field, which must not be touched. All other fields should
+    ///    will be overwritten without the previous value being dropped (see
+    ///    [`std::ptr::write`] or [`std::ptr::copy`]) by the time we return.
     ///
     /// 1. The pointer must point to an allocation large enough, as given by
     ///    [`InitFrom::size`] for the given argument.

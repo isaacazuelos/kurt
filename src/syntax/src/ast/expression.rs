@@ -43,6 +43,7 @@ impl<'a> Parse<'a> for Expression<'a> {
                 parser.parse().map(Expression::Block)
             }
 
+            Some(TokenKind::Colon) => parser.parse().map(Expression::Literal),
             Some(k) if k.is_literal() => {
                 parser.parse().map(Expression::Literal)
             }

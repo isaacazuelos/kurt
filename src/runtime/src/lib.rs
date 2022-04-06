@@ -17,7 +17,7 @@ use compiler::{
 };
 
 use crate::{
-    memory::{string::String, Gc},
+    memory::{keyword::Keyword, string::String, Gc},
     module::Module,
     stack::Stack,
     value::Value,
@@ -49,7 +49,6 @@ pub struct Runtime {
 
     // Heap
     heap_head: Option<Gc>,
-    interned_constants: Vec<Gc>,
 }
 
 impl Runtime {
@@ -79,7 +78,6 @@ impl Runtime {
             call_stack: CallStack::default(),
 
             heap_head: None,
-            interned_constants: Vec::new(),
         };
 
         let main = rt.make_module(object)?;
@@ -186,8 +184,15 @@ impl Runtime {
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {
                 let string: Gc = self.make_from::<String, _>(s.as_str());
-                self.interned_constants.push(string);
                 Ok(Value::object(string))
+            }
+            Constant::Keyword(kw) => {
+                // if let Some(value) = Value::make_short_keyword(&kw) {
+                //     Ok(value)
+                // } else {
+                let keyword = self.make_from::<Keyword, _>(kw.as_str());
+                Ok(Value::object(keyword))
+                // }
             }
         }
     }

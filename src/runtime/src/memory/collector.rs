@@ -134,9 +134,11 @@ impl Trace for Runtime {
             value.enqueue_gc_references(worklist);
         }
 
-        // Anything in the interned list is reachable too
-        for ptr in &self.interned_constants {
-            worklist.enqueue(*ptr)
+        // Anything in a module's constant pool is reachable.
+        for module in &self.modules {
+            for value in &module.constants {
+                value.enqueue_gc_references(worklist);
+            }
         }
     }
 }

@@ -12,6 +12,8 @@ pub enum Error {
 
     Unexpected { wanted: &'static str, found: Kind },
 
+    KeywordNoSpace,
+
     UnusedInput,
     LexerError(lexer::Error),
 }
@@ -33,7 +35,12 @@ impl fmt::Display for Error {
                 write!(f, "Expected a {} but found a {}", wanted, found.name())
             }
 
-            UnusedInput => write!(f, "there was unused input when parsing"),
+            KeywordNoSpace => write!(
+                f,
+                "keyword literals must not have a space after the colon"
+            ),
+
+            UnusedInput => write!(f, "There was unused input when parsing"),
             LexerError(e) => write!(f, "{}", e),
         }
     }

@@ -15,8 +15,10 @@ pub use self::pool::Pool;
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Constant {
     Character(char),
+    // stored with `to_bits` for hash/eq reasons
+    Float(u64),
+    Keyword(String),
     Number(u64),
-    Float(u64), // stored with `to_bits` for hash/eq reasons
     String(String),
 }
 
@@ -120,14 +122,23 @@ impl Constant {
 
         Ok(buf)
     }
+
+    /// Parse a keyword literal.
+    ///
+    /// For now this is just the body text.
+    pub fn parse_keyword(input: &str) -> Result<Self> {
+        // TODO: Unicode normalization.
+        Ok(Constant::Keyword(input.to_owned()))
+    }
 }
 
 impl Display for Constant {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Constant::Character(c) => write!(f, "char {c}"),
-            Constant::Number(n) => write!(f, "number {n}"),
             Constant::Float(n) => write!(f, "float {}", f64::from_bits(*n)),
+            Constant::Keyword(s) => write!(f, "keyword :{s}"),
+            Constant::Number(n) => write!(f, "number {n}"),
             Constant::String(s) => write!(f, "string {s}"),
         }
     }

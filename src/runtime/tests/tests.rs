@@ -12,8 +12,13 @@ macro_rules! test_eval {
     };
 }
 
-// Sanity check
-test_eval! { constants, "1", "1" }
+// Literal values
+test_eval! { literal_char, "'a'", "'a'" }
+test_eval! { literal_boolean, "true", "true" }
+test_eval! { literal_number, "99", "99" }
+test_eval! { literal_float, "1.5", "1.5" }
+test_eval! { literal_string, r#" "Hello, world!" "#, r#""Hello, world!""# }
+test_eval! { literal_keyword, " :hello ", ":hello" }
 
 // Statement sequences
 test_eval! { empty_input, "", "()" }

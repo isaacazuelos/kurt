@@ -3,7 +3,7 @@
 use std::any::TypeId;
 use std::{fmt, ptr::NonNull};
 
-use crate::memory::{string::String, Object};
+use crate::memory::{keyword::Keyword, string::String, Object};
 
 /// A type-erased pointer to a garbage collected value.
 #[derive(Debug)]
@@ -69,6 +69,13 @@ impl fmt::Display for Gc {
                 write!(f, "{}", s.as_str())
             }
 
+            type_id if type_id == TypeId::of::<Keyword>() => {
+                let s = obj.downcast::<Keyword>().unwrap();
+                write!(f, ":{}", s.as_str())
+            }
+
+            // TODO: We should really have some way to do this that's
+            //       properly extensible.
             _ => {
                 write!(f, "<object with unknown type_id>")
             }

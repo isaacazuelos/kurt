@@ -433,6 +433,8 @@ impl std::fmt::Debug for Value {
             write!(f, "{}", i)
         } else if let Some(obj) = self.as_object() {
             write!(f, "{}", obj)
+        } else if let Some(v) = self.as_float() {
+            write!(f, "{}", v)
         } else {
             write!(f, "<unknown: {:x}>", self.0)
         }

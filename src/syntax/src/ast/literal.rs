@@ -17,13 +17,14 @@ use super::{Parse, Syntax};
 /// of literal value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
+    Binary,
     Bool,
     Char,
     Decimal,
-    Hexadecimal,
-    Octal,
-    Binary,
     Float,
+    Hexadecimal,
+    Keyword,
+    Octal,
     String,
     Unit,
 }
@@ -66,23 +67,51 @@ impl<'a> Syntax for Literal<'a> {
 
 impl<'a> Parse<'a> for Literal<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
-        let token = parser
-            .advance()
-            .expect("Parser::literal expected a literal token");
-
-        let kind = match token.kind() {
-            TokenKind::Bool => ast::LiteralKind::Bool,
-            TokenKind::Char => ast::LiteralKind::Char,
-            TokenKind::Bin => ast::LiteralKind::Binary,
-            TokenKind::Hex => ast::LiteralKind::Hexadecimal,
-            TokenKind::Int => ast::LiteralKind::Decimal,
-            TokenKind::Oct => ast::LiteralKind::Octal,
-            TokenKind::Float => ast::LiteralKind::Float,
-            TokenKind::String => ast::LiteralKind::String,
-            k => unreachable!("Token::is_literal and Parser::literal disagrees about {:?} being a literal", k),
+        let kind = match parser.peek() {
+            Some(TokenKind::Bool) => ast::LiteralKind::Bool,
+            Some(TokenKind::Char) => ast::LiteralKind::Char,
+            Some(TokenKind::Bin) => ast::LiteralKind::Binary,
+            Some(TokenKind::Hex) => ast::LiteralKind::Hexadecimal,
+            Some(TokenKind::Int) => ast::LiteralKind::Decimal,
+            Some(TokenKind::Oct) => ast::LiteralKind::Octal,
+            Some(TokenKind::Float) => ast::LiteralKind::Float,
+            Some(TokenKind::String) => ast::LiteralKind::String,
+            Some(TokenKind::Colon) => ast::LiteralKind::Keyword,
+            Some(found) => {
+                return Err(Error::Unexpected {
+                    wanted: Self::NAME,
+                    found,
+                })
+            }
+            None => return Err(Error::EOFExpecting(Self::NAME)),
         };
 
-        Ok(Literal::new(kind, token.body(), token.span()))
+        let token = parser.advance().unwrap();
+
+        if kind == ast::LiteralKind::Keyword {
+            match parser.peek() {
+                Some(TokenKind::Identifier) => {
+                    let id = parser.advance().unwrap();
+
+                    if token.span().end() == id.span().start() {
+                        let span = token.span() + id.span();
+                        Ok(Literal::new(kind, id.body(), span))
+                    } else {
+                        Err(Error::KeywordNoSpace)
+                    }
+                }
+
+                Some(found) => {
+                    return Err(Error::Unexpected {
+                        wanted: Self::NAME,
+                        found,
+                    })
+                }
+                None => return Err(Error::EOFExpecting(Self::NAME)),
+            }
+        } else {
+            Ok(Literal::new(kind, token.body(), token.span()))
+        }
     }
 }
 
@@ -107,5 +136,35 @@ mod parser_tests {
         assert_eq!(literal.kind(), Kind::String);
         assert_eq!(literal.body(), "\"Hello, world!\\n\"");
         assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_keyword() {
+        let mut parser = Parser::new(" :hello_world ").unwrap();
+        let literal = parser.parse::<Literal>().unwrap();
+        assert_eq!(literal.kind(), Kind::Keyword);
+        assert_eq!(literal.body(), "hello_world");
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_keyword_no_identifier() {
+        let mut parser = Parser::new(" : ").unwrap();
+        let literal = parser.parse::<Literal>();
+        assert!(literal.is_err());
+    }
+
+    #[test]
+    fn parse_keyword_non_identifier() {
+        let mut parser = Parser::new(" :1").unwrap();
+        let literal = parser.parse::<Literal>();
+        assert!(literal.is_err());
+    }
+
+    #[test]
+    fn parse_keyword_space() {
+        let mut parser = Parser::new(" : hi ").unwrap();
+        let literal = parser.parse::<Literal>();
+        assert!(literal.is_err());
     }
 }
