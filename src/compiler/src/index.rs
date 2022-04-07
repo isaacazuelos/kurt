@@ -20,8 +20,7 @@ use std::marker::PhantomData;
 
 use crate::{constant::Constant, opcode::Op, prototype::Prototype};
 
-/// An index which refers to a specific opcode within a
-/// [`Code`][crate::code::Code] chunk.
+/// An index which refers to a specific opcode.
 ///
 /// This is a 'newtype' wrapper since we don't want people creating new
 /// arbitrary indices or doing math on them.
