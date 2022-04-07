@@ -35,9 +35,12 @@ toolchain.
 
 - Test with `cargo test`. Use `--all` to get the whole workspace. See the
   `testing-plan.md` file for more information.
-- Build documentation with `cargo doc`. Use `--open` to browse the documentation.
+- Build documentation with `cargo doc`. Try using `--open` to browse and
+  consider [cargo-watch][cw] when writing.
 - Format with `cargo fmt` and lint with `cargo clippy`.
 - Eventually, we'll benchmark with `cargo bench`.
+
+[cw]: https://github.com/watchexec/cargo-watch
 
 ## Versioning
 
