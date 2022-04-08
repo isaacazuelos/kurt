@@ -20,6 +20,21 @@ pub enum Error {
     LexerError(lexer::Error),
 }
 
+impl Error {
+    /// Update the name of the thing we wanted when we encountered the error.
+    pub fn set_wanted(self, new: &'static str) -> Error {
+        match self {
+            Error::NotStartOf(_) => Error::NotStartOf(new),
+            Error::EOFExpecting(_) => Error::EOFExpecting(new),
+            Error::Unexpected { found, .. } => {
+                Error::Unexpected { wanted: new, found }
+            }
+
+            other => other,
+        }
+    }
+}
+
 // This [`Display`][fmt::display] implementation doesn't have access to enough
 // information to really explain _why_ the error was raised, so these must be
 // mostly for presenting to developers working on the language, not for users of

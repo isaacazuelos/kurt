@@ -10,6 +10,7 @@ mod binding;
 mod block;
 mod entry;
 mod expression;
+mod function;
 mod ident;
 mod literal;
 mod statement;
@@ -19,6 +20,7 @@ pub use self::{
     block::Block,
     entry::{Module, TopLevel},
     expression::Expression,
+    function::Function,
     ident::Identifier,
     literal::{Kind as LiteralKind, Literal},
     statement::{Statement, StatementSequence},

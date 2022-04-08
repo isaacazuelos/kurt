@@ -85,6 +85,7 @@ impl Compiler {
     fn expression(&mut self, syntax: &syntax::Expression) -> Result<()> {
         match syntax {
             syntax::Expression::Block(b) => self.block(b),
+            syntax::Expression::Function(f) => self.function(f),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
             syntax::Expression::Literal(l) => self.literal(l),
         }
@@ -96,6 +97,11 @@ impl Compiler {
         self.statement_sequence(syntax.statements())?;
         self.end_scope();
         Ok(())
+    }
+
+    /// Compile a function.
+    fn function(&mut self, _syntax: &syntax::Function) -> Result<()> {
+        todo!()
     }
 
     /// Compile a identifier used as an expression.

@@ -1,10 +1,11 @@
 //! Expressions
 
-use parser::Parse;
+use parser::{
+    lexer::{Delimiter, TokenKind},
+    Parse,
+};
 
 use super::*;
-
-use crate::lexer::TokenKind;
 
 /// This type is a syntax tree enum, like those found in the [`syn`][syn-crate]
 /// crate. This means it's an `enum` to dispatch on different types of
@@ -14,6 +15,7 @@ use crate::lexer::TokenKind;
 #[derive(Debug)]
 pub enum Expression<'a> {
     Block(Block<'a>),
+    Function(Function<'a>),
     Identifier(Identifier<'a>),
     Literal(Literal<'a>),
 }
@@ -24,6 +26,7 @@ impl<'a> Syntax for Expression<'a> {
     fn span(&self) -> Span {
         match self {
             Expression::Block(b) => b.span(),
+            Expression::Function(f) => f.span(),
             Expression::Literal(e) => e.span(),
             Expression::Identifier(i) => i.span(),
         }
@@ -38,10 +41,16 @@ impl<'a> Parse<'a> for Expression<'a> {
                     parser.parse().map(Expression::Identifier)
                 }
 
-                Some(TokenKind::Open(crate::lexer::Delimiter::Brace)) => {
+                Some(TokenKind::Open(Delimiter::Brace)) => {
                     // We'll need to do some backtracking here in the future to
                     // decide if it's a block or record literal.
                     parser.parse().map(Expression::Block)
+                }
+
+                Some(TokenKind::Open(Delimiter::Parenthesis)) => {
+                    // We'll need to do some backtracking here in the future to
+                    // decide if it's a block or record literal.
+                    parser.parse().map(Expression::Function)
                 }
 
                 Some(TokenKind::Colon) => {
