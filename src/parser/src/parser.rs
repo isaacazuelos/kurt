@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
         name: &'static str,
     ) -> Result<Token<'a>, Error> {
         match self.tokens.get(self.cursor) {
-            Some(ref found) if predicate(found) => Ok(self.advance().unwrap()),
+            Some(found) if predicate(found) => Ok(self.advance().unwrap()),
             Some(found) => Err(Error::Unexpected {
                 wanted: name,
                 found: found.kind(),

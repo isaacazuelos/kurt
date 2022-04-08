@@ -99,13 +99,11 @@ impl<'a> Parse<'a> for Literal<'a> {
                     }
                 }
 
-                Some(found) => {
-                    return Err(Error::Unexpected {
-                        wanted: Self::NAME,
-                        found,
-                    })
-                }
-                None => return Err(Error::EOFExpecting(Self::NAME)),
+                Some(found) => Err(Error::Unexpected {
+                    wanted: Self::NAME,
+                    found,
+                }),
+                None => Err(Error::EOFExpecting(Self::NAME)),
             }
         } else {
             Ok(Literal::new(kind, token.body(), token.span()))
