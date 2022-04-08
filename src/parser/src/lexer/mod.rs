@@ -37,7 +37,7 @@ pub use crate::lexer::{
 /// # Example
 ///
 /// ```
-/// # use syntax::lexer::Lexer;
+/// # use parser::lexer::Lexer;
 /// let mut lexer = Lexer::new("abc def");
 /// while let Ok(token) = lexer.token() {
 ///     // do something with token
@@ -74,7 +74,7 @@ impl<'i> Lexer<'i> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let lexer = Lexer::new("");
     /// assert!(lexer.is_empty());
     /// let lexer = Lexer::new("non-empty");
@@ -94,7 +94,7 @@ impl<'i> Lexer<'i> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("test");
     /// if let Ok(token) = lexer.token() {
     ///     // Do something with the token.
@@ -125,7 +125,7 @@ impl<'i> Lexer<'i> {
     /// # Example
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("abc def");
     /// let abc = lexer.token();
     /// assert_eq!(lexer.remaining_input(), "def");

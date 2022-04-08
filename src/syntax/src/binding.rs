@@ -1,6 +1,9 @@
 //! Binding statements, things like `let` and `var`.
 
-use crate::lexer::{Reserved, Token, TokenKind as Kind};
+use parser::{
+    lexer::{Reserved, Token, TokenKind as Kind},
+    Parse,
+};
 
 use super::*;
 
@@ -50,36 +53,21 @@ impl Syntax for Binding<'_> {
 
 impl<'a> Parse<'a> for Binding<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Binding<'a>, Error> {
-        let keyword = match parser.peek() {
-            Some(Kind::Reserved(Reserved::Let | Reserved::Var)) => {
-                let token = parser.advance().unwrap();
-                Ok(token)
-            }
-            Some(found) => Err(Error::Unexpected {
-                wanted: Binding::NAME,
-                found,
-            }),
-            None => Err(Error::EOFExpecting(Binding::NAME)),
-        }?;
-
-        let name = parser.parse()?;
-
-        let equals = match parser.peek() {
-            None => Err(Error::EOFExpecting(Kind::Equals.name())),
-            Some(Kind::Equals) => Ok(parser.advance().unwrap()),
-            Some(found) => Err(Error::Unexpected {
-                wanted: Kind::Equals.name(),
-                found,
-            }),
-        }?;
-
-        let body = parser.parse()?;
+        let keyword = parser.consume_if(
+            |t| {
+                matches!(
+                    t.kind(),
+                    Kind::Reserved(Reserved::Let | Reserved::Var),
+                )
+            },
+            "a `let` or `var`",
+        )?;
 
         Ok(Binding {
             keyword,
-            name,
-            equals,
-            body,
+            name: parser.parse()?,
+            equals: parser.consume(Kind::Equals, "an equals sign")?,
+            body: parser.parse()?,
         })
     }
 }
@@ -89,7 +77,15 @@ mod parser_tests {
     use super::*;
 
     #[test]
-    fn test_binding() {
+    fn test_let() {
+        let mut parser = Parser::new("let x = x").unwrap();
+        let binding = parser.parse::<Binding>();
+        assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn test_var() {
         let mut parser = Parser::new("let x = x").unwrap();
         let binding = parser.parse::<Binding>();
         assert!(binding.is_ok(), "binding expected, but got {:?}", binding);

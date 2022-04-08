@@ -15,7 +15,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("aababb");
     /// let result = lexer.optional(|lex| lex.char('a'));
     /// assert_eq!(result, Some('a'));
@@ -47,7 +47,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let lexer = Lexer::new("0123abc");
     /// assert_eq!(lexer.peek_nth(3), Some('3'));
     /// assert_eq!(lexer.remaining_input(), "0123abc");
@@ -61,7 +61,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("123abc");
     /// assert_eq!(lexer.peek().unwrap(), '1');
     /// assert_eq!(lexer.remaining_input(), "123abc");
@@ -75,7 +75,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("123abc");
     /// assert_eq!(lexer.advance().unwrap(), '1');
     /// assert_eq!(lexer.remaining_input(), "23abc");
@@ -94,7 +94,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("123abc");
     /// assert_eq!(lexer.char('1').unwrap(), '1');
     /// assert!(lexer.char('b').is_none());
@@ -111,7 +111,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("123abc");
     /// let consumed = lexer.str("123").unwrap();
     /// assert_eq!(consumed, "123");
@@ -135,7 +135,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("aababbcab");
     /// let consumed = lexer.consume_while(|c| c == 'a' || c == 'b');
     /// assert_eq!(consumed, "aababb");
@@ -163,7 +163,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// # use syntax::lexer::Lexer;
+    /// # use parser::lexer::Lexer;
     /// let mut lexer = Lexer::new("abba");
     /// let consumed = lexer.one_of("ab").unwrap();
     /// assert_eq!(consumed, 'a');

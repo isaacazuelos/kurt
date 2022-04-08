@@ -2,6 +2,8 @@
 
 use diagnostic::Span;
 
+use parser::Parse;
+
 use super::*;
 
 /// A piece of 'top-level' input to some interactive session.
@@ -62,5 +64,17 @@ impl<'a> Syntax for Module<'a> {
 
 #[cfg(test)]
 mod parser_tests {
-    // really nothing worth testing yet.
+    use super::*;
+
+    #[test]
+    fn empty_module() {
+        let syntax = Module::parse("");
+        assert!(syntax.is_ok());
+    }
+
+    #[test]
+    fn empty_top_level() {
+        let syntax = TopLevel::parse(";;;");
+        assert!(syntax.is_ok());
+    }
 }

@@ -2,9 +2,14 @@
 
 // TODO: UTF-8 Normalization?
 
-use crate::lexer::{Token, TokenKind};
+use diagnostic::Span;
 
-use super::*;
+use parser::{
+    lexer::{Token, TokenKind},
+    Error, Parse, Parser,
+};
+
+use crate::Syntax;
 
 #[derive(Debug)]
 pub struct Identifier<'a> {
@@ -28,15 +33,9 @@ impl<'a> Syntax for Identifier<'a> {
 
 impl<'a> Parse<'a> for Identifier<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Identifier<'a>, Error> {
-        let token = parser.advance().unwrap();
-
-        match token.kind() {
-            TokenKind::Identifier => Ok(Identifier { token }),
-            found => Err(Error::Unexpected {
-                wanted: Self::NAME,
-                found,
-            }),
-        }
+        parser
+            .consume(TokenKind::Identifier, Self::NAME)
+            .map(|token| Identifier { token })
     }
 }
 

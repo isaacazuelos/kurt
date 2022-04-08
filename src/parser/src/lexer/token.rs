@@ -154,7 +154,7 @@ impl Kind {
         }
     }
 
-    pub(crate) fn is_literal(&self) -> bool {
+    pub fn is_literal(&self) -> bool {
         use Kind::*;
         matches!(self, Bin | Bool | Char | Float | Hex | Int | Oct | String)
     }

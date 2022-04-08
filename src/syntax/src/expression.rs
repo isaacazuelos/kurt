@@ -1,5 +1,7 @@
 //! Expressions
 
+use parser::Parse;
+
 use super::*;
 
 use crate::lexer::TokenKind;
@@ -30,32 +32,30 @@ impl<'a> Syntax for Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
-        parser.increase_depth();
+        parser.depth_track(|parser| {
+            match parser.peek() {
+                Some(TokenKind::Identifier) => {
+                    parser.parse().map(Expression::Identifier)
+                }
 
-        let e = match parser.peek() {
-            Some(TokenKind::Identifier) => {
-                parser.parse().map(Expression::Identifier)
+                Some(TokenKind::Open(crate::lexer::Delimiter::Brace)) => {
+                    // We'll need to do some backtracking here in the future to
+                    // decide if it's a block or record literal.
+                    parser.parse().map(Expression::Block)
+                }
+
+                Some(TokenKind::Colon) => {
+                    parser.parse().map(Expression::Literal)
+                }
+                Some(k) if k.is_literal() => {
+                    parser.parse().map(Expression::Literal)
+                }
+
+                Some(_) => Err(Error::NotStartOf("expression")),
+
+                None => Err(Error::EOFExpecting("start of an expression")),
             }
-
-            Some(TokenKind::Open(crate::lexer::Delimiter::Brace)) => {
-                // We'll need to do some backtracking here in the future to
-                // decide if it's a block or record literal.
-                parser.parse().map(Expression::Block)
-            }
-
-            Some(TokenKind::Colon) => parser.parse().map(Expression::Literal),
-            Some(k) if k.is_literal() => {
-                parser.parse().map(Expression::Literal)
-            }
-
-            Some(_) => Err(Error::NotStartOf("expression")),
-
-            None => Err(Error::EOFExpecting("start of an expression")),
-        };
-
-        parser.decrease_depth();
-
-        e
+        })
     }
 }
 

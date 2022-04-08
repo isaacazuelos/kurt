@@ -1,5 +1,7 @@
 //! Statements
 
+use parser::Parse;
+
 use crate::lexer::{Reserved, TokenKind};
 
 use super::*;
@@ -35,7 +37,7 @@ impl<'a> Parse<'a> for Statement<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Statement<'a>, Error> {
         match parser.peek() {
             Some(TokenKind::Semicolon) => {
-                Ok(Statement::Empty(parser.next_span().unwrap()))
+                Ok(Statement::Empty(parser.peek_span().unwrap()))
             }
             Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {
                 Ok(Statement::Binding(parser.parse()?))
@@ -71,36 +73,12 @@ impl<'a> Parse<'a> for StatementSequence<'a> {
     fn parse_with(
         parser: &mut Parser<'a>,
     ) -> Result<StatementSequence<'a>, Error> {
-        let mut statements = Vec::new();
-        let mut semicolons = Vec::new();
-
-        while !parser.is_empty() {
-            match parser.parse() {
-                Ok(statement) => statements.push(statement),
-                Err(Error::NotStartOf(_)) => {}
-                Err(e) => return Err(e),
-            }
-
-            match parser.peek() {
-                // If we see a semicolon, save it and continue
-                Some(t) if t == TokenKind::Semicolon => {
-                    let sep = parser.advance().unwrap();
-                    semicolons.push(sep.span);
-                }
-
-                // end of input is a valid end too
-                None => break,
-
-                // If it's not the end of input or a semicolon, whatever's at
-                // the end isn't part of the statement sequence
-                Some(_) => break,
-            }
-        }
-
-        Ok(StatementSequence {
-            statements,
-            semicolons,
-        })
+        parser.sep_by_trailing(TokenKind::Semicolon).map(
+            |(statements, semicolons)| StatementSequence {
+                statements,
+                semicolons,
+            },
+        )
     }
 }
 

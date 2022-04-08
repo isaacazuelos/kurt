@@ -2,13 +2,9 @@
 
 use diagnostic::Span;
 
-use crate::{
-    ast,
-    lexer::TokenKind,
-    parser::{Error, Parser},
-};
+use parser::{lexer::TokenKind, Error, Parse, Parser};
 
-use super::{Parse, Syntax};
+use crate::Syntax;
 
 /// The different kinds of literal values that can appear in source code.
 ///
@@ -67,16 +63,18 @@ impl<'a> Syntax for Literal<'a> {
 
 impl<'a> Parse<'a> for Literal<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
+        use Kind as LiteralKind; // to keep them clearer
+
         let kind = match parser.peek() {
-            Some(TokenKind::Bool) => ast::LiteralKind::Bool,
-            Some(TokenKind::Char) => ast::LiteralKind::Char,
-            Some(TokenKind::Bin) => ast::LiteralKind::Binary,
-            Some(TokenKind::Hex) => ast::LiteralKind::Hexadecimal,
-            Some(TokenKind::Int) => ast::LiteralKind::Decimal,
-            Some(TokenKind::Oct) => ast::LiteralKind::Octal,
-            Some(TokenKind::Float) => ast::LiteralKind::Float,
-            Some(TokenKind::String) => ast::LiteralKind::String,
-            Some(TokenKind::Colon) => ast::LiteralKind::Keyword,
+            Some(TokenKind::Bool) => LiteralKind::Bool,
+            Some(TokenKind::Char) => LiteralKind::Char,
+            Some(TokenKind::Bin) => LiteralKind::Binary,
+            Some(TokenKind::Hex) => LiteralKind::Hexadecimal,
+            Some(TokenKind::Int) => LiteralKind::Decimal,
+            Some(TokenKind::Oct) => LiteralKind::Octal,
+            Some(TokenKind::Float) => LiteralKind::Float,
+            Some(TokenKind::String) => LiteralKind::String,
+            Some(TokenKind::Colon) => LiteralKind::Keyword,
             Some(found) => {
                 return Err(Error::Unexpected {
                     wanted: Self::NAME,
@@ -88,7 +86,7 @@ impl<'a> Parse<'a> for Literal<'a> {
 
         let token = parser.advance().unwrap();
 
-        if kind == ast::LiteralKind::Keyword {
+        if kind == LiteralKind::Keyword {
             match parser.peek() {
                 Some(TokenKind::Identifier) => {
                     let id = parser.advance().unwrap();

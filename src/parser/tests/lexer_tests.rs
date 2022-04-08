@@ -1,4 +1,4 @@
-use syntax::lexer::*;
+use parser::lexer::*;
 
 #[test]
 fn lexer_empty() {

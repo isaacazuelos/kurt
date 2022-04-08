@@ -1,5 +1,5 @@
 use diagnostic::Span;
-use syntax::{ast::Identifier, Syntax};
+use syntax::{Identifier, Syntax};
 
 #[derive(Debug, Clone)]
 pub struct Local {

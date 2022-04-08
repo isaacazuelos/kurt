@@ -2,7 +2,10 @@
 
 use diagnostic::Span;
 
-use crate::lexer::{Delimiter, TokenKind as Kind};
+use parser::{
+    lexer::{Delimiter, TokenKind as Kind},
+    Parse,
+};
 
 use super::*;
 

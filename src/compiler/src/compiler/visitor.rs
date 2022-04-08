@@ -1,7 +1,7 @@
 //! The rules for walking a syntax tree.
 
 use diagnostic::Span;
-use syntax::{ast, Syntax};
+use syntax::{self, Syntax};
 
 use crate::{
     constant::Constant,
@@ -32,7 +32,7 @@ impl Compiler {
     /// Compile a sequence of statements.
     fn statement_sequence(
         &mut self,
-        syntax: &ast::StatementSequence,
+        syntax: &syntax::StatementSequence,
     ) -> Result<()> {
         // each statement with a semicolon gets compiled
         for i in 0..syntax.semicolons().len() {
@@ -51,16 +51,16 @@ impl Compiler {
     ///
     /// Each statement should leave it's resulting value as a new value on the
     /// top of the stack, without consuming anything.
-    fn statement(&mut self, syntax: &ast::Statement) -> Result<()> {
+    fn statement(&mut self, syntax: &syntax::Statement) -> Result<()> {
         match syntax {
-            ast::Statement::Binding(b) => self.binding(b),
-            ast::Statement::Empty(span) => self.empty_statement(*span),
-            ast::Statement::Expression(e) => self.expression(e),
+            syntax::Statement::Binding(b) => self.binding(b),
+            syntax::Statement::Empty(span) => self.empty_statement(*span),
+            syntax::Statement::Expression(e) => self.expression(e),
         }
     }
 
     /// Compile a binding statement, something like `let a = b` or `var x = y`.
-    fn binding(&mut self, syntax: &ast::Binding) -> Result<()> {
+    fn binding(&mut self, syntax: &syntax::Binding) -> Result<()> {
         if syntax.is_var() {
             return Err(Error::MutationNotSupported);
         }
@@ -82,16 +82,16 @@ impl Compiler {
     }
 
     /// Compile an expression
-    fn expression(&mut self, syntax: &ast::Expression) -> Result<()> {
+    fn expression(&mut self, syntax: &syntax::Expression) -> Result<()> {
         match syntax {
-            ast::Expression::Block(b) => self.block(b),
-            ast::Expression::Identifier(i) => self.identifier_expression(i),
-            ast::Expression::Literal(l) => self.literal(l),
+            syntax::Expression::Block(b) => self.block(b),
+            syntax::Expression::Identifier(i) => self.identifier_expression(i),
+            syntax::Expression::Literal(l) => self.literal(l),
         }
     }
 
     /// Compile a block expression.
-    fn block(&mut self, syntax: &ast::Block) -> Result<()> {
+    fn block(&mut self, syntax: &syntax::Block) -> Result<()> {
         self.begin_scope();
         self.statement_sequence(syntax.statements())?;
         self.end_scope();
@@ -103,7 +103,7 @@ impl Compiler {
     /// For now we only have local variables.
     fn identifier_expression(
         &mut self,
-        syntax: &ast::Identifier,
+        syntax: &syntax::Identifier,
     ) -> Result<()> {
         let name = syntax.as_str();
 
@@ -115,30 +115,30 @@ impl Compiler {
     }
 
     /// Compile a literal
-    fn literal(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         match syntax.kind() {
-            ast::LiteralKind::Binary => self.binary(syntax),
-            ast::LiteralKind::Bool => self.bool(syntax),
-            ast::LiteralKind::Char => self.char(syntax),
-            ast::LiteralKind::Decimal => self.decimal(syntax),
-            ast::LiteralKind::Float => self.float(syntax),
-            ast::LiteralKind::Hexadecimal => self.hexadecimal(syntax),
-            ast::LiteralKind::Keyword => self.keyword(syntax),
-            ast::LiteralKind::Octal => self.octal(syntax),
-            ast::LiteralKind::String => self.string(syntax),
-            ast::LiteralKind::Unit => self.unit(syntax),
+            syntax::LiteralKind::Binary => self.binary(syntax),
+            syntax::LiteralKind::Bool => self.bool(syntax),
+            syntax::LiteralKind::Char => self.char(syntax),
+            syntax::LiteralKind::Decimal => self.decimal(syntax),
+            syntax::LiteralKind::Float => self.float(syntax),
+            syntax::LiteralKind::Hexadecimal => self.hexadecimal(syntax),
+            syntax::LiteralKind::Keyword => self.keyword(syntax),
+            syntax::LiteralKind::Octal => self.octal(syntax),
+            syntax::LiteralKind::String => self.string(syntax),
+            syntax::LiteralKind::Unit => self.unit(syntax),
         }
     }
 
     /// Compile an binary numeric literal
-    fn binary(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn binary(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 2)?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a boolean literal.
-    fn bool(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn bool(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let op = if syntax.body() == "true" {
             Op::True
         } else {
@@ -149,54 +149,54 @@ impl Compiler {
     }
 
     /// Compile a character literal.
-    fn char(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn char(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let c = Constant::parse_char(syntax.body())?;
         let index = self.constants.insert(c)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a numeric literal
-    fn decimal(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn decimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_int(syntax.body())?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
-    fn float(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn float(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let f = Constant::parse_float(syntax.body())?;
         let index = self.constants.insert(f)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile an octal numeric literal
-    fn octal(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn octal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 8)?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a keyword literal
-    fn keyword(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn keyword(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let kw = Constant::parse_keyword(syntax.body())?;
         let index = self.constants.insert(kw)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a hexadecimal numeric literal
-    fn hexadecimal(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn hexadecimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 16)?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
-    fn string(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn string(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let s = Constant::parse_string(syntax.body())?;
         let index = self.constants.insert(s)?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a unit literal (i.e. `()`).
-    fn unit(&mut self, syntax: &ast::Literal) -> Result<()> {
+    fn unit(&mut self, syntax: &syntax::Literal) -> Result<()> {
         self.emit(Op::Unit, syntax.span())
     }
 }

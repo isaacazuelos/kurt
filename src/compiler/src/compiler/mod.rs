@@ -7,7 +7,7 @@
 //! [`Compiler::build`].
 
 use diagnostic::Span;
-use syntax::ast::Identifier;
+use syntax::Identifier;
 
 mod visitor;
 

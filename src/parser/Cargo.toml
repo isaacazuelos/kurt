@@ -1,5 +1,5 @@
 [package]
-name = "syntax"
+name = "parser"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 diagnostic = { path = "../diagnostic" }
-parser = { path = "../parser" }
 
 # external
 unicode_categories = "0.1"

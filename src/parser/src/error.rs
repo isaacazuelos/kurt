@@ -7,6 +7,8 @@ use crate::lexer::{self, TokenKind as Kind};
 /// Lexical errors with all the contextual information needed present it nicely.
 #[derive(Debug)]
 pub enum Error {
+    ParserDepthExceeded,
+
     NotStartOf(&'static str),
     EOFExpecting(&'static str),
 
@@ -26,6 +28,10 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
         match self {
+            ParserDepthExceeded => {
+                write!(f, "parser depth limit exceeded")
+            }
+
             NotStartOf(syntax) => write!(f, "Not the start of {}", syntax),
             EOFExpecting(expected) => {
                 write!(f, "Hit end of input when expecting {}", expected)
