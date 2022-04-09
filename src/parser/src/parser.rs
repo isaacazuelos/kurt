@@ -144,6 +144,9 @@ impl<'a> Parser<'a> {
             let before = self.cursor;
             match self.parse() {
                 Ok(element) => elements.push(element),
+                Err(Error::ParserDepthExceeded) => {
+                    return Err(Error::ParserDepthExceeded)
+                }
                 Err(e) => {
                     // If the parser for S consumed some tokens before breaking,
                     // we need to pass that error along -- it means we had a
@@ -159,10 +162,8 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 // If we see a separator, save it and continue
                 Some(t) if t == sep => {
-                    let sep = self.tokens[self.cursor];
-                    self.cursor += 1;
-
-                    separators.push(sep.span());
+                    let tok = self.consume(t, sep.name()).unwrap();
+                    separators.push(tok.span());
                 }
 
                 // end of input is a valid end too
@@ -199,7 +200,6 @@ impl<'a> Parser<'a> {
     /// need to worry about this.
     pub fn depth_track<F, S>(&mut self, inner: F) -> Result<S, Error>
     where
-        S: Parse<'a>,
         F: FnOnce(&mut Self) -> Result<S, Error>,
     {
         if self.depth >= Parser::MAX_DEPTH {
@@ -217,6 +217,29 @@ impl<'a> Parser<'a> {
     }
 }
 
+// Backtracking
+impl<'a> Parser<'a> {
+    /// Attempt to use the parser for `F`, but on error the parser is returned
+    /// to the state it was in before failure.
+    #[inline(always)]
+    pub fn with_backtracking<S, F>(&mut self, inner: F) -> Result<S, Error>
+    where
+        F: FnOnce(&mut Self) -> Result<S, Error>,
+    {
+        let old_depth = self.depth;
+        let old_cursor = self.cursor;
+
+        match inner(self) {
+            Ok(syntax) => Ok(syntax),
+            Err(e) => {
+                self.depth = old_depth;
+                self.cursor = old_cursor;
+                Err(e)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod parser_tests {
     use diagnostic::{Caret, Span};
@@ -224,10 +247,27 @@ mod parser_tests {
     use super::*;
 
     #[test]
-    fn is_empty() {
-        assert!(Parser::new("").unwrap().is_empty());
-        assert!(Parser::new(" ").unwrap().is_empty());
-        assert!(!Parser::new("nope").unwrap().is_empty());
+    fn consume() {
+        let mut p = Parser::new("hi").unwrap();
+
+        assert!(!p.is_empty());
+        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
+        assert!(p.consume(TokenKind::Identifier, "identifier").is_ok());
+        assert!(p.is_empty());
+        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
+    }
+
+    #[test]
+    fn consume_if() {
+        fn pred(token: &Token) -> bool {
+            token.kind() == TokenKind::Identifier
+        }
+
+        let mut p = Parser::new("hi").unwrap();
+
+        assert!(!p.is_empty());
+        assert!(p.consume_if(pred, "test").is_ok());
+        assert!(p.is_empty());
     }
 
     #[test]
@@ -252,17 +292,47 @@ mod parser_tests {
     }
 
     #[test]
-    fn consume() {
-        let mut p = Parser::new("hi").unwrap();
+    fn is_empty() {
+        assert!(Parser::new("").unwrap().is_empty());
+        assert!(Parser::new(" ").unwrap().is_empty());
+        assert!(!Parser::new("nope").unwrap().is_empty());
 
-        assert!(!p.is_empty());
-        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
-        assert!(p.consume(TokenKind::Identifier, "identifier").is_ok());
-        assert!(p.is_empty());
-        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
+        let mut parser = Parser::new("hi").unwrap();
+        assert!(!parser.is_empty());
+
+        let tok = parser.consume(TokenKind::Identifier, "test");
+        assert!(tok.is_ok());
+        assert!(parser.is_empty());
     }
 
-    // A few things are tested elsewhere since testing relies on modules the
-    // parser itself doesn't need.
-    // - `track_depth`: in the crate `/tests/tests.rs` file.
+    #[test]
+    fn backtracking() {
+        // lets make sure no backtracking does what we expect.
+        let mut parser = Parser::new("1 2").unwrap();
+        let result1 = parser.consume(TokenKind::Int, "1");
+        let result2 = parser.consume(TokenKind::Int, "2");
+        let result3 = parser.consume(TokenKind::Int, "3");
+
+        assert!(result1.is_ok() && result2.is_ok() && result3.is_err());
+        assert!(parser.is_empty());
+
+        // Okay now we can try backtracking.
+
+        let mut parser = Parser::new("1 2").unwrap();
+        let result = parser.with_backtracking(|p| {
+            p.consume(TokenKind::Int, "1")?;
+            p.consume(TokenKind::Int, "2")?;
+            p.consume(TokenKind::Int, "missing 3")
+        });
+
+        assert!(result.is_err());
+        assert!(!parser.is_empty());
+        assert_eq!(parser.peek_span().map(|s| s.start().column()), Some(0));
+    }
+
+    // A few things are tested elsewhere since testing makes more sense with a
+    // grammar specified. See tests in `/tests/parser_tests.rs` for more.
+    //
+    // - `track_depth`
+    // - `sep_by_trailing`
 }

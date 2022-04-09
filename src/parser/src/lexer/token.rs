@@ -114,7 +114,7 @@ pub enum Kind {
 
 impl Kind {
     /// The user-facing name of this kind of token.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'static str {
         use self::Comment::*;
         use Delimiter::*;
         use Kind::*;

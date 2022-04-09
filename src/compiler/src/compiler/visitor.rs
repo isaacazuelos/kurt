@@ -87,6 +87,7 @@ impl Compiler {
             syntax::Expression::Block(b) => self.block(b),
             syntax::Expression::Call(c) => self.call(c),
             syntax::Expression::Function(f) => self.function(f),
+            syntax::Expression::Grouping(g) => self.grouping(g),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
             syntax::Expression::Literal(l) => self.literal(l),
         }
@@ -100,7 +101,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Compile a function.
+    /// Compile a function call.
     fn call(&mut self, _syntax: &syntax::Call) -> Result<()> {
         todo!()
     }
@@ -108,6 +109,11 @@ impl Compiler {
     /// Compile a function.
     fn function(&mut self, _syntax: &syntax::Function) -> Result<()> {
         todo!()
+    }
+
+    /// Compile an expression wrapped in parens.
+    fn grouping(&mut self, syntax: &syntax::Grouping) -> Result<()> {
+        self.expression(syntax.body())
     }
 
     /// Compile a identifier used as an expression.

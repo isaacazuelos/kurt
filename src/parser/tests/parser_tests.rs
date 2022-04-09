@@ -13,14 +13,13 @@ use parser::{
     Error, Parse, Parser,
 };
 
-// test grammar is:
+// test grammar is like a dumb lisp, we have tuples and identifiers.
 //
-// S -> P | <identifier> | e
-// P -> '(' S ')' S
+// S -> P | <identifier>
+// P -> '(' sep_by_trailing<S>(',') ')'
 
 #[derive(Debug)]
 enum S<'a> {
-    Empty,
     Identifier(&'a str),
     P(Box<P<'a>>),
 }
@@ -37,7 +36,12 @@ impl<'a> Parse<'a> for S<'a> {
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                 P::parse_with(parser).map(|p| S::P(Box::new(p)))
             }
-            _ => Ok(S::Empty),
+
+            None => Err(Error::EOFExpecting("an identifier or a tuple")),
+            Some(found) => Err(Error::Unexpected {
+                wanted: "an identifier or a tuple",
+                found,
+            }),
         })
     }
 }
@@ -45,9 +49,8 @@ impl<'a> Parse<'a> for S<'a> {
 #[derive(Debug)]
 struct P<'a> {
     _open: Span,
-    _before: S<'a>,
+    _before: Vec<S<'a>>,
     _close: Span,
-    _after: S<'a>,
 }
 
 impl<'a> Parse<'a> for P<'a> {
@@ -59,14 +62,15 @@ impl<'a> Parse<'a> for P<'a> {
                     "an open paren",
                 )?
                 .span(),
-            _before: S::parse_with(parser)?,
+
+            _before: parser.sep_by_trailing(TokenKind::Comma)?.0,
+
             _close: parser
                 .consume(
                     TokenKind::Close(Delimiter::Parenthesis),
-                    "an open paren",
+                    "a close paren",
                 )?
                 .span(),
-            _after: S::parse_with(parser)?,
         })
     }
 }
@@ -76,6 +80,7 @@ fn nested_parens(depth: usize) -> String {
     for _ in 0..depth {
         buf.push('(');
     }
+    buf.push('a');
     for _ in 0..depth {
         buf.push(')');
     }
@@ -85,7 +90,7 @@ fn nested_parens(depth: usize) -> String {
 #[test]
 fn empty() {
     let s = S::parse("");
-    assert!(s.is_ok());
+    assert!(s.is_err());
 }
 
 #[test]
@@ -96,19 +101,37 @@ fn identifier() {
 
 #[test]
 fn parens() {
-    let syntax = P::parse("()");
-    assert!(syntax.is_ok(), "got {:?}", syntax);
-}
-
-#[test]
-fn parens2() {
-    let syntax = P::parse("()()");
+    let syntax = P::parse("(a)");
     assert!(syntax.is_ok(), "got {:?}", syntax);
 }
 
 #[test]
 fn parens_nesting() {
-    let syntax = P::parse("((((a))(b)))(c)");
+    let syntax = P::parse("(((a)))");
+    assert!(syntax.is_ok(), "got {:?}", syntax);
+}
+
+#[test]
+fn sep_by_empty() {
+    let syntax = P::parse("( )");
+    assert!(syntax.is_ok(), "got {:?}", syntax);
+}
+
+#[test]
+fn sep_by_simple() {
+    let syntax = P::parse("( a, b )");
+    assert!(syntax.is_ok(), "got {:?}", syntax);
+}
+
+#[test]
+fn sep_by_trailing() {
+    let syntax = P::parse("( a, b, )");
+    assert!(syntax.is_ok(), "got {:?}", syntax);
+}
+
+#[test]
+fn sep_by_trailing_empty() {
+    let syntax = P::parse("( , )");
     assert!(syntax.is_ok(), "got {:?}", syntax);
 }
 

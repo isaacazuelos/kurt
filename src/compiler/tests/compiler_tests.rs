@@ -32,3 +32,4 @@ test_no_compile! { missing_binding, "missing" }
 test_compile! { scope, "{1; 2}; {}"}
 test_no_compile! { out_of_scope, "{ let x = 1; }; x" }
 test_compile! { out_of_scope_shadow, "let x = 0; { let x = 1; }; x" }
+test_compile! { grouping, "(1)" }

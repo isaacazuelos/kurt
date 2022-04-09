@@ -1,6 +1,7 @@
 //! Function calls
 //!
 //!
+
 use diagnostic::Span;
 
 use parser::{
@@ -61,8 +62,22 @@ impl<'a> Syntax for Call<'a> {
 
 impl<'a> Parse<'a> for Call<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
-        let target = Expression::primary(parser)?;
-        Call::parse_from(target, parser)
+        let primary = Expression::primary(parser)?;
+
+        let mut call = Call::parse_from(primary, parser)?;
+
+        // This bit is tricky. Since we need it to be as greedy as possible, and
+        // something like `f(a)(b)` should parse the whole thing, we need to
+        // check for that.
+        //
+        // TODO: We'll need to revisit when we have things like `foo().b()`.
+        while let Some(TokenKind::Open(Delimiter::Parenthesis)) = parser.peek()
+        {
+            let inner = Expression::Call(call);
+            call = Call::parse_from(inner, parser)?;
+        }
+
+        Ok(call)
     }
 }
 
@@ -78,7 +93,9 @@ impl<'a> Call<'a> {
             )?
             .span();
 
-        let (arguments, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
+        let (arguments, commas) = parser
+            .sep_by_trailing(TokenKind::Comma)
+            .map_err(|e| e.set_wanted("argument"))?;
 
         let close = parser
             .consume(
@@ -120,6 +137,22 @@ mod parser_tests {
     fn call_arg_trailing() {
         let mut parser = Parser::new(" foo(1, 2, 3, ) ").unwrap();
         assert!(parser.parse::<Call>().is_ok());
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn call_nested() {
+        let mut parser = Parser::new(" foo(bar()) ").unwrap();
+        let result = parser.parse::<Call>();
+        assert!(result.is_ok(), "expected call but got {:?}", result);
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn call_curry() {
+        let mut parser = Parser::new(" foo(1)(2) ").unwrap();
+        let result = parser.parse::<Call>();
+        assert!(result.is_ok(), "expected call but got {:?}", result);
         assert!(parser.is_empty());
     }
 }

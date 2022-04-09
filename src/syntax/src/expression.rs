@@ -17,6 +17,7 @@ pub enum Expression<'a> {
     Block(Block<'a>),
     Call(Call<'a>),
     Function(Function<'a>),
+    Grouping(Grouping<'a>),
     Identifier(Identifier<'a>),
     Literal(Literal<'a>),
 }
@@ -29,6 +30,7 @@ impl<'a> Syntax for Expression<'a> {
             Expression::Block(b) => b.span(),
             Expression::Call(c) => c.span(),
             Expression::Function(f) => f.span(),
+            Expression::Grouping(g) => g.span(),
             Expression::Literal(e) => e.span(),
             Expression::Identifier(i) => i.span(),
         }
@@ -37,18 +39,22 @@ impl<'a> Syntax for Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+        // TODO: When we have operators, here's where we'll being precedence
+        //       climbing, ending with `base`.
         Expression::base(parser)
     }
 }
 
 impl<'a> Expression<'a> {
     /// Primary expressions are expressions which don't themselves have any
-    /// suffix parts or operators (i.e. no left recursion on expression).
+    /// suffix parts or operators (i.e. no left or right recursion on expression).
     ///
     /// # Grammar
     ///
     /// primary := Identifier | Block | Function | Literal
-    pub fn primary(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    pub(crate) fn primary(
+        parser: &mut Parser<'a>,
+    ) -> Result<Expression<'a>, Error> {
         parser.depth_track(|parser| {
             match parser.peek() {
                 Some(TokenKind::Identifier) => {
@@ -62,21 +68,16 @@ impl<'a> Expression<'a> {
                 }
 
                 Some(TokenKind::Open(Delimiter::Parenthesis)) => {
-                    // We'll need to do some backtracking here in the future to
-                    // decide if it's a block or record literal.
-                    parser.parse().map(Expression::Function)
+                    Expression::open_parenthesis(parser)
                 }
 
-                Some(TokenKind::Colon) => {
-                    parser.parse().map(Expression::Literal)
-                }
-                Some(k) if k.is_literal() => {
+                Some(k) if k.is_literal() || k == TokenKind::Colon => {
                     parser.parse().map(Expression::Literal)
                 }
 
-                Some(_) => Err(Error::NotStartOf("expression")),
+                Some(_) => Err(Error::NotStartOf(Self::NAME)),
 
-                None => Err(Error::EOFExpecting("start of an expression")),
+                None => Err(Error::EOFExpecting(Self::NAME)),
             }
         })
     }
@@ -86,7 +87,9 @@ impl<'a> Expression<'a> {
     /// # Grammar
     ///
     /// base := primary | Call
-    pub fn base(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    pub(crate) fn base(
+        parser: &mut Parser<'a>,
+    ) -> Result<Expression<'a>, Error> {
         let mut primary = Expression::primary(parser)?;
 
         while let Some(TokenKind::Open(Delimiter::Parenthesis)) = parser.peek()
@@ -96,6 +99,37 @@ impl<'a> Expression<'a> {
         }
 
         Ok(primary)
+    }
+
+    /// Parse an expression which starts with an open paren.
+    ///
+    /// There are a bunch of things that could be here. Some of these have
+    /// arbitrarily-deep prefixes, so we need to either have arbitrary lookahead
+    /// and do something like LR parsing with a stack until we decide, or
+    /// backtracking.
+    ///
+    ///
+    /// - An expression wrapped in parentheses for grouping
+    /// - A function's parameter list
+    ///
+    /// - Tuples (not yet implemented)
+    /// - `()` is unit (not yet implemented)
+    ///
+    /// # Grammar
+    ///
+    /// open_parenthesis := Function | Grouping
+    fn open_parenthesis(
+        parser: &mut Parser<'a>,
+    ) -> Result<Expression<'a>, Error> {
+        if let Ok(f) = parser.with_backtracking(Function::parse_with) {
+            Ok(Expression::Function(f))
+        } else {
+            Grouping::parse_with(parser)
+                .map(Expression::Grouping)
+                .map_err(|_| {
+                    Error::NotStartOf("a function or grouping expressions")
+                })
+        }
     }
 }
 
@@ -116,9 +150,49 @@ mod parser_tests {
     }
 
     #[test]
+    fn parse_open_paren_grouping() {
+        let mut parser = Parser::new("(1)").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(matches!(result, Ok(Expression::Grouping(_))));
+    }
+
+    #[test]
+    fn parse_open_paren_function() {
+        let mut parser = Parser::new("() => 1").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(result, Ok(Expression::Function(_)),),
+            "expected function but got {:?}",
+            result,
+        );
+    }
+
+    #[test]
+    fn parse_open_paren_error() {
+        let mut parser = Parser::new("( nope").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(result.is_err(), "succeeded with {:?}", result);
+    }
+
+    #[test]
     fn parse_expression_calls() {
-        let mut parser = Parser::new("foo(bar)(baz())").unwrap();
-        let calls = parser.parse::<Expression>();
-        assert!(matches!(calls, Ok(Expression::Call(_))));
+        let mut parser = Parser::new("foo(bar)").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(result, Ok(Expression::Call(_))),
+            "expected call but got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn parse_expression_calls_multiple() {
+        let mut parser = Parser::new("foo(bar)(baz)").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(result, Ok(Expression::Call(_))),
+            "expected call but got {:?}",
+            result
+        );
     }
 }

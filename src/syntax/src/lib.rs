@@ -12,6 +12,7 @@ mod call;
 mod entry;
 mod expression;
 mod function;
+mod grouping;
 mod ident;
 mod literal;
 mod statement;
@@ -23,6 +24,7 @@ pub use self::{
     entry::{Module, TopLevel},
     expression::Expression,
     function::Function,
+    grouping::Grouping,
     ident::Identifier,
     literal::{Kind as LiteralKind, Literal},
     statement::{Statement, StatementSequence},
