@@ -15,6 +15,7 @@ use super::*;
 #[derive(Debug)]
 pub enum Expression<'a> {
     Block(Block<'a>),
+    Call(Call<'a>),
     Function(Function<'a>),
     Identifier(Identifier<'a>),
     Literal(Literal<'a>),
@@ -26,6 +27,7 @@ impl<'a> Syntax for Expression<'a> {
     fn span(&self) -> Span {
         match self {
             Expression::Block(b) => b.span(),
+            Expression::Call(c) => c.span(),
             Expression::Function(f) => f.span(),
             Expression::Literal(e) => e.span(),
             Expression::Identifier(i) => i.span(),
@@ -35,6 +37,18 @@ impl<'a> Syntax for Expression<'a> {
 
 impl<'a> Parse<'a> for Expression<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+        Expression::base(parser)
+    }
+}
+
+impl<'a> Expression<'a> {
+    /// Primary expressions are expressions which don't themselves have any
+    /// suffix parts or operators (i.e. no left recursion on expression).
+    ///
+    /// # Grammar
+    ///
+    /// primary := Identifier | Block | Function | Literal
+    pub fn primary(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
         parser.depth_track(|parser| {
             match parser.peek() {
                 Some(TokenKind::Identifier) => {
@@ -66,6 +80,23 @@ impl<'a> Parse<'a> for Expression<'a> {
             }
         })
     }
+
+    /// Base expressions might have suffixes but don't have any operators.
+    ///
+    /// # Grammar
+    ///
+    /// base := primary | Call
+    pub fn base(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+        let mut primary = Expression::primary(parser)?;
+
+        while let Some(TokenKind::Open(Delimiter::Parenthesis)) = parser.peek()
+        {
+            primary =
+                Call::parse_from(primary, parser).map(Expression::Call)?;
+        }
+
+        Ok(primary)
+    }
 }
 
 #[cfg(test)]
@@ -82,5 +113,12 @@ mod parser_tests {
         let ident = parser.parse::<Expression>();
         assert!(matches!(ident, Ok(Expression::Identifier(_))));
         assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_expression_calls() {
+        let mut parser = Parser::new("foo(bar)(baz())").unwrap();
+        let calls = parser.parse::<Expression>();
+        assert!(matches!(calls, Ok(Expression::Call(_))));
     }
 }

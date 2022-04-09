@@ -8,6 +8,7 @@ pub use parser::{Error, Parse};
 
 mod binding;
 mod block;
+mod call;
 mod entry;
 mod expression;
 mod function;
@@ -18,6 +19,7 @@ mod statement;
 pub use self::{
     binding::Binding,
     block::Block,
+    call::Call,
     entry::{Module, TopLevel},
     expression::Expression,
     function::Function,

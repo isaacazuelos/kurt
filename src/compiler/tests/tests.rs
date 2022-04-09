@@ -4,7 +4,8 @@ macro_rules! test_compile {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            assert!(compiler::compile($input).is_ok())
+            let result = compiler::compile($input);
+            assert!(result.is_ok(), "failed to compile with {:?}", result)
         }
     };
 }
@@ -16,7 +17,7 @@ macro_rules! test_no_compile {
             let result = compiler::compile($input);
             assert!(
                 result.is_err(),
-                "failed to compile with {}",
+                "failed to fail to compile with {}",
                 result.unwrap_err()
             )
         }

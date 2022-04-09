@@ -86,13 +86,20 @@ impl<'a> Parser<'a> {
     /// we were looking for using `name`.
     ///
     /// If you just want a specific kind, use [`Parser::consume`] instead.
+    ///
+    /// Ultimately, this is the only method that moves the parser forward over
+    /// input.
     pub fn consume_if(
         &mut self,
         predicate: impl Fn(&Token) -> bool,
         name: &'static str,
     ) -> Result<Token<'a>, Error> {
         match self.tokens.get(self.cursor) {
-            Some(found) if predicate(found) => Ok(self.advance().unwrap()),
+            Some(found) if predicate(found) => {
+                let token = self.tokens[self.cursor];
+                self.cursor += 1;
+                Ok(token)
+            }
             Some(found) => Err(Error::Unexpected {
                 wanted: name,
                 found: found.kind(),
@@ -121,15 +128,6 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.cursor).map(Token::span)
     }
 
-    /// Consume the next token, regardless of what it is.
-    ///
-    /// This returns `None` if there are no more tokens.
-    pub fn advance(&mut self) -> Option<Token<'a>> {
-        let token = self.tokens.get(self.cursor).cloned();
-        self.cursor += 1;
-        token
-    }
-
     /// A `sep` separated list of some piece of syntax, with support for
     /// optional trailing separators.
     pub fn sep_by_trailing<S>(
@@ -143,16 +141,27 @@ impl<'a> Parser<'a> {
         let mut separators = Vec::new();
 
         while !self.is_empty() {
+            let before = self.cursor;
             match self.parse() {
                 Ok(element) => elements.push(element),
-                Err(Error::NotStartOf(_)) => {}
-                Err(e) => return Err(e),
+                Err(e) => {
+                    // If the parser for S consumed some tokens before breaking,
+                    // we need to pass that error along -- it means we had a
+                    // thing that looked like an S that failed part-way. IF we
+                    // need to backtrack properly later, we'll need to be
+                    // careful here.
+                    if self.cursor != before {
+                        return Err(e);
+                    }
+                }
             }
 
             match self.peek() {
                 // If we see a separator, save it and continue
                 Some(t) if t == sep => {
-                    let sep = self.advance().unwrap();
+                    let sep = self.tokens[self.cursor];
+                    self.cursor += 1;
+
                     separators.push(sep.span());
                 }
 
@@ -182,9 +191,12 @@ impl<'a> Parser<'a> {
     /// depth is hit. This is to prevent parsing from blowing the stack where
     /// the grammar is recursive.
     ///
-    /// In our grammar, the only two places I forsee this happening is
+    /// In our grammar, the only two places I forsee this happening is with
     /// expressions and patterns. All statements only contain other statements
     /// within block expressions.
+    ///
+    /// Likewise, for expressions, it's only in 'primary' expressions which we
+    /// need to worry about this.
     pub fn depth_track<F, S>(&mut self, inner: F) -> Result<S, Error>
     where
         S: Parse<'a>,
@@ -240,16 +252,6 @@ mod parser_tests {
     }
 
     #[test]
-    fn advance() {
-        let mut p = Parser::new("hi").unwrap();
-
-        assert!(!p.is_empty());
-        assert!(p.advance().is_some());
-        assert!(p.is_empty());
-        assert!(p.advance().is_none());
-    }
-
-    #[test]
     fn consume() {
         let mut p = Parser::new("hi").unwrap();
 
@@ -258,7 +260,6 @@ mod parser_tests {
         assert!(p.consume(TokenKind::Identifier, "identifier").is_ok());
         assert!(p.is_empty());
         assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
-        assert!(p.advance().is_none());
     }
 
     // A few things are tested elsewhere since testing relies on modules the

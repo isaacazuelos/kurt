@@ -12,11 +12,12 @@ use super::*;
 ///
 /// # Grammar
 ///
-/// [`Function`] := [`(`][`TokenKind::Open`] [`ParameterList`] [`)`][`TokenKind::Close`] [`=>`][TokenKind::DoubleArrow] [`Expression`]
+/// Function := '(' sep_by_trailing(Parameter, ',') ')' '=>' Expression
 #[derive(Debug)]
 pub struct Function<'a> {
     open: Span,
-    parameters: ParameterList<'a>,
+    parameters: Vec<Parameter<'a>>,
+    commas: Vec<Span>,
     close: Span,
     arrow: Span,
     body: Box<Expression<'a>>,
@@ -24,8 +25,13 @@ pub struct Function<'a> {
 
 impl<'a> Function<'a> {
     /// Get a reference to the function's parameter list.
-    pub fn parameters(&self) -> &ParameterList<'a> {
+    pub fn parameters(&self) -> &[Parameter<'a>] {
         &self.parameters
+    }
+
+    /// The span for the commas that were between parameters, in order.
+    pub fn comma(&self) -> &[Span] {
+        &self.commas
     }
 
     /// Get a reference to the function's body expression.
@@ -55,7 +61,7 @@ impl<'a> Parse<'a> for Function<'a> {
             .consume(TokenKind::Open(Delimiter::Parenthesis), Self::NAME)?
             .span();
 
-        let parameters = parser.parse()?;
+        let (parameters, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis), Self::NAME)?
@@ -68,6 +74,7 @@ impl<'a> Parse<'a> for Function<'a> {
         Ok(Function {
             open,
             parameters,
+            commas,
             close,
             arrow,
             body,
@@ -79,48 +86,7 @@ impl<'a> Syntax for Function<'a> {
     const NAME: &'static str = "a function";
 
     fn span(&self) -> Span {
-        self.parameters.span() + self.body.span()
-    }
-}
-
-/// # Grammar
-///
-/// [`ParameterList`] := [`sep_by(`][`Parser::sep_by_trailing`] [`ParameterList`] [`)`][`TokenKind::Close`] [`=>`][TokenKind::DoubleArrow] [`Expression`]
-#[derive(Debug)]
-pub struct ParameterList<'a> {
-    parameters: Vec<Parameter<'a>>,
-    commas: Vec<Span>,
-}
-
-impl<'a> ParameterList<'a> {
-    /// Get a reference to the parameter list's parameters.
-    pub fn parameters(&self) -> &[Parameter] {
-        self.parameters.as_ref()
-    }
-
-    /// Get a reference to the parameter list's commas.
-    pub fn commas(&self) -> &[Span] {
-        self.commas.as_ref()
-    }
-}
-
-impl<'a> Parse<'a> for ParameterList<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
-        parser
-            .sep_by_trailing(TokenKind::Comma)
-            .map(|(parameters, commas)| ParameterList { parameters, commas })
-    }
-}
-
-impl<'a> Syntax for ParameterList<'a> {
-    const NAME: &'static str = "a function's parameter list";
-
-    fn span(&self) -> Span {
-        if let Some(first) = self.parameters.first() {
-            first.span() + self.parameters.last().unwrap().span()
-        } else {
-            Span::default()
-        }
+        self.open + self.body.span()
     }
 }
 
@@ -160,27 +126,24 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_parameter_list() {
-        let mut parser = Parser::new(" ").unwrap();
-        assert!(parser.parse::<ParameterList>().is_ok());
-        assert!(parser.is_empty());
-
-        let mut parser = Parser::new(" foo ").unwrap();
-        assert!(parser.parse::<ParameterList>().is_ok());
-        assert!(parser.is_empty());
-
-        let mut parser = Parser::new(" foo, ").unwrap();
-        assert!(parser.parse::<ParameterList>().is_ok());
-        assert!(parser.is_empty());
-
-        let mut parser = Parser::new(" foo, bar").unwrap();
-        assert!(parser.parse::<ParameterList>().is_ok());
-        assert!(parser.is_empty());
+    fn test_function() {
+        let mut parser = Parser::new(" (x) => 1").unwrap();
+        let result = parser.parse::<Function>();
+        assert!(result.is_ok(), "failed with {:?}", result);
+        assert!(parser.is_empty(),);
     }
 
     #[test]
-    fn test_function() {
-        let mut parser = Parser::new(" (x) => 1").unwrap();
+    fn test_function_params() {
+        let mut parser = Parser::new(" (x, y, z ) => 1").unwrap();
+        let result = parser.parse::<Function>();
+        assert!(result.is_ok(), "failed with {:?}", result);
+        assert!(parser.is_empty(),);
+    }
+
+    #[test]
+    fn test_function_trailing() {
+        let mut parser = Parser::new(" (x, ) => 1").unwrap();
         let result = parser.parse::<Function>();
         assert!(result.is_ok(), "failed with {:?}", result);
         assert!(parser.is_empty(),);

@@ -29,7 +29,9 @@ impl<'a> Parse<'a> for S<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<S<'a>, parser::Error> {
         parser.depth_track(|parser| match parser.peek() {
             Some(TokenKind::Identifier) => {
-                let token = parser.advance().unwrap();
+                let token = parser
+                    .consume(TokenKind::Identifier, "identifier")
+                    .unwrap();
                 Ok(S::Identifier(token.body()))
             }
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {

@@ -35,21 +35,12 @@ impl<'a> Syntax for Block<'a> {
 
 impl<'a> Parse<'a> for Block<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Block<'a>, Error> {
-        let open = match parser.peek() {
-            Some(Kind::Open(Delimiter::Brace)) => {
-                let token = parser.advance().unwrap();
-                token.span()
-            }
-            Some(found) => {
-                return Err(Error::Unexpected {
-                    wanted: "an opening brace for a block",
-                    found,
-                })
-            }
-            None => {
-                return Err(Error::EOFExpecting("an opening brace for a block"))
-            }
-        };
+        let open = parser
+            .consume(
+                Kind::Open(Delimiter::Brace),
+                "an opening brace for a block",
+            )?
+            .span();
 
         let statements =
             if let Some(Kind::Close(Delimiter::Brace)) = parser.peek() {
@@ -58,27 +49,29 @@ impl<'a> Parse<'a> for Block<'a> {
                 parser.parse()?
             };
 
-        let close = match parser.peek() {
-            Some(Kind::Close(Delimiter::Brace)) => {
-                let token = parser.advance().unwrap();
-                token.span()
-            }
-            Some(found) => {
-                return Err(Error::Unexpected {
-                    wanted: "a closing brace for a block",
-                    found,
-                })
-            }
-            None => {
-                return Err(Error::EOFExpecting("a closing brace for a block"))
-            }
-        };
+        let close = parser
+            .consume(
+                Kind::Close(Delimiter::Brace),
+                "an closing brace for a block",
+            )?
+            .span();
 
         Ok(Block {
             open,
             statements,
             close,
         })
+    }
+
+    fn parse(input: &'a str) -> Result<Self, Error> {
+        let mut parser = Parser::new(input)?;
+        let syntax = parser.parse()?;
+
+        if parser.is_empty() {
+            Ok(syntax)
+        } else {
+            Err(Error::UnusedInput)
+        }
     }
 }
 

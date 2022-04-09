@@ -63,51 +63,55 @@ impl<'a> Syntax for Literal<'a> {
 
 impl<'a> Parse<'a> for Literal<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
-        use Kind as LiteralKind; // to keep them clearer
+        if let Some(TokenKind::Colon) = parser.peek() {
+            Literal::parse_keyword_with(parser)
+        } else {
+            Literal::parse_non_keyword_with(parser)
+        }
+    }
+}
 
-        let kind = match parser.peek() {
-            Some(TokenKind::Bool) => LiteralKind::Bool,
-            Some(TokenKind::Char) => LiteralKind::Char,
-            Some(TokenKind::Bin) => LiteralKind::Binary,
-            Some(TokenKind::Hex) => LiteralKind::Hexadecimal,
-            Some(TokenKind::Int) => LiteralKind::Decimal,
-            Some(TokenKind::Oct) => LiteralKind::Octal,
-            Some(TokenKind::Float) => LiteralKind::Float,
-            Some(TokenKind::String) => LiteralKind::String,
-            Some(TokenKind::Colon) => LiteralKind::Keyword,
-            Some(found) => {
-                return Err(Error::Unexpected {
-                    wanted: Self::NAME,
-                    found,
-                })
-            }
-            None => return Err(Error::EOFExpecting(Self::NAME)),
+impl<'a> Literal<'a> {
+    fn parse_keyword_with(
+        parser: &mut Parser<'a>,
+    ) -> Result<Literal<'a>, Error> {
+        let colon = parser.consume(TokenKind::Colon, "a keyword literal")?;
+        let name = parser
+            .consume(TokenKind::Identifier, "a keyword literal's body")?;
+
+        // Check to rule out keyword like `: foo`
+        if colon.span().end() != name.span().start() {
+            return Err(Error::KeywordNoSpace);
+        }
+
+        Ok(Literal::new(
+            Kind::Keyword,
+            name.body(),
+            colon.span() + name.span(),
+        ))
+    }
+
+    fn parse_non_keyword_with(
+        parser: &mut Parser<'a>,
+    ) -> Result<Literal<'a>, Error> {
+        let token = parser.consume_if(
+            |token| token.kind().is_literal(),
+            "a non-keyword literal value",
+        )?;
+
+        let kind = match token.kind() {
+            TokenKind::Bool => Kind::Bool,
+            TokenKind::Char => Kind::Char,
+            TokenKind::Bin => Kind::Binary,
+            TokenKind::Hex => Kind::Hexadecimal,
+            TokenKind::Int => Kind::Decimal,
+            TokenKind::Oct => Kind::Octal,
+            TokenKind::Float => Kind::Float,
+            TokenKind::String => Kind::String,
+            _ => unreachable!("ruled out by is_literal in consume_if"),
         };
 
-        let token = parser.advance().unwrap();
-
-        if kind == LiteralKind::Keyword {
-            match parser.peek() {
-                Some(TokenKind::Identifier) => {
-                    let id = parser.advance().unwrap();
-
-                    if token.span().end() == id.span().start() {
-                        let span = token.span() + id.span();
-                        Ok(Literal::new(kind, id.body(), span))
-                    } else {
-                        Err(Error::KeywordNoSpace)
-                    }
-                }
-
-                Some(found) => Err(Error::Unexpected {
-                    wanted: Self::NAME,
-                    found,
-                }),
-                None => Err(Error::EOFExpecting(Self::NAME)),
-            }
-        } else {
-            Ok(Literal::new(kind, token.body(), token.span()))
-        }
+        Ok(Literal::new(kind, token.body(), token.span()))
     }
 }
 

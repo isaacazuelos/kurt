@@ -154,6 +154,10 @@ impl Kind {
         }
     }
 
+    /// Is this token kind always a literal?
+    ///
+    /// Note that a keyword literal like `:foo` is not covered here because it's
+    /// more than one token.
     pub fn is_literal(&self) -> bool {
         use Kind::*;
         matches!(self, Bin | Bool | Char | Float | Hex | Int | Oct | String)
