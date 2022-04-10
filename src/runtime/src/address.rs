@@ -23,6 +23,18 @@ impl Default for Address {
 }
 
 impl Address {
+    pub(crate) fn new(
+        module: Index<Module>,
+        prototype: Index<Prototype>,
+        instruction: Index<Op>,
+    ) -> Address {
+        Address {
+            module,
+            prototype,
+            instruction,
+        }
+    }
+
     pub(crate) fn increment(&mut self) -> Result<()> {
         self.instruction =
             self.instruction.next().ok_or(Error::OpIndexOutOfRange)?;

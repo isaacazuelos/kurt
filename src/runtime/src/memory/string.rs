@@ -44,7 +44,7 @@ impl Trace for String {
 }
 
 impl InitFrom<&str> for String {
-    fn size(arg: &&str) -> usize {
+    fn extra_size(arg: &&str) -> usize {
         arg.len()
     }
 
@@ -64,7 +64,7 @@ impl InitFrom<&str> for String {
 }
 
 impl InitFrom<(&str, &str)> for String {
-    fn size(arg: &(&str, &str)) -> usize {
+    fn extra_size(arg: &(&str, &str)) -> usize {
         arg.0.len() + arg.1.len()
     }
 

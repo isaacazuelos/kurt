@@ -21,15 +21,16 @@ mod collector;
 mod gc;
 mod object;
 
+pub mod closure;
 pub mod keyword;
 pub mod string;
 pub mod trace;
 
-use crate::{memory::class::Class, Runtime};
+use crate::Runtime;
 
 pub use self::gc::Gc;
 
-pub(crate) use self::object::Object;
+pub(crate) use self::{class::Class, object::Object};
 
 /// Since our [`Class`] values can be [DSTs][dst], we need a way to initialize
 /// them. This trait helps us do that.
@@ -39,9 +40,9 @@ pub(crate) trait InitFrom<A>
 where
     Self: Class,
 {
-    /// Returns the size the [`Class`] needs in bytes, when initialized from the
-    /// given argument.
-    fn size(arg: &A) -> usize;
+    /// The extra amount of space the [`Class`] needs in bytes, when initialized
+    /// from the given argument. This is above whatever `size_of::<Class>` is.
+    fn extra_size(arg: &A) -> usize;
 
     /// Initialize the pointer using the given value.
     ///
@@ -66,7 +67,7 @@ impl<T, A> InitFrom<A> for T
 where
     T: From<A> + Sized + Class,
 {
-    fn size(_arg: &A) -> usize {
+    fn extra_size(_arg: &A) -> usize {
         std::mem::size_of::<Self>()
     }
 
@@ -92,8 +93,8 @@ impl Runtime {
         C: Class + InitFrom<A>,
     {
         // find the layout needed for the object.
-        let extra = C::size(&arg);
-        let layout = Self::object_layout_with_extra(extra);
+        let extra = C::extra_size(&arg);
+        let layout = Runtime::object_layout_with_extra::<C>(extra);
 
         // SAFETY: We're leaking by design, for now.
         let raw = unsafe { self.allocate(layout) };
@@ -119,14 +120,14 @@ impl Runtime {
         }
     }
 
-    fn object_layout_with_extra(extra: usize) -> Layout {
-        const ALIGN: usize = std::mem::align_of::<Object>();
-        const BASE_SIZE: usize = std::mem::size_of::<Object>();
+    fn object_layout_with_extra<C: Class>(extra: usize) -> Layout {
+        let align = std::mem::align_of::<C>();
+        let base_size = std::mem::size_of::<C>();
 
         // SAFETY: Align is explicitly set for Object to 8, so it's non-zero
         //        and a power of 2. We don't check for overflows on `size`
         //        though -- should we?
-        unsafe { Layout::from_size_align_unchecked(BASE_SIZE + extra, ALIGN) }
+        unsafe { Layout::from_size_align_unchecked(base_size + extra, align) }
     }
 
     /// Allocate for the given layout.

@@ -5,7 +5,10 @@ use compiler::{
     prototype::Prototype,
 };
 
-use crate::{error::Result, value::Value, Exit, Runtime};
+use crate::{
+    address::Address, call_stack::CallFrame, error::Result,
+    memory::closure::Closure, value::Value, Error, Exit, Runtime,
+};
 
 impl Runtime {
     /// Start the VM up again.
@@ -20,7 +23,6 @@ impl Runtime {
             match op {
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Yield => return Ok(Exit::Yield),
-                Op::Return => self.return_op()?,
 
                 Op::Nop => continue,
                 Op::Pop => {
@@ -38,6 +40,7 @@ impl Runtime {
                 Op::DefineLocal => self.define_local()?,
 
                 Op::Call(arg_count) => self.call(arg_count)?,
+                Op::Return => self.return_op()?,
             }
         }
     }
@@ -73,17 +76,43 @@ impl Runtime {
     }
 
     #[inline]
-    fn load_closure(&mut self, _index: Index<Prototype>) -> Result<()> {
-        todo!("Closures not yet implemented")
+    fn load_closure(&mut self, index: Index<Prototype>) -> Result<()> {
+        let module = self.current_frame().pc.module;
+        let gc_obj = self.make_from::<Closure, _>((module, index));
+        self.stack.push(Value::object(gc_obj));
+        Ok(())
     }
 
     #[inline]
-    fn call(&mut self, _arg_count: u32) -> Result<()> {
-        todo!("Calls not yet implemented")
+    fn call(&mut self, arg_count: u32) -> Result<()> {
+        // TODO: checks that we're calling a closure, and that the param count works.
+
+        let target_module = self.current_frame().pc.module;
+        let target_prototype = self
+            .stack
+            .get_from_top(arg_count)?
+            .as_object()
+            .and_then(|o| {
+                o.deref().downcast::<Closure>().map(|c| c.prototype_index())
+            })
+            .ok_or(Error::CanOnlyCallClosures)?;
+
+        let pc = Address::new(target_module, target_prototype, Index::START);
+        let bp = self.stack.index_from_top(arg_count);
+
+        let new_frame = CallFrame::new(pc, bp);
+        self.call_stack.push(new_frame);
+
+        Ok(())
     }
 
     #[inline]
     fn return_op(&mut self) -> Result<()> {
-        todo!("Calls not yet implemented")
+        let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
+        let result = self.stack.pop();
+        self.stack.truncate_to(frame.bp);
+        self.stack.push(result);
+
+        Ok(())
     }
 }

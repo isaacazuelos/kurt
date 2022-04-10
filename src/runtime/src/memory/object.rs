@@ -10,6 +10,8 @@ use crate::memory::{
     trace::{Trace, WorkList},
 };
 
+use super::{closure::Closure, keyword::Keyword};
+
 /// All our runtime values which live on the heap must share some common
 /// metadata and methods to allow the runtime to be aware of them and manage
 /// their resources. This is done by placing this common metadata first in any
@@ -59,6 +61,16 @@ impl Object {
             id if id == TypeId::of::<String>() => {
                 let string = self.downcast::<String>().unwrap();
                 string.enqueue_gc_references(worklist)
+            }
+
+            id if id == TypeId::of::<Keyword>() => {
+                let keyword = self.downcast::<Keyword>().unwrap();
+                keyword.enqueue_gc_references(worklist)
+            }
+
+            id if id == TypeId::of::<Closure>() => {
+                let closure = self.downcast::<Closure>().unwrap();
+                closure.enqueue_gc_references(worklist)
             }
 
             other => {

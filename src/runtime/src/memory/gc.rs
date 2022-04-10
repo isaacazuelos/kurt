@@ -5,6 +5,8 @@ use std::{fmt, ptr::NonNull};
 
 use crate::memory::{keyword::Keyword, string::String, Object};
 
+use super::closure::Closure;
+
 /// A type-erased pointer to a garbage collected value.
 #[derive(Debug)]
 #[repr(transparent)]
@@ -72,6 +74,11 @@ impl fmt::Display for Gc {
             type_id if type_id == TypeId::of::<Keyword>() => {
                 let s = obj.downcast::<Keyword>().unwrap();
                 write!(f, ":{}", s.as_str())
+            }
+
+            type_id if type_id == TypeId::of::<Closure>() => {
+                let c = obj.downcast::<Closure>().unwrap();
+                write!(f, "{:?}", c)
             }
 
             // TODO: We should really have some way to do this that's

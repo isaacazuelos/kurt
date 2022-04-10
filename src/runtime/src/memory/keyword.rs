@@ -25,8 +25,8 @@ impl Trace for Keyword {
 }
 
 impl InitFrom<&str> for Keyword {
-    fn size(arg: &&str) -> usize {
-        String::size(arg)
+    fn extra_size(arg: &&str) -> usize {
+        String::extra_size(arg)
     }
 
     /// # Safety

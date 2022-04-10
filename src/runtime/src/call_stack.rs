@@ -25,10 +25,16 @@ impl Default for CallFrame {
     }
 }
 
+impl CallFrame {
+    pub fn new(pc: Address, bp: Index<Stack>) -> CallFrame {
+        CallFrame { pc, bp }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct CallStack {
     current: CallFrame,
-    _stack: Vec<CallFrame>,
+    stack: Vec<CallFrame>,
 }
 
 impl CallStack {
@@ -43,8 +49,19 @@ impl CallStack {
     }
 
     #[inline]
-    pub fn _push(&mut self, new_frame: CallFrame) {
-        self._stack.push(self.current);
+    pub fn push(&mut self, new_frame: CallFrame) {
+        self.stack.push(self.current);
         self.current = new_frame;
+    }
+
+    #[inline]
+    pub fn pop(&mut self) -> Option<CallFrame> {
+        let previous_current = self.current;
+        if let Some(new_current) = self.stack.pop() {
+            self.current = new_current;
+            Some(previous_current)
+        } else {
+            None
+        }
     }
 }

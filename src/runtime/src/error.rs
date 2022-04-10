@@ -9,6 +9,11 @@ pub enum Error {
     NumberTooBig,
     EndOfCode,
 
+    InvalidArgCount,
+    StackIndexBelowZero,
+    CanOnlyCallClosures,
+    CannotReturnFromTop,
+
     ConstantIndexOutOfRange,
     LocalIndexOutOfRange,
     ModuleIndexOutOfRange,
@@ -24,6 +29,13 @@ impl fmt::Display for Error {
         match self {
             NumberTooBig => write!(f, "number too big"),
             EndOfCode => write!(f, "code ended unexpectedly"),
+
+            InvalidArgCount => {
+                write!(f, "function call has wrong number of arguments")
+            }
+            StackIndexBelowZero => write!(f, "stack indexed below zero"),
+            CanOnlyCallClosures => write!(f, "only closures can be called"),
+            CannotReturnFromTop => write!(f, "cannot return from top"),
 
             ConstantIndexOutOfRange => {
                 write!(f, "a constant index was out of range")
