@@ -95,20 +95,43 @@ impl Compiler {
 
     /// Compile a block expression.
     fn block(&mut self, syntax: &syntax::Block) -> Result<()> {
-        self.begin_scope();
-        self.statement_sequence(syntax.statements())?;
-        self.end_scope();
-        Ok(())
+        self.with_scope(|compiler| {
+            compiler.statement_sequence(syntax.statements())
+        })
     }
 
     /// Compile a function call.
-    fn call(&mut self, _syntax: &syntax::Call) -> Result<()> {
-        todo!()
+    fn call(&mut self, syntax: &syntax::Call) -> Result<()> {
+        self.expression(syntax.target())?;
+
+        for arg in syntax.arguments() {
+            self.expression(arg)?;
+        }
+
+        let count = syntax.arguments().len();
+        if count >= u32::MAX as usize {
+            Err(Error::TooManyArguments)
+        } else {
+            self.emit(Op::Call(count as u32), syntax.open() + syntax.close())
+        }
     }
 
     /// Compile a function.
-    fn function(&mut self, _syntax: &syntax::Function) -> Result<()> {
-        todo!()
+    fn function(&mut self, syntax: &syntax::Function) -> Result<()> {
+        let i = self.with_prototype(|compiler| {
+            compiler
+                .active_prototype_mut()
+                .set_parameter_count(syntax.parameters().len());
+
+            for parameter in syntax.parameters() {
+                compiler.bind_local(parameter.name());
+            }
+
+            compiler.expression(syntax.body())?;
+            compiler.emit(Op::Return, syntax.body().span())
+        })?;
+
+        self.emit(Op::LoadClosure(i), syntax.span())
     }
 
     /// Compile an expression wrapped in parens.

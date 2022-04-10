@@ -95,7 +95,12 @@ pub struct Parameter<'a> {
     name: Identifier<'a>,
 }
 
-impl<'a> Parameter<'a> {}
+impl<'a> Parameter<'a> {
+    /// The name of the parameter
+    pub fn name(&self) -> &Identifier<'a> {
+        &self.name
+    }
+}
 
 impl<'a> Parse<'a> for Parameter<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {

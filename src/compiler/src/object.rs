@@ -80,7 +80,11 @@ impl Object {
         if let Some(name) = prototype.name() {
             writeln!(f, "{}:", name)?;
         } else {
-            writeln!(f, "<anonymous>:")?;
+            writeln!(
+                f,
+                "<anonymous function, parameter_count: {}>:",
+                prototype.parameter_count()
+            )?;
         }
 
         for (op, span) in prototype.code().iter() {

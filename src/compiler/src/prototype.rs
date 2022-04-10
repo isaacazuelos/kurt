@@ -6,13 +6,17 @@ use crate::{
     code::Code,
     error::Result,
     index::{Index, Indexable},
+    local::Local,
     opcode::Op,
 };
 
 #[derive(Debug, Clone)]
 pub struct Prototype {
     name: Option<String>,
+    parameter_count: usize,
     code: Code,
+    bindings: Vec<Local>,
+    scopes: Vec<usize>,
 }
 
 impl Prototype {
@@ -25,7 +29,10 @@ impl Prototype {
     pub(crate) fn new() -> Prototype {
         Prototype {
             name: None,
+            parameter_count: 0,
             code: Code::default(),
+            bindings: Vec::default(),
+            scopes: vec![0],
         }
     }
 
@@ -39,6 +46,11 @@ impl Prototype {
     /// The name of the module, if it has one.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
+    }
+
+    /// Get the prototype's parameter count.
+    pub fn parameter_count(&self) -> usize {
+        self.parameter_count
     }
 
     /// The span which created a specific opcode.
@@ -59,6 +71,47 @@ impl Prototype {
     /// The code listing for this prototype.
     pub(crate) fn code(&self) -> &Code {
         &self.code
+    }
+
+    /// Set the number of parameters this prototype needs when being called.
+    pub(crate) fn set_parameter_count(&mut self, count: usize) {
+        self.parameter_count = count;
+    }
+
+    pub(crate) fn begin_scope(&mut self) {
+        self.scopes.push(0);
+    }
+
+    pub(crate) fn end_scope(&mut self) -> usize {
+        let total_in_scope = self.bindings.len();
+        let going_out_of_scope = self.scopes.pop().unwrap();
+
+        debug_assert!(
+            !self.scopes.is_empty(),
+            "top level function scope should not end."
+        );
+
+        self.bindings.truncate(total_in_scope - going_out_of_scope);
+        going_out_of_scope
+    }
+
+    /// Bind a [`Local`] in the current scope.
+    pub(crate) fn bind_local(&mut self, local: Local) {
+        self.scopes.last_mut().map(|count| *count += 1);
+        self.bindings.push(local);
+    }
+
+    pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
+        // the rev is so we find more recently bound locals faster than less
+        // recently bound ones, and ensures that shadowing works by finding the
+        // most-recent binding with the given name.
+        for (i, local) in self.bindings.iter().enumerate().rev() {
+            if local.as_str() == name {
+                return Some(Index::new(i as _));
+            }
+        }
+
+        None
     }
 }
 

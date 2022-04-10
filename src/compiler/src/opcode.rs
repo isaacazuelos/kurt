@@ -2,7 +2,9 @@
 
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{constant::Constant, index::Index, local::Local};
+use crate::{
+    constant::Constant, index::Index, local::Local, prototype::Prototype,
+};
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +39,18 @@ pub enum Op {
 
     /// Define the top of the stack as a local.
     DefineLocal,
+
+    /// Load a prototype and make a closure from it, placing it on the stack.
+    LoadClosure(Index<Prototype>),
+
+    /// Call a closure on the stack.
+    ///
+    /// The `u32` is the number of arguments being passed, with the called value
+    /// being that far from the top of the stack.
+    Call(u32),
+
+    /// Return from the currently executing function.
+    Return,
 }
 
 impl Display for Op {
@@ -52,6 +66,9 @@ impl Display for Op {
             Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_u32()),
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
             Op::DefineLocal => write!(f, "DefineLocal"),
+            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
+            Op::Call(i) => write!(f, "Call {}", i),
+            Op::Return => write!(f, "Return"),
         }
     }
 }

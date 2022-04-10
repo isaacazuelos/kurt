@@ -7,13 +7,13 @@
 //! [`Compiler::build`].
 
 use diagnostic::Span;
-use syntax::Identifier;
+use syntax::{Identifier, Syntax};
 
 mod visitor;
 
 use crate::{
-    constant::Pool, error::Result, index::Index, local::Local, opcode::Op,
-    prototype::Prototype, Object,
+    constant::Pool, error::Error, error::Result, index::Index, local::Local,
+    opcode::Op, prototype::Prototype, Object,
 };
 
 /// A compiler turns source code into an [`Object`] the runtime can work with.
@@ -27,16 +27,12 @@ pub struct Compiler {
     /// The prototype which contains the top-level code.
     main: Prototype,
 
-    /// Code is compiled into [`Prototype`]s which are kept as a stack that
-    /// matches closure scopes in the source code. This should never be empty,
-    /// with the first element housing the code for main.
+    /// A stack of currently compiling prototypes. Once completed, they're moved
+    /// to `prototypes`.
+    compiling: Vec<Prototype>,
+
+    /// Code is compiled into [`Prototype`]s which are kept here once complete
     prototypes: Vec<Prototype>,
-
-    /// Scopes are tracked by the number of locals bindings in them.
-    scopes: Vec<usize>,
-
-    /// All local bindings in scope.
-    locals: Vec<Local>,
 }
 
 impl Default for Compiler {
@@ -44,9 +40,8 @@ impl Default for Compiler {
         Compiler {
             constants: Pool::default(),
             main: Prototype::new_main(),
+            compiling: Vec::default(),
             prototypes: Vec::default(),
-            scopes: Vec::new(),
-            locals: Vec::new(),
         }
     }
 }
@@ -73,7 +68,7 @@ impl Compiler {
     /// Get a mutable reference to the active prototype. This will return the
     /// prototype used by `main` if we're not compiling a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut Prototype {
-        match self.prototypes.last_mut() {
+        match self.compiling.last_mut() {
             Some(last) => last,
             None => &mut self.main,
         }
@@ -82,46 +77,51 @@ impl Compiler {
 
 // Bindings and scopes
 impl Compiler {
-    pub(crate) fn begin_scope(&mut self) {
-        self.scopes.push(0);
+    pub(crate) fn with_scope<F, T>(&mut self, inner: F) -> Result<T>
+    where
+        F: FnOnce(&mut Compiler) -> Result<T>,
+    {
+        self.active_prototype_mut().begin_scope();
+
+        let result = inner(self);
+
+        self.active_prototype_mut().end_scope();
+
+        result
     }
 
-    pub(crate) fn end_scope(&mut self) {
-        let going_out_of_scope_count =
-            self.scopes.pop().expect("scopes cannot be empty");
+    pub(crate) fn with_prototype<F>(
+        &mut self,
+        inner: F,
+    ) -> Result<Index<Prototype>>
+    where
+        F: FnOnce(&mut Compiler) -> Result<()>,
+    {
+        self.compiling.push(Prototype::new());
 
-        self.locals
-            .truncate(self.locals.len() - going_out_of_scope_count);
+        let result = inner(self);
+
+        let i = self.compiling.len() - 1;
+
+        if let Err(e) = result {
+            Err(e)
+        } else if i >= u32::MAX as usize {
+            Err(Error::TooManyPrototypes)
+        } else {
+            // We know prototypes isn't empty, the one we pushed at the start of
+            // this method should still be there.
+            let prototype = self.compiling.pop().unwrap();
+            self.prototypes.push(prototype);
+            Ok(Index::new(i as u32))
+        }
     }
 
     pub(crate) fn bind_local(&mut self, id: &Identifier) {
-        // Do we have space for another local in this scope?
-        let current_scope_count =
-            self.scopes.last().cloned().unwrap_or_default();
-
-        if current_scope_count >= u32::MAX as usize {
-            panic!(
-                "cannot have more than {} (i.e. u32::MAX) locals.",
-                u32::MAX
-            );
-        }
-
-        // Okay, we can actually bind it.
-        let local = Local::from(id);
-        self.locals.push(local);
-
-        // We need to update our scope tracking too.
-        if let Some(current_scope_count) = self.scopes.last_mut() {
-            *current_scope_count += 1;
-        }
+        self.active_prototype_mut()
+            .bind_local(Local::new(id.as_str(), id.span()))
     }
 
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
-        for (i, local) in self.locals.iter().enumerate().rev() {
-            if local.as_str() == name {
-                return Some(Index::new(i as _));
-            }
-        }
-        None
+        self.active_prototype_mut().resolve_local(name)
     }
 }

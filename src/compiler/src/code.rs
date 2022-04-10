@@ -25,7 +25,7 @@ impl Code {
     pub fn emit(&mut self, op: Op, span: Span) -> Result<()> {
         self.opcodes.push(op);
         if self.opcodes.len() == Self::MAX_OPS {
-            Err(Error::CodeTooLong)
+            Err(Error::TooManyOps)
         } else {
             self.spans.push(span);
             Ok(())

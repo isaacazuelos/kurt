@@ -14,8 +14,10 @@ pub enum Error {
     MutationNotSupported,
     UndefinedLocal,
 
+    TooManyArguments,
     TooManyConstants,
-    CodeTooLong,
+    TooManyOps,
+    TooManyPrototypes,
 }
 
 impl fmt::Display for Error {

@@ -1,6 +1,9 @@
 //! The virtual machine methods for our runtime.
 
-use compiler::{constant::Constant, index::Index, local::Local, opcode::Op};
+use compiler::{
+    constant::Constant, index::Index, local::Local, opcode::Op,
+    prototype::Prototype,
+};
 
 use crate::{error::Result, value::Value, Exit, Runtime};
 
@@ -17,6 +20,7 @@ impl Runtime {
             match op {
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Yield => return Ok(Exit::Yield),
+                Op::Return => self.return_op()?,
 
                 Op::Nop => continue,
                 Op::Pop => {
@@ -28,9 +32,12 @@ impl Runtime {
                 Op::Unit => self.stack.push(Value::UNIT),
 
                 Op::LoadConstant(i) => self.load_constant(i)?,
-
                 Op::LoadLocal(i) => self.load_local(i)?,
+                Op::LoadClosure(i) => self.load_closure(i)?,
+
                 Op::DefineLocal => self.define_local()?,
+
+                Op::Call(arg_count) => self.call(arg_count)?,
             }
         }
     }
@@ -52,9 +59,9 @@ impl Runtime {
     }
 
     #[inline]
-    fn load_local(&mut self, local: Index<Local>) -> Result<()> {
+    fn load_local(&mut self, index: Index<Local>) -> Result<()> {
         let base = self.current_frame().bp;
-        let local = self.stack.get_local(base, local)?;
+        let local = self.stack.get_local(base, index)?;
         self.stack.push(local);
         Ok(())
     }
@@ -63,5 +70,20 @@ impl Runtime {
     fn define_local(&mut self) -> Result<()> {
         self.stack.push(Value::UNIT);
         Ok(())
+    }
+
+    #[inline]
+    fn load_closure(&mut self, _index: Index<Prototype>) -> Result<()> {
+        todo!("Closures not yet implemented")
+    }
+
+    #[inline]
+    fn call(&mut self, _arg_count: u32) -> Result<()> {
+        todo!("Calls not yet implemented")
+    }
+
+    #[inline]
+    fn return_op(&mut self) -> Result<()> {
+        todo!("Calls not yet implemented")
     }
 }
