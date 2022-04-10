@@ -101,7 +101,9 @@ impl Compiler {
 
         let result = inner(self);
 
-        let i = self.compiling.len() - 1;
+        // Note index 0 refers to main, so we don't need to subtract one from
+        // len to get the last index.
+        let i = self.compiling.len();
 
         if let Err(e) = result {
             Err(e)

@@ -97,7 +97,10 @@ impl Prototype {
 
     /// Bind a [`Local`] in the current scope.
     pub(crate) fn bind_local(&mut self, local: Local) {
-        self.scopes.last_mut().map(|count| *count += 1);
+        if let Some(count) = self.scopes.last_mut() {
+            *count += 1;
+        }
+
         self.bindings.push(local);
     }
 
