@@ -94,23 +94,18 @@ impl Compiler {
     where
         F: FnOnce(&mut Compiler) -> Result<()>,
     {
+        if self.compiling.len() + self.prototypes.len() >= u32::MAX as usize {
+            return Err(Error::TooManyPrototypes);
+        }
+
         self.compiling.push(Prototype::new());
 
-        let result = inner(self);
+        inner(self)?;
 
-        let i = self.compiling.len() - 1;
+        let prototype = self.compiling.pop().unwrap();
+        self.prototypes.push(prototype);
 
-        if let Err(e) = result {
-            Err(e)
-        } else if i >= u32::MAX as usize {
-            Err(Error::TooManyPrototypes)
-        } else {
-            // We know prototypes isn't empty, the one we pushed at the start of
-            // this method should still be there.
-            let prototype = self.compiling.pop().unwrap();
-            self.prototypes.push(prototype);
-            Ok(Index::new(i as u32))
-        }
+        Ok(Index::new((self.prototypes.len() - 1) as u32))
     }
 
     pub(crate) fn bind_local(&mut self, id: &Identifier) {
