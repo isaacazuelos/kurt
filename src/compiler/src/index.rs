@@ -63,8 +63,8 @@ impl Index<Prototype> {
     pub const MAIN: Self = Index(0, PhantomData);
 }
 
-pub trait Indexable<T> {
-    fn get(&self, index: Index<T>) -> Option<&T>;
+pub trait Indexable<K, V = K> {
+    fn get(&self, index: Index<K>) -> Option<&V>;
 }
 
 impl<T> Clone for Index<T> {

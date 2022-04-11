@@ -10,11 +10,17 @@ mod stack;
 mod tracing;
 mod value;
 
+use address::Address;
 use call_stack::{CallFrame, CallStack};
 use compiler::{
-    self, constant::Constant, index::Indexable, opcode::Op,
-    prototype::Prototype, Object,
+    self,
+    constant::Constant,
+    index::{Index, Indexable},
+    opcode::Op,
+    prototype::Prototype,
+    Object,
 };
+use memory::closure::Closure;
 
 use crate::{
     memory::{keyword::Keyword, string::String, Gc},
@@ -68,8 +74,8 @@ impl Runtime {
 
 impl Runtime {
     /// Create a new runtime with `object` as it's main module.
-    pub fn new(object: Object) -> Result<Runtime> {
-        let mut rt = Runtime {
+    pub fn new() -> Runtime {
+        Runtime {
             tracing: false,
 
             modules: Vec::new(),
@@ -78,24 +84,46 @@ impl Runtime {
             call_stack: CallStack::default(),
 
             heap_head: None,
-        };
-
-        let main = rt.make_module(object)?;
-        rt.modules.push(main);
-
-        Ok(rt)
+        }
     }
 
-    /// A string containing a representation of the last value on the stack.
-    ///
-    /// This is useful for the `repl` and `eval` subcommands.
-    pub fn last_result(&self) -> std::string::String {
-        format!("{:?}", self.stack.last())
+    pub fn load(&mut self, object: Object) -> Result<()> {
+        let module = self.make_module(object)?;
+        self.modules.push(module);
+        Ok(())
     }
 
+    /// Begin running 'Main.main'
     pub fn start(&mut self) -> Result<Exit> {
+        // TODO: lots of clean up needed.
+
+        // We only have one module support right now.
+        let main_module_index = Index::new(0);
+        let main_module = self.modules.first().ok_or(Error::NoMainModule)?;
+        let main_prototype_index =
+            Index::new((main_module.prototypes.len() - 1) as u32);
+
+        let indexes = (main_module_index, main_prototype_index);
+        let main_closure = self.make_from::<Closure, _>(indexes);
+
+        self.stack.push(Value::object(main_closure));
+
+        self.call_stack.push(CallFrame::new(
+            Address::new(main_module_index, main_prototype_index, Index::START),
+            self.stack.index_from_top(0),
+        ));
+
         // TODO: checks.
         self.run()
+    }
+
+    /// Reload the main module specifically.
+    pub fn reload_main(&mut self, main: Object) -> Result<()> {
+        // TODO: We should replace this with a generic `reload`.
+        // TODO: We should do some sanity checks here.
+        let new = self.make_module(main)?;
+        self.modules[0] = new;
+        Ok(())
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
@@ -110,13 +138,11 @@ impl Runtime {
         self.run()
     }
 
-    /// Reload the main module specifically.
-    pub fn reload_main(&mut self, main: Object) -> Result<()> {
-        // TODO: We should replace this with a generic `reload`.
-        // TODO: We should do some sanity checks here.
-        let new = self.make_module(main)?;
-        self.modules[0] = new;
-        Ok(())
+    /// A string containing a representation of the last value on the stack.
+    ///
+    /// This is useful for the `repl` and `eval` subcommands.
+    pub fn last_result(&self) -> std::string::String {
+        format!("{:?}", self.stack.last())
     }
 }
 
@@ -130,7 +156,6 @@ impl Runtime {
         }
 
         Ok(Module {
-            main: object.main().clone(),
             constants,
             prototypes: object.prototypes().to_owned(),
         })
@@ -147,7 +172,9 @@ impl Runtime {
     /// The currently-executing prototype.
     fn current_prototype(&self) -> Result<&Prototype> {
         let index = self.current_frame().pc.prototype;
-        self.current_module()?.prototype(index)
+        self.current_module()?
+            .get(index)
+            .ok_or(Error::PrototypeIndexOutOfRange)
     }
 
     /// The currently-executing opcode.

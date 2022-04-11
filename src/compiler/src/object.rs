@@ -14,7 +14,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Object {
     pub(crate) constants: Vec<Constant>,
-    pub(crate) main: Prototype,
     pub(crate) prototypes: Vec<Prototype>,
 }
 
@@ -22,18 +21,12 @@ impl Default for Object {
     fn default() -> Self {
         Object {
             constants: Vec::new(),
-            main: Prototype::new_main(),
             prototypes: Vec::new(),
         }
     }
 }
 
 impl Object {
-    /// The prototype containing top-level code.
-    pub fn main(&self) -> &Prototype {
-        &self.main
-    }
-
     /// A view of all the constants used, the ordering matches the
     /// [`Index<Constant>`]s used within prototypes.
     pub fn constants(&self) -> &[Constant] {
@@ -61,8 +54,6 @@ impl Indexable<Constant> for Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        self.display_prototype(&self.main, f)?;
-
         for prototype in self.prototypes() {
             self.display_prototype(prototype, f)?;
         }

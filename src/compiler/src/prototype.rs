@@ -20,7 +20,9 @@ pub struct Prototype {
 }
 
 impl Prototype {
-    const MAIN_NAME: &'static str = "main";
+    /// The name used for the prototype containing 'main', the top-level code
+    /// for a module.
+    pub const MAIN_NAME: &'static str = "main";
 
     /// Crate a prototype for a new closure.
     ///
@@ -36,21 +38,24 @@ impl Prototype {
         }
     }
 
-    /// Create a new prototype for the top level of a module.
-    pub fn new_main() -> Prototype {
-        let mut prototype = Prototype::new();
-        prototype.name = Some(String::from(Prototype::MAIN_NAME));
-        prototype
-    }
-
     /// The name of the module, if it has one.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
+    /// Set the prototype's name.
+    pub(crate) fn set_name(&mut self, name: impl Into<String>) {
+        self.name = Some(name.into());
+    }
+
     /// Get the prototype's parameter count.
     pub fn parameter_count(&self) -> usize {
         self.parameter_count
+    }
+
+    /// Set the number of parameters this prototype needs when being called.
+    pub(crate) fn set_parameter_count(&mut self, count: usize) {
+        self.parameter_count = count;
     }
 
     /// The span which created a specific opcode.
@@ -71,11 +76,6 @@ impl Prototype {
     /// The code listing for this prototype.
     pub(crate) fn code(&self) -> &Code {
         &self.code
-    }
-
-    /// Set the number of parameters this prototype needs when being called.
-    pub(crate) fn set_parameter_count(&mut self, count: usize) {
-        self.parameter_count = count;
     }
 
     pub(crate) fn begin_scope(&mut self) {

@@ -5,8 +5,9 @@ macro_rules! test_eval {
         #[test]
         fn $name() {
             let obj = compiler::compile($input).unwrap();
-            let mut rt = runtime::Runtime::new(obj).unwrap();
-            rt.start().unwrap();
+            let mut rt = runtime::Runtime::new();
+            assert!(rt.load(obj).is_ok());
+            assert!(rt.start().is_ok());
             assert_eq!($expected, rt.last_result());
         }
     };

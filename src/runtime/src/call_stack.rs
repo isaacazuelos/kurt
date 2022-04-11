@@ -19,7 +19,7 @@ pub struct CallFrame {
 impl Default for CallFrame {
     fn default() -> Self {
         CallFrame {
-            pc: Address::default(),
+            pc: Address::new(Index::new(0), Index::new(0), Index::new(0)),
             bp: Index::new(0),
         }
     }

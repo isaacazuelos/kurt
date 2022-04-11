@@ -7,6 +7,7 @@ use crate::{
     constant::Constant,
     error::{Error, Result},
     opcode::Op,
+    prototype::Prototype,
     Compiler,
 };
 
@@ -16,6 +17,10 @@ impl Compiler {
     /// Note that this emits a 'Halt', so you can't really compile more code
     /// meaningfully after this.
     pub fn module(&mut self, syntax: &syntax::Module) -> Result<()> {
+        let mut main = Prototype::new();
+        main.set_name(Prototype::MAIN_NAME);
+        self.compiling.push(main);
+
         self.statement_sequence(syntax.statements())?;
         self.emit(Op::Halt, syntax.span())
     }
@@ -25,6 +30,9 @@ impl Compiler {
     /// The code is added to main, and finished with a [`Op::Yield`] so the
     /// program can be restarted if more code is added later.
     pub fn top_level(&mut self, syntax: &syntax::TopLevel) -> Result<()> {
+        let mut main = Prototype::new();
+        main.set_name(Prototype::MAIN_NAME);
+
         self.statement_sequence(syntax.statements())?;
         self.emit(Op::Yield, syntax.span())
     }

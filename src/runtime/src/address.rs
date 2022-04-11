@@ -12,16 +12,6 @@ pub struct Address {
     pub(crate) instruction: Index<Op>,
 }
 
-impl Default for Address {
-    fn default() -> Self {
-        Address {
-            module: Index::new(0),
-            prototype: Index::MAIN,
-            instruction: Index::START,
-        }
-    }
-}
-
 impl Address {
     pub(crate) fn new(
         module: Index<Module>,

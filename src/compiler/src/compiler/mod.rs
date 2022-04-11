@@ -24,9 +24,6 @@ pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
 
-    /// The prototype which contains the top-level code.
-    main: Prototype,
-
     /// A stack of currently compiling prototypes. Once completed, they're moved
     /// to `prototypes`.
     compiling: Vec<Prototype>,
@@ -39,7 +36,6 @@ impl Default for Compiler {
     fn default() -> Self {
         Compiler {
             constants: Pool::default(),
-            main: Prototype::new_main(),
             compiling: Vec::default(),
             prototypes: Vec::default(),
         }
@@ -50,10 +46,14 @@ impl Compiler {
     /// Convert the current compiler state into a new [`Object`] that can be
     /// loaded into the runtime.
     pub fn build(&self) -> Result<Object> {
+        // TODO: we could go back to top-level code being index 0 here.
+        let mut prototypes = self.prototypes.clone();
+        let main = self.compiling.last().unwrap().clone();
+        prototypes.push(main);
+
         Ok(Object {
-            main: self.main.clone(),
             constants: self.constants.as_vec(),
-            prototypes: self.prototypes.clone(),
+            prototypes,
         })
     }
 }
@@ -68,10 +68,7 @@ impl Compiler {
     /// Get a mutable reference to the active prototype. This will return the
     /// prototype used by `main` if we're not compiling a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut Prototype {
-        match self.compiling.last_mut() {
-            Some(last) => last,
-            None => &mut self.main,
-        }
+        self.compiling.last_mut().unwrap()
     }
 }
 
@@ -101,9 +98,7 @@ impl Compiler {
 
         let result = inner(self);
 
-        // Note index 0 refers to main, so we don't need to subtract one from
-        // len to get the last index.
-        let i = self.compiling.len();
+        let i = self.compiling.len() - 1;
 
         if let Err(e) = result {
             Err(e)

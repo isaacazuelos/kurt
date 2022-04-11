@@ -38,12 +38,13 @@ impl Script {
             return;
         }
 
-        let mut runtime = match Runtime::new(main) {
+        let mut runtime = Runtime::new();
+        runtime.set_tracing(args.trace);
+
+        match runtime.load(main) {
             Ok(rt) => rt,
             Err(e) => return eprintln!("{e}"),
         };
-
-        runtime.set_tracing(args.trace);
 
         if let Err(e) = runtime.start() {
             eprintln!("{}", e);
