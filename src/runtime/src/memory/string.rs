@@ -90,13 +90,11 @@ impl InitFrom<(&str, &str)> for String {
 impl String {
     /// The length of the string's contents in bytes.
     ///
-    /// This doesn't include the null-terminating byte mentioned in the
+    /// This doesn't include the null-terminating byte mentioned in the docs for
+    /// [`String`] itself.
     pub fn len(&self) -> usize {
         // We compute it from the base object's allocation size.
-        //
-        // TODO: We should probably worry about padding here. We just happen not
-        //       to have any right now.
-        self.upcast().size() - std::mem::size_of::<Object>()
+        self.upcast().size() - std::mem::size_of::<String>()
     }
 
     /// View the underlying UTF-8 bytes of the string as a slice.
@@ -111,5 +109,16 @@ impl String {
         // SAFETY: We know the bytes are UTF-8 because all init methods for
         //         string check.
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+}
+
+#[cfg(test)]
+mod string_tests {
+    use super::*;
+
+    #[test]
+    fn test_size_empty() {
+        let empty_string_extra = String::extra_size(&"");
+        assert_eq!(empty_string_extra, 0);
     }
 }
