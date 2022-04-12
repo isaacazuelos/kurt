@@ -2,7 +2,10 @@
 
 use diagnostic::Span;
 
-use parser::{lexer::TokenKind, Error, Parse, Parser};
+use parser::{
+    lexer::{Delimiter, TokenKind},
+    Error, Parse, Parser,
+};
 
 use crate::Syntax;
 
@@ -63,15 +66,31 @@ impl<'a> Syntax for Literal<'a> {
 
 impl<'a> Parse<'a> for Literal<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
-        if let Some(TokenKind::Colon) = parser.peek() {
-            Literal::parse_keyword_with(parser)
-        } else {
-            Literal::parse_non_keyword_with(parser)
+        match parser.peek() {
+            Some(TokenKind::Colon) => Literal::parse_keyword_with(parser),
+            Some(TokenKind::Open(Delimiter::Parenthesis)) => {
+                Literal::parse_unit(parser)
+            }
+            _ => Literal::parse_non_keyword_with(parser),
         }
     }
 }
 
 impl<'a> Literal<'a> {
+    fn parse_unit(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
+        let open = parser.consume(
+            TokenKind::Open(Delimiter::Parenthesis),
+            "open parenthesis for unit",
+        )?;
+
+        let close = parser.consume(
+            TokenKind::Close(Delimiter::Parenthesis),
+            "close parenthesis for unit",
+        )?;
+
+        Ok(Literal::new(Kind::Unit, "", open.span() + close.span()))
+    }
+
     fn parse_keyword_with(
         parser: &mut Parser<'a>,
     ) -> Result<Literal<'a>, Error> {
@@ -166,5 +185,12 @@ mod parser_tests {
         let mut parser = Parser::new(" : hi ").unwrap();
         let literal = parser.parse::<Literal>();
         assert!(literal.is_err());
+    }
+
+    #[test]
+    fn parse_unit() {
+        let mut parser = Parser::new(" () ").unwrap();
+        let literal = parser.parse::<Literal>();
+        assert!(literal.is_ok());
     }
 }

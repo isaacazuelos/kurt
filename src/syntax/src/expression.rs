@@ -128,6 +128,11 @@ impl<'a> Expression<'a> {
     ) -> Result<Expression<'a>, Error> {
         if let Ok(f) = parser.with_backtracking(Function::parse_with) {
             Ok(Expression::Function(f))
+        } else if parser.peek_nth(1)
+            == Some(TokenKind::Close(Delimiter::Parenthesis))
+        {
+            let unit = parser.parse()?;
+            Ok(Expression::Literal(unit))
         } else {
             Grouping::parse_with(parser)
                 .map(Expression::Grouping)
@@ -214,6 +219,18 @@ mod parser_tests {
         let mut parser = Parser::new("[ 1, [2, [3, nil]]]").unwrap();
         let result = parser.parse::<Expression>();
         assert!(result.is_ok(), "expected list but got {:?}", result);
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_unit() {
+        let mut parser = Parser::new("()").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(&result, Ok(Expression::Literal(l)) if l.kind() == LiteralKind::Unit),
+            "expected call but got {:?}",
+            result
+        );
         assert!(parser.is_empty());
     }
 }
