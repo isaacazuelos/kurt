@@ -97,6 +97,7 @@ impl Compiler {
             syntax::Expression::Function(f) => self.function(f),
             syntax::Expression::Grouping(g) => self.grouping(g),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
+            syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Literal(l) => self.literal(l),
         }
     }
@@ -165,6 +166,11 @@ impl Compiler {
         } else {
             Err(Error::UndefinedLocal)
         }
+    }
+
+    /// Compile a list literal
+    fn list(&mut self, _syntax: &syntax::List) -> Result<()> {
+        todo!("cannot compile list literals")
     }
 
     /// Compile a literal

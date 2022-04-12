@@ -14,6 +14,7 @@ mod expression;
 mod function;
 mod grouping;
 mod ident;
+mod list;
 mod literal;
 mod statement;
 
@@ -26,6 +27,7 @@ pub use self::{
     function::Function,
     grouping::Grouping,
     ident::Identifier,
+    list::List,
     literal::{Kind as LiteralKind, Literal},
     statement::{Statement, StatementSequence},
 };

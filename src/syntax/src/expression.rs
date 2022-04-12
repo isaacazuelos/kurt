@@ -19,6 +19,7 @@ pub enum Expression<'a> {
     Function(Function<'a>),
     Grouping(Grouping<'a>),
     Identifier(Identifier<'a>),
+    List(List<'a>),
     Literal(Literal<'a>),
 }
 
@@ -31,8 +32,9 @@ impl<'a> Syntax for Expression<'a> {
             Expression::Call(c) => c.span(),
             Expression::Function(f) => f.span(),
             Expression::Grouping(g) => g.span(),
-            Expression::Literal(e) => e.span(),
             Expression::Identifier(i) => i.span(),
+            Expression::List(l) => l.span(),
+            Expression::Literal(e) => e.span(),
         }
     }
 }
@@ -51,7 +53,7 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// primary := Identifier | Block | Function | Literal
+    /// primary := Identifier | Block | Function | Literal | List
     pub(crate) fn primary(
         parser: &mut Parser<'a>,
     ) -> Result<Expression<'a>, Error> {
@@ -69,6 +71,9 @@ impl<'a> Expression<'a> {
 
                 Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                     Expression::open_parenthesis(parser)
+                }
+                Some(TokenKind::Open(Delimiter::Bracket)) => {
+                    parser.parse().map(Expression::List)
                 }
 
                 Some(k) if k.is_literal() || k == TokenKind::Colon => {
@@ -194,5 +199,21 @@ mod parser_tests {
             "expected call but got {:?}",
             result
         );
+    }
+
+    #[test]
+    fn parse_list() {
+        let mut parser = Parser::new("[ 1, 2, 3 ]").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(result.is_ok(), "expected list but got {:?}", result);
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_nested_lists() {
+        let mut parser = Parser::new("[ 1, [2, [3, nil]]]").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(result.is_ok(), "expected list but got {:?}", result);
+        assert!(parser.is_empty());
     }
 }
