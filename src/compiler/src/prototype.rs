@@ -5,7 +5,7 @@ use diagnostic::Span;
 use crate::{
     code::Code,
     error::Result,
-    index::{Index, Indexable},
+    index::{Get, Index},
     local::Local,
     opcode::Op,
 };
@@ -13,7 +13,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Prototype {
     name: Option<String>,
-    parameter_count: usize,
+    parameter_count: u32,
     code: Code,
     bindings: Vec<Local>,
     scopes: Vec<usize>,
@@ -49,12 +49,12 @@ impl Prototype {
     }
 
     /// Get the prototype's parameter count.
-    pub fn parameter_count(&self) -> usize {
+    pub fn parameter_count(&self) -> u32 {
         self.parameter_count
     }
 
     /// Set the number of parameters this prototype needs when being called.
-    pub(crate) fn set_parameter_count(&mut self, count: usize) {
+    pub(crate) fn set_parameter_count(&mut self, count: u32) {
         self.parameter_count = count;
     }
 
@@ -118,7 +118,7 @@ impl Prototype {
     }
 }
 
-impl Indexable<Op> for Prototype {
+impl Get<Op> for Prototype {
     fn get(&self, index: Index<Op>) -> Option<&Op> {
         self.code.get(index)
     }

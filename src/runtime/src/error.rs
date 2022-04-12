@@ -9,6 +9,8 @@ pub enum Error {
     NumberTooBig,
     EndOfCode,
 
+    CastError,
+
     NoMainModule,
     NoMainFunction,
 
@@ -32,6 +34,8 @@ impl fmt::Display for Error {
         match self {
             NumberTooBig => write!(f, "number too big"),
             EndOfCode => write!(f, "code ended unexpectedly"),
+
+            CastError => write!(f, "cannot cast value as requested"),
 
             NoMainModule => write!(f, "no main module is loaded"),
             NoMainFunction => write!(f, "no main function"),

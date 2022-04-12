@@ -6,7 +6,7 @@ use diagnostic::Span;
 
 use crate::{
     error::{Error, Result},
-    index::{Index, Indexable},
+    index::{Get, Index},
     opcode::Op,
 };
 
@@ -47,7 +47,7 @@ impl Code {
     }
 }
 
-impl Indexable<Op> for Code {
+impl Get<Op> for Code {
     fn get(&self, index: Index<Op>) -> Option<&Op> {
         self.opcodes.get(index.as_usize())
     }

@@ -1,3 +1,5 @@
+//! Some helpers for tracing execution.
+
 use std::fmt::{Display, Formatter, Result};
 
 use crate::Runtime;
@@ -19,7 +21,7 @@ impl Display for Runtime {
 
 impl Runtime {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
-        if let Ok(op) = self.current_op() {
+        if let Ok(op) = self.op() {
             write!(f, "op: {op}")?;
         } else {
             write!(f, "op: <none>")?;
@@ -31,7 +33,7 @@ impl Runtime {
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
         write!(f, "stack: [ ... | ",)?;
 
-        for v in self.current_stack() {
+        for v in self.stack_frame() {
             write!(f, "{:?}, ", v)?;
         }
 

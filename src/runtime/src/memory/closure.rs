@@ -22,7 +22,13 @@ pub struct Closure {
 }
 
 impl Closure {
-    pub fn prototype_index(&self) -> Index<Prototype> {
+    /// The module index for the module this closure was defined in.
+    pub fn _module(&self) -> Index<Module> {
+        self.module
+    }
+
+    /// The prototype index for this closure, in it's original module.
+    pub fn prototype(&self) -> Index<Prototype> {
         self.prototype
     }
 }
@@ -46,9 +52,10 @@ impl Debug for Closure {
     }
 }
 
-// The number here is the capture count
 impl InitFrom<(Index<Module>, Index<Prototype>)> for Closure {
     fn extra_size(_arg: &(Index<Module>, Index<Prototype>)) -> usize {
+        // This is a fixed-sized for now, but once we have captures we'll make
+        // space for them here.
         0
     }
 

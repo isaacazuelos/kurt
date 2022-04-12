@@ -6,24 +6,15 @@ use std::fmt::{self, Display, Formatter};
 
 use crate::{
     constant::Constant,
-    index::{Index, Indexable},
+    index::{Get, Index},
     opcode::Op,
     prototype::Prototype,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Object {
     pub(crate) constants: Vec<Constant>,
     pub(crate) prototypes: Vec<Prototype>,
-}
-
-impl Default for Object {
-    fn default() -> Self {
-        Object {
-            constants: Vec::new(),
-            prototypes: Vec::new(),
-        }
-    }
 }
 
 impl Object {
@@ -40,13 +31,13 @@ impl Object {
     }
 }
 
-impl Indexable<Prototype> for Object {
+impl Get<Prototype> for Object {
     fn get(&self, index: Index<Prototype>) -> Option<&Prototype> {
         self.prototypes.get(index.as_usize())
     }
 }
 
-impl Indexable<Constant> for Object {
+impl Get<Constant> for Object {
     fn get(&self, index: Index<Constant>) -> Option<&Constant> {
         self.constants.get(index.as_usize())
     }

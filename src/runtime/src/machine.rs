@@ -1,7 +1,10 @@
 //! The virtual machine methods for our runtime.
 
 use compiler::{
-    constant::Constant, index::Index, local::Local, opcode::Op,
+    constant::Constant,
+    index::{Get, Index},
+    local::Local,
+    opcode::Op,
     prototype::Prototype,
 };
 
@@ -44,60 +47,84 @@ impl Runtime {
             }
         }
     }
+
+    #[inline]
+    fn fetch(&mut self) -> Result<Op> {
+        let op = self.op()?;
+        self.pc_mut().increment()?;
+        Ok(op)
+    }
 }
 
 impl Runtime {
-    #[inline]
-    fn fetch(&mut self) -> Result<Op> {
-        let op = self.current_op()?;
-        self.current_frame_mut().pc.increment()?;
-        Ok(op)
-    }
-
+    /// The [`LoadConstant`][Op::LoadConstant] instruction loads a constant from
+    /// the current module's constant pool using the given `index` and places it
+    /// on the stop of the stack.
     #[inline]
     fn load_constant(&mut self, index: Index<Constant>) -> Result<()> {
-        let value = self.current_module()?.constant(index)?;
+        let value = *self
+            .get(self.pc().module)
+            .ok_or(Error::ModuleIndexOutOfRange)?
+            .get(index)
+            .ok_or(Error::ConstantIndexOutOfRange)?;
+
         self.stack.push(value);
         Ok(())
     }
 
+    /// The [`LoadLocal`][Op::LoadLocal] instruction loads a copies the [`Value`]
+    /// of a local variable places it on the stop of the stack.
+    ///
+    /// Local variables are indexed up from the base pointer.
     #[inline]
     fn load_local(&mut self, index: Index<Local>) -> Result<()> {
-        let base = self.current_frame().bp;
-        let local = self.stack.get_local(base, index)?;
+        let local = self.stack.get_local(self.bp(), index)?;
         self.stack.push(local);
         Ok(())
     }
 
+    /// The [`DefineLocal`][Op::DefineLocal] instruction increments the top of the
+    /// stack by pushing a `()`. This has the effect of leaving the value
+    /// previous on the top of the stack around.
     #[inline]
     fn define_local(&mut self) -> Result<()> {
         self.stack.push(Value::UNIT);
         Ok(())
     }
 
+    /// The [`LoadClosure`][Op::LoadClosure] instruction creates an instance of
+    /// the closure described by the indexed [`Prototype`] in the current
+    /// module, and leaves it on the stack.
     #[inline]
     fn load_closure(&mut self, index: Index<Prototype>) -> Result<()> {
-        let module = self.current_frame().pc.module;
+        let module = self.pc().module;
         let gc_obj = self.make_from::<Closure, _>((module, index));
         self.stack.push(Value::object(gc_obj));
         Ok(())
     }
 
+    /// The [`Call`][Op::Call] instruction calls a function passing the
+    /// indicated number of arguments. This is done by creating and pushing a
+    /// new frame on the [`CallStack`][crate::call_stack::CallStack].
+    ///
+    /// The target of the function call is the value that's just 'below' the
+    /// arguments on the stack.
     #[inline]
     fn call(&mut self, arg_count: u32) -> Result<()> {
-        // TODO: checks that we're calling a closure, and that the param count works.
+        let module = self.pc().module;
 
-        let target_module = self.current_frame().pc.module;
-        let target_prototype = self
+        let prototype = self
             .stack
             .get_from_top(arg_count)?
-            .as_object()
-            .and_then(|o| {
-                o.deref().downcast::<Closure>().map(|c| c.prototype_index())
-            })
-            .ok_or(Error::CanOnlyCallClosures)?;
+            .use_as(|c: &Closure| Ok(c.prototype()))?;
 
-        let pc = Address::new(target_module, target_prototype, Index::START);
+        match self.get(prototype) {
+            Some(p) if p.parameter_count() == arg_count => Ok(()),
+            Some(_) => Err(Error::InvalidArgCount),
+            None => Err(Error::PrototypeIndexOutOfRange),
+        }?;
+
+        let pc = Address::new(module, prototype, Index::START);
         let bp = self.stack.index_from_top(arg_count);
 
         let new_frame = CallFrame::new(pc, bp);

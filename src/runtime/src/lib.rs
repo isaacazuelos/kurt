@@ -15,7 +15,7 @@ use call_stack::{CallFrame, CallStack};
 use compiler::{
     self,
     constant::Constant,
-    index::{Index, Indexable},
+    index::{Get, Index},
     opcode::Op,
     prototype::Prototype,
     Object,
@@ -161,44 +161,43 @@ impl Runtime {
         })
     }
 
-    /// The module which contains the currently-executing code.
-    fn current_module(&self) -> Result<&Module> {
-        let index = self.current_frame().pc.module;
-        self.modules
-            .get(index.as_usize())
-            .ok_or(Error::ModuleIndexOutOfRange)
+    /// The base pointer, or the value which indicates where in the stack values
+    /// pertaining to the currently executing closure begin.
+    ///
+    /// The value below the base pointer is the closure that's currently
+    /// executing.
+    pub fn bp(&self) -> Index<Stack> {
+        self.call_stack.frame().bp
     }
 
-    /// The currently-executing prototype.
-    fn current_prototype(&self) -> Result<&Prototype> {
-        let index = self.current_frame().pc.prototype;
-        self.current_module()?
-            .get(index)
-            .ok_or(Error::PrototypeIndexOutOfRange)
+    /// The program counter is the address of the currently executing piece of
+    /// code.
+    pub fn pc(&self) -> Address {
+        self.call_stack.frame().pc
     }
 
-    /// The currently-executing opcode.
-    pub(crate) fn current_op(&self) -> Result<Op> {
-        let index = self.current_frame().pc.instruction;
-        self.current_prototype()?
-            .get(index)
-            .cloned()
-            .ok_or(Error::OpIndexOutOfRange)
-    }
-
-    /// The current call frame.
-    fn current_frame(&self) -> &CallFrame {
-        self.call_stack.frame()
+    /// The program counter is the address of the currently executing piece of
+    /// code.
+    pub fn pc_mut(&mut self) -> &mut Address {
+        &mut self.call_stack.frame_mut().pc
     }
 
     /// The values on the stack after the current stack frame.
-    fn current_stack(&self) -> &[Value] {
-        &self.stack.as_slice()[self.current_frame().bp.as_usize()..]
+    pub fn stack_frame(&self) -> &[Value] {
+        let start = self.bp().as_usize();
+        &self.stack.as_slice()[start..]
     }
 
-    /// The current call frame.
-    fn current_frame_mut(&mut self) -> &mut CallFrame {
-        self.call_stack.frame_mut()
+    /// The [`Op`] referred to by the program counter.
+    fn op(&self) -> Result<Op> {
+        let address = self.pc();
+        self.get(address.module)
+            .ok_or(Error::ModuleIndexOutOfRange)?
+            .get(address.prototype)
+            .ok_or(Error::PrototypeIndexOutOfRange)?
+            .get(address.instruction)
+            .ok_or(Error::OpIndexOutOfRange)
+            .cloned()
     }
 }
 
@@ -214,13 +213,21 @@ impl Runtime {
                 Ok(Value::object(string))
             }
             Constant::Keyword(kw) => {
-                // if let Some(value) = Value::make_short_keyword(&kw) {
-                //     Ok(value)
-                // } else {
                 let keyword = self.make_from::<Keyword, _>(kw.as_str());
                 Ok(Value::object(keyword))
-                // }
             }
         }
+    }
+}
+
+impl Get<Module> for Runtime {
+    fn get(&self, index: Index<Module>) -> Option<&Module> {
+        self.modules.get(index.as_usize())
+    }
+}
+
+impl Get<Prototype> for Runtime {
+    fn get(&self, index: Index<Prototype>) -> Option<&Prototype> {
+        self.get(self.pc().module)?.get(index)
     }
 }

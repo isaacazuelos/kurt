@@ -47,9 +47,12 @@
 
 use std::ptr::NonNull;
 
-use crate::memory::{
-    trace::{Trace, WorkList},
-    Gc, Object,
+use crate::{
+    memory::{
+        trace::{Trace, WorkList},
+        Class, Gc, Object,
+    },
+    Error,
 };
 
 /// A value which is either stored inline or a pointer to a garbage collected

@@ -19,7 +19,7 @@ use crate::{
 /// A compiler turns source code into an [`Object`] the runtime can work with.
 ///
 /// It keeps track of all the state used when compiling.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
@@ -30,16 +30,6 @@ pub struct Compiler {
 
     /// Code is compiled into [`Prototype`]s which are kept here once complete
     prototypes: Vec<Prototype>,
-}
-
-impl Default for Compiler {
-    fn default() -> Self {
-        Compiler {
-            constants: Pool::default(),
-            compiling: Vec::default(),
-            prototypes: Vec::default(),
-        }
-    }
 }
 
 impl Compiler {

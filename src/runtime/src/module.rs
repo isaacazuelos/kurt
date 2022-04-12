@@ -1,17 +1,14 @@
 //! Runtime module representation.
 
-use crate::{
-    error::{Error, Result},
-    value::Value,
-};
+use crate::value::Value;
 
 use compiler::{
     constant::Constant,
-    index::{Index, Indexable},
+    index::{Get, Index},
     prototype::Prototype,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Module {
     /// All the constants in this module.
     pub(crate) constants: Vec<Value>,
@@ -20,32 +17,13 @@ pub struct Module {
     pub(crate) prototypes: Vec<Prototype>,
 }
 
-impl Default for Module {
-    fn default() -> Self {
-        Module {
-            prototypes: Vec::new(),
-            constants: Vec::new(),
-        }
-    }
-}
-
-impl Module {
-    /// Look up a constant by an [`Index`].
-    pub(crate) fn constant(&self, index: Index<Constant>) -> Result<Value> {
-        self.constants
-            .get(index.as_usize())
-            .cloned()
-            .ok_or(Error::ConstantIndexOutOfRange)
-    }
-}
-
-impl Indexable<Prototype> for Module {
+impl Get<Prototype> for Module {
     fn get(&self, index: Index<Prototype>) -> Option<&Prototype> {
         self.prototypes.get(index.as_usize())
     }
 }
 
-impl Indexable<Constant, Value> for Module {
+impl Get<Constant, Value> for Module {
     fn get(&self, index: Index<Constant>) -> Option<&Value> {
         self.constants.get(index.as_usize())
     }

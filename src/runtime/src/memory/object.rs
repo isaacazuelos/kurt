@@ -3,11 +3,15 @@
 
 use std::any::TypeId;
 
-use crate::memory::{
-    class::Class,
-    collector::GCHeader,
-    string::String,
-    trace::{Trace, WorkList},
+use crate::{
+    memory::{
+        class::Class,
+        collector::GCHeader,
+        string::String,
+        trace::{Trace, WorkList},
+    },
+    value::Value,
+    Error,
 };
 
 use super::{closure::Closure, keyword::Keyword};
@@ -90,7 +94,7 @@ impl Object {
         &self.gc_header
     }
 
-    /// Initialize an the common object fields for some object.
+    /// Initialize the common object fields for some object.
     ///
     /// # Safety
     ///
@@ -119,5 +123,22 @@ impl Object {
 impl PartialEq for Object {
     fn eq(&self, _other: &Self) -> bool {
         unimplemented!("object equality is not yet implemented")
+    }
+}
+
+impl Value {
+    /// Use a value as an instance of some [`Class`] `C`, if it is one.
+    pub(crate) fn use_as<C, F, R>(&self, inner: F) -> Result<R, Error>
+    where
+        C: Class,
+        F: FnOnce(&C) -> Result<R, Error>,
+    {
+        if let Some(object) = self.as_object() {
+            if let Some(instance) = object.deref().downcast() {
+                return inner(instance);
+            }
+        }
+
+        Err(Error::CastError)
     }
 }

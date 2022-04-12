@@ -17,6 +17,7 @@ pub enum Error {
     TooManyArguments,
     TooManyConstants,
     TooManyOps,
+    TooManyParameters,
     TooManyPrototypes,
 }
 

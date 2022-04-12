@@ -127,9 +127,13 @@ impl Compiler {
     /// Compile a function.
     fn function(&mut self, syntax: &syntax::Function) -> Result<()> {
         let i = self.with_prototype(|compiler| {
+            if syntax.parameters().len() > u32::MAX as usize {
+                return Err(Error::TooManyParameters);
+            }
+
             compiler
                 .active_prototype_mut()
-                .set_parameter_count(syntax.parameters().len());
+                .set_parameter_count(syntax.parameters().len() as u32);
 
             for parameter in syntax.parameters() {
                 compiler.bind_local(parameter.name());
