@@ -51,6 +51,9 @@ pub enum Op {
 
     /// Return from the currently executing function.
     Return,
+
+    /// Make a list using the indicated number of arguments on the stack.
+    List(u32),
 }
 
 impl Display for Op {
@@ -69,6 +72,7 @@ impl Display for Op {
             Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Return => write!(f, "Return"),
+            Op::List(n) => write!(f, "List {n}"),
         }
     }
 }

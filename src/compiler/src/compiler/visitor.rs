@@ -169,8 +169,15 @@ impl Compiler {
     }
 
     /// Compile a list literal
-    fn list(&mut self, _syntax: &syntax::List) -> Result<()> {
-        todo!("cannot compile list literals")
+    fn list(&mut self, syntax: &syntax::List) -> Result<()> {
+        // For now, we just push all the elements to the stack and call a
+        // MakeList opcode. We'll need to revisit this when we add spreads, etc.
+        // and when we have real modules/imports.
+        for element in syntax.elements() {
+            self.expression(element)?;
+        }
+
+        self.emit(Op::List(syntax.elements().len() as u32), syntax.span())
     }
 
     /// Compile a literal

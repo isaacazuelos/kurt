@@ -9,8 +9,12 @@ use compiler::{
 };
 
 use crate::{
-    address::Address, call_stack::CallFrame, error::Result,
-    memory::closure::Closure, value::Value, Error, Exit, Runtime,
+    address::Address,
+    call_stack::CallFrame,
+    error::Result,
+    memory::{closure::Closure, list::List},
+    value::Value,
+    Error, Exit, Runtime,
 };
 
 impl Runtime {
@@ -44,6 +48,8 @@ impl Runtime {
 
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.return_op()?,
+
+                Op::List(n) => self.list(n)?,
             }
         }
     }
@@ -140,6 +146,22 @@ impl Runtime {
         self.stack.truncate_to(frame.bp);
         self.stack.push(result);
 
+        Ok(())
+    }
+
+    #[inline]
+    fn list(&mut self, n: u32) -> Result<()> {
+        let mut vec = Vec::with_capacity(n as _);
+
+        for _ in 0..n {
+            vec.push(self.stack.pop())
+        }
+
+        vec.reverse();
+
+        let list = self.make_from::<List, _>(vec);
+
+        self.stack.push(Value::object(list));
         Ok(())
     }
 }

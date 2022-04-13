@@ -44,3 +44,7 @@ test_eval! { scope_with_bindings, "{ let x = 1; x }", "1" }
 test_eval! { simple_function, "let x = () => {;}", "()" }
 test_eval! { call, "((x) => x)(10)", "10" }
 test_eval! { call_multiple_args, "((a, b) => b)(10, 20)", "20" }
+
+// Lists
+test_eval! { list_empty, "[]", "[ ]" }
+test_eval! { list, "[1,2,3]", "[ 1, 2, 3, ]" }

@@ -14,7 +14,7 @@ use crate::{
     Error,
 };
 
-use super::{closure::Closure, keyword::Keyword};
+use super::{closure::Closure, keyword::Keyword, list::List};
 
 /// All our runtime values which live on the heap must share some common
 /// metadata and methods to allow the runtime to be aware of them and manage
@@ -75,6 +75,11 @@ impl Object {
             id if id == TypeId::of::<Closure>() => {
                 let closure = self.downcast::<Closure>().unwrap();
                 closure.enqueue_gc_references(worklist)
+            }
+
+            id if id == TypeId::of::<List>() => {
+                let list = self.downcast::<List>().unwrap();
+                list.enqueue_gc_references(worklist)
             }
 
             other => {

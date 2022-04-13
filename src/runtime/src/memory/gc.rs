@@ -3,6 +3,7 @@
 use std::any::TypeId;
 use std::{fmt, ptr::NonNull};
 
+use crate::memory::list::List;
 use crate::memory::{keyword::Keyword, string::String, Object};
 
 use super::closure::Closure;
@@ -79,6 +80,11 @@ impl fmt::Display for Gc {
             type_id if type_id == TypeId::of::<Closure>() => {
                 let c = obj.downcast::<Closure>().unwrap();
                 write!(f, "{:?}", c)
+            }
+
+            type_id if type_id == TypeId::of::<List>() => {
+                let l = obj.downcast::<List>().unwrap();
+                write!(f, "{:?}", l)
             }
 
             // TODO: We should really have some way to do this that's

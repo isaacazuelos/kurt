@@ -23,6 +23,7 @@ mod object;
 
 pub mod closure;
 pub mod keyword;
+pub mod list;
 pub mod string;
 pub mod trace;
 
