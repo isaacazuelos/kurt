@@ -24,7 +24,7 @@ pub use self::{
     call::Call,
     entry::{Module, TopLevel},
     expression::Expression,
-    function::Function,
+    function::{Function, Parameter},
     grouping::Grouping,
     ident::Identifier,
     list::List,
