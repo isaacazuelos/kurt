@@ -69,10 +69,11 @@ impl Object {
             )?;
         }
 
-        for (op, span) in prototype.code().iter() {
+        for (i, (op, span)) in prototype.code().iter().enumerate() {
             write!(
                 f,
-                "  {:03}:{:03} | ",
+                " {:03} ({:03}:{:03}) | ",
+                i,
                 span.start().line(),
                 span.start().column()
             )?;
