@@ -147,7 +147,7 @@ impl Runtime {
     /// Otherwise it's the caller's responsibility to ensure it is freed
     /// appropriately.
     unsafe fn allocate(&mut self, layout: Layout) -> *mut Object {
-        self.collect_garbage();
+        // self.collect_garbage();
 
         std::alloc::alloc(layout) as _
     }
