@@ -48,3 +48,11 @@ test_eval! { call_multiple_args, "((a, b) => b)(10, 20)", "20" }
 // Lists
 test_eval! { list_empty, "[]", "[ ]" }
 test_eval! { list, "[1,2,3]", "[ 1, 2, 3, ]" }
+
+// Conditionals
+test_eval! { if_only, "if true { 10 }", "10" }
+test_eval! { if_only_f, "if false { 10 }", "()" }
+
+test_eval! { if_else_t, "if true { 10 } else { 20 }", "10" }
+test_eval! { if_else_f, "if false { 10 } else { 20 }", "20" }
+test_eval! { if_else_gc_bug, "if true { :t } else { :f }", ":t" } // fun

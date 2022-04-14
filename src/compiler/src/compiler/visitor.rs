@@ -64,6 +64,7 @@ impl Compiler {
             syntax::Statement::Binding(b) => self.binding(b),
             syntax::Statement::Empty(span) => self.empty_statement(*span),
             syntax::Statement::Expression(e) => self.expression(e),
+            syntax::Statement::If(i) => self.if_only(i),
         }
     }
 
@@ -89,6 +90,31 @@ impl Compiler {
         self.emit(Op::Unit, span)
     }
 
+    /// Compile an `if` with no `else` as a statement.
+    fn if_only(&mut self, syntax: &syntax::IfOnly) -> Result<()> {
+        self.expression(syntax.condition())?;
+
+        let end_span = syntax.block().close();
+
+        let patch_emit_unit = self.next_index();
+        self.emit(Op::Nop, end_span)?;
+
+        self.block(syntax.block())?;
+
+        let patch_jump_end = self.next_index();
+        self.emit(Op::Nop, end_span)?;
+
+        let emit_unit = self.next_index();
+        self.emit(Op::Unit, end_span)?;
+
+        let end = self.next_index();
+
+        self.patch(patch_emit_unit, Op::BranchFalse(emit_unit));
+        self.patch(patch_jump_end, Op::Jump(end));
+
+        Ok(())
+    }
+
     /// Compile an expression
     fn expression(&mut self, syntax: &syntax::Expression) -> Result<()> {
         match syntax {
@@ -97,6 +123,7 @@ impl Compiler {
             syntax::Expression::Function(f) => self.function(f),
             syntax::Expression::Grouping(g) => self.grouping(g),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
+            syntax::Expression::If(i) => self.if_else(i),
             syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Literal(l) => self.literal(l),
         }
@@ -166,6 +193,30 @@ impl Compiler {
         } else {
             Err(Error::UndefinedLocal)
         }
+    }
+
+    /// Compile an `if` with and `else`.
+    fn if_else(&mut self, syntax: &syntax::IfElse) -> Result<()> {
+        self.expression(syntax.condition())?;
+
+        let patch_branch_false = self.next_index();
+        self.emit(Op::Nop, syntax.else_span())?;
+
+        self.block(syntax.true_block())?;
+
+        let patch_jump_end = self.next_index();
+        self.emit(Op::Nop, syntax.false_block().close())?;
+
+        let false_start = self.next_index();
+
+        self.block(syntax.false_block())?;
+
+        let end = self.next_index();
+
+        self.patch(patch_branch_false, Op::BranchFalse(false_start));
+        self.patch(patch_jump_end, Op::Jump(end));
+
+        Ok(())
     }
 
     /// Compile a list literal

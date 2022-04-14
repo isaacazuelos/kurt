@@ -64,6 +64,14 @@ impl Compiler {
 
 // Bindings and scopes
 impl Compiler {
+    pub(crate) fn next_index(&self) -> Index<Op> {
+        self.compiling.last().unwrap().code().next_index()
+    }
+
+    pub(crate) fn patch(&mut self, index: Index<Op>, op: Op) -> Option<Op> {
+        self.active_prototype_mut().code_mut().patch(index, op)
+    }
+
     pub(crate) fn with_scope<F, T>(&mut self, inner: F) -> Result<T>
     where
         F: FnOnce(&mut Compiler) -> Result<T>,

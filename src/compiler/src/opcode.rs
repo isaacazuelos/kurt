@@ -52,6 +52,14 @@ pub enum Op {
     /// Return from the currently executing function.
     Return,
 
+    /// Jump to the given opcode index _in the current prototype_
+    /// unconditionally.
+    Jump(Index<Op>),
+
+    /// Jump to the given index _in the current prototype_ if the top of the
+    /// stack if false.
+    BranchFalse(Index<Op>),
+
     /// Make a list using the indicated number of arguments on the stack.
     List(u32),
 }
@@ -72,6 +80,9 @@ impl Display for Op {
             Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Return => write!(f, "Return"),
+            Op::Jump(i) => write!(f, "Jump {}", i.as_u32()),
+            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_u32()),
+
             Op::List(n) => write!(f, "List {n}"),
         }
     }

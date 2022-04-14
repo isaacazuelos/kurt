@@ -1,7 +1,7 @@
 //! Expressions
 
 use parser::{
-    lexer::{Delimiter, TokenKind},
+    lexer::{Delimiter, Reserved, TokenKind},
     Parse,
 };
 
@@ -19,6 +19,7 @@ pub enum Expression<'a> {
     Function(Function<'a>),
     Grouping(Grouping<'a>),
     Identifier(Identifier<'a>),
+    If(IfElse<'a>),
     List(List<'a>),
     Literal(Literal<'a>),
 }
@@ -33,6 +34,7 @@ impl<'a> Syntax for Expression<'a> {
             Expression::Function(f) => f.span(),
             Expression::Grouping(g) => g.span(),
             Expression::Identifier(i) => i.span(),
+            Expression::If(i) => i.span(),
             Expression::List(l) => l.span(),
             Expression::Literal(e) => e.span(),
         }
@@ -53,12 +55,16 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// primary := Identifier | Block | Function | Literal | List
+    /// primary := Identifier | Block | Function | Literal | List | If
     pub(crate) fn primary(
         parser: &mut Parser<'a>,
     ) -> Result<Expression<'a>, Error> {
         parser.depth_track(|parser| {
             match parser.peek() {
+                Some(TokenKind::Reserved(Reserved::If)) => {
+                    parser.parse().map(Expression::If)
+                }
+
                 Some(TokenKind::Identifier) => {
                     parser.parse().map(Expression::Identifier)
                 }
@@ -72,6 +78,7 @@ impl<'a> Expression<'a> {
                 Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                     Expression::open_parenthesis(parser)
                 }
+
                 Some(TokenKind::Open(Delimiter::Bracket)) => {
                     parser.parse().map(Expression::List)
                 }
@@ -232,5 +239,24 @@ mod parser_tests {
             result
         );
         assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn if_else() {
+        let mut parser = Parser::new("if true {} else {}").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(&result, Ok(Expression::If(_))),
+            "expected if-else but got {:?}",
+            result
+        );
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn if_no_else() {
+        let mut parser = Parser::new("if true {}").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(result.is_err());
     }
 }

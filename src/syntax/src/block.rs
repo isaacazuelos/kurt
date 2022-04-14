@@ -23,6 +23,11 @@ impl<'a> Block<'a> {
     pub fn statements(&self) -> &StatementSequence {
         &self.statements
     }
+
+    /// The span of the block's closing brace.
+    pub fn close(&self) -> Span {
+        self.close
+    }
 }
 
 impl<'a> Syntax for Block<'a> {

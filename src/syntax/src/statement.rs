@@ -16,9 +16,10 @@ use super::*;
 /// present).
 #[derive(Debug)]
 pub enum Statement<'a> {
+    Binding(Binding<'a>),
     Empty(Span),
     Expression(Expression<'a>),
-    Binding(Binding<'a>),
+    If(IfOnly<'a>),
 }
 
 impl<'a> Syntax for Statement<'a> {
@@ -26,9 +27,10 @@ impl<'a> Syntax for Statement<'a> {
 
     fn span(&self) -> Span {
         match self {
+            Statement::Binding(b) => b.span(),
             Statement::Empty(s) => *s,
             Statement::Expression(s) => s.span(),
-            Statement::Binding(b) => b.span(),
+            Statement::If(i) => i.span(),
         }
     }
 }
@@ -39,11 +41,24 @@ impl<'a> Parse<'a> for Statement<'a> {
             Some(TokenKind::Semicolon) => {
                 Ok(Statement::Empty(parser.peek_span().unwrap()))
             }
+
             Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {
                 Ok(Statement::Binding(parser.parse()?))
             }
 
+            Some(TokenKind::Reserved(Reserved::If)) => {
+                let if_only: IfOnly = parser.parse()?;
+                if parser.peek() == Some(TokenKind::Reserved(Reserved::Else)) {
+                    let if_else = if_only.expand_with_else(parser)?;
+
+                    Ok(Statement::Expression(Expression::If(if_else)))
+                } else {
+                    Ok(Statement::If(if_only))
+                }
+            }
+
             Some(_) => Ok(Statement::Expression(parser.parse()?)),
+
             None => Err(Error::EOFExpecting("a statement")),
         }
     }
@@ -164,6 +179,30 @@ mod parser_tests {
             Ok(Statement::Expression(Expression::Literal(_)))
         ));
         assert!(!parser.is_empty());
+    }
+
+    #[test]
+    fn parse_if_only() {
+        let mut parser = Parser::new("if true { }").unwrap();
+        let syntax = parser.parse::<Statement>();
+        assert!(
+            matches!(syntax, Ok(Statement::If(_))),
+            "expected If statement, but got {:#?}",
+            syntax
+        );
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_if_else() {
+        let mut parser = Parser::new("if true { } else { }").unwrap();
+        let syntax = parser.parse::<Statement>();
+        assert!(
+            matches!(syntax, Ok(Statement::Expression(Expression::If(_)))),
+            "expected If expression, but got {:#?}",
+            syntax
+        );
+        assert!(parser.is_empty());
     }
 
     #[test]

@@ -49,6 +49,9 @@ impl Runtime {
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.return_op()?,
 
+                Op::Jump(i) => self.jump(i)?,
+                Op::BranchFalse(i) => self.branch_false(i)?,
+
                 Op::List(n) => self.list(n)?,
             }
         }
@@ -163,5 +166,20 @@ impl Runtime {
 
         self.stack.push(Value::object(list));
         Ok(())
+    }
+
+    #[inline]
+    fn jump(&mut self, i: Index<Op>) -> Result<()> {
+        self.pc_mut().instruction = i;
+        Ok(())
+    }
+
+    #[inline]
+    fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
+        if self.stack.pop() == Value::FALSE {
+            self.jump(i)
+        } else {
+            Ok(())
+        }
     }
 }

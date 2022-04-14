@@ -78,6 +78,11 @@ impl Prototype {
         &self.code
     }
 
+    /// Get a mutable reference to the code listing for this prototype.
+    pub(crate) fn code_mut(&mut self) -> &mut Code {
+        &mut self.code
+    }
+
     pub(crate) fn begin_scope(&mut self) {
         self.scopes.push(0);
     }

@@ -9,6 +9,7 @@ pub use parser::{Error, Parse};
 mod binding;
 mod block;
 mod call;
+mod conditional;
 mod entry;
 mod expression;
 mod function;
@@ -22,6 +23,7 @@ pub use self::{
     binding::Binding,
     block::Block,
     call::Call,
+    conditional::{IfElse, IfOnly},
     entry::{Module, TopLevel},
     expression::Expression,
     function::Function,

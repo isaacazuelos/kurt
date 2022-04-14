@@ -45,6 +45,22 @@ impl Code {
     pub(crate) fn iter(&self) -> impl Iterator<Item = (&Op, &Span)> {
         self.opcodes.iter().zip(self.spans.iter())
     }
+
+    pub(crate) fn next_index(&self) -> Index<Op> {
+        Index::new(self.opcodes.len() as u32)
+    }
+
+    /// Patch an existing instruction with another given instruction, at a
+    /// specific index. Returns the replaced op, or `None` if the index is
+    /// invalid.
+    pub(crate) fn patch(&mut self, index: Index<Op>, op: Op) -> Option<Op> {
+        if let old @ Some(_) = self.get(index).cloned() {
+            self.opcodes[index.as_usize()] = op;
+            old
+        } else {
+            None
+        }
+    }
 }
 
 impl Get<Op> for Code {
