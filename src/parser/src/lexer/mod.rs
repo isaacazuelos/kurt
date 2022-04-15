@@ -6,10 +6,6 @@
 //! Before we can start the task of parsing, we need to sweep over the input and
 //! breaking it apart into meaningful atoms called [`Token`]s.
 //!
-//! Lexing can happen over `&str` when unicode validation should be done before
-//! hand. You can use [`verify_utf8`][crate::verify_utf8] to perform that
-//! validation if needed.
-//!
 //! # Notes
 //!
 //! You may be wondering why Lexer doesn't implement `Iterator`. The short

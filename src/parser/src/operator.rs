@@ -112,11 +112,11 @@ impl Fixity {
 /// A dictionary-like value for keeping track of which operators are defined,
 /// and what kind of use they support (of infix, prefix, and postfix).
 #[derive(Debug)]
-pub(crate) struct Operators {
+pub struct DefinedOperators {
     defined: HashMap<String, Fixity>,
 }
 
-impl Operators {
+impl DefinedOperators {
     /// Is a specific operator defined for prefix use?
     pub fn is_prefix(&self, op: &str) -> bool {
         self.defined.get(op).map(Fixity::prefix).unwrap_or(false)
@@ -145,9 +145,15 @@ impl Operators {
         old
     }
 
+    /// Is a specific operator defined for infix use at any precedence level and
+    /// associativity?
+    pub fn is_infix(&self, op: &str) -> bool {
+        self.get_infix(op).is_some()
+    }
+
     /// The precedence level and associativity for an operator, if it's defined
     /// for infix use. If it's not defined for infix, `None` is returned.
-    pub fn is_infix(&self, op: &str) -> Option<(Associativity, Precedence)> {
+    pub fn get_infix(&self, op: &str) -> Option<(Associativity, Precedence)> {
         self.defined.get(op).and_then(Fixity::infix)
     }
 
@@ -179,11 +185,11 @@ impl Operators {
     }
 }
 
-impl Default for Operators {
+impl Default for DefinedOperators {
     fn default() -> Self {
         use Associativity::*;
 
-        let mut op = Operators {
+        let mut op = DefinedOperators {
             defined: HashMap::default(),
         };
 

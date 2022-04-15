@@ -4,7 +4,10 @@ use std::{error, fmt};
 
 use crate::lexer::{self, TokenKind as Kind};
 
-/// Lexical errors with all the contextual information needed present it nicely.
+/// Parser errors
+///
+/// Later we'll add a way to build up more of the context we need for better
+/// diagnostics, but this is pretty incomplete for now.
 #[derive(Debug)]
 pub enum Error {
     ParserDepthExceeded,
@@ -15,6 +18,21 @@ pub enum Error {
     Unexpected { wanted: &'static str, found: Kind },
 
     KeywordNoSpace,
+
+    OperatorNotDefinedAsPrefix,
+    OperatorNotDefinedAsPostfix,
+    OperatorNotDefinedAsInfix,
+
+    PrefixSpaceAfter,
+    PrefixNoSpaceBefore,
+
+    PostfixNoSpaceAfter,
+    PostfixSpaceBefore,
+    PostfixOperatorAtStartOfInput,
+
+    InfixAtStartOrEnd,
+    InfixUnbalancedWhitespace,
+    InfixWrongPrecedence,
 
     UnusedInput,
     LexerError(lexer::Error),
@@ -60,6 +78,19 @@ impl fmt::Display for Error {
                 f,
                 "keyword literals must not have a space after the colon"
             ),
+
+            OperatorNotDefinedAsPrefix => write!(f, "Not a prefix operator"),
+            OperatorNotDefinedAsPostfix => write!(f, "Not a postfix operator"),
+            OperatorNotDefinedAsInfix => write!(f, "Not an infix operator"),
+            PrefixSpaceAfter => write!(f, "Prefix operators cannot have whitespace after them"),
+            PrefixNoSpaceBefore => write!(f, "Prefix operators must have whitespace before them"),
+            PostfixNoSpaceAfter => write!(f, "Postfix operators must have whitespace after them"),
+            PostfixSpaceBefore => write!(f, "Postfix operators cannot have whitespace before them"),
+            PostfixOperatorAtStartOfInput => write!(f, "Postfix operators cannot be at the start of the input."),
+            InfixAtStartOrEnd => write!(f, "Infix operators must have code on either side"),
+            InfixUnbalancedWhitespace => write!(f, "Infix operators must have balanced whitespace"),
+
+            InfixWrongPrecedence  => write!(f, "An infix operator was found, but not with the right precedence."),
 
             UnusedInput => write!(f, "There was unused input when parsing"),
             LexerError(e) => write!(f, "{}", e),

@@ -8,8 +8,7 @@
 
 use diagnostic::Span;
 
-/// An individual lexeme in our language, along with the surrounding whitespace,
-/// comments and location tracking information.
+/// An individual lexeme in our language.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Token<'a> {
     /// The semantic kind thing the token is. See `Kind` for more.
