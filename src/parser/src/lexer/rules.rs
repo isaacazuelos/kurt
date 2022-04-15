@@ -204,5 +204,11 @@ fn is_operator(c: char) -> bool {
         && c != '"'
         && c != '\''
         && c != '_'
+        && c != '{'
+        && c != '('
+        && c != '['
+        && c != ']'
+        && c != ')'
+        && c != '}'
         && (c.is_symbol() || c.is_punctuation())
 }

@@ -94,6 +94,18 @@ fn lexer_operator_chaining() {
 }
 
 #[test]
+fn lexer_operator_chaining_bracket() {
+    let mut lexer = Lexer::new("a?[b");
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
+    assert_eq!(
+        lexer.token().unwrap().kind(),
+        TokenKind::Open(Delimiter::Bracket)
+    );
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
+}
+
+#[test]
 fn comments_no_newline() {
     let mut lexer = Lexer::new("// comment");
     assert!(matches!(

@@ -54,7 +54,7 @@ impl Parser<'_> {
         &[
             Open(Parenthesis),
             Open(Brace),
-            Open(Brace),
+            Open(Bracket),
             Comma,
             Colon,
             Semicolon,
@@ -66,9 +66,12 @@ impl Parser<'_> {
         use Delimiter::*;
         use TokenKind::*;
         &[
+            Open(Parenthesis),
+            Open(Brace),
+            Open(Bracket),
             Close(Parenthesis),
             Close(Brace),
-            Close(Brace),
+            Close(Bracket),
             Comma,
             Colon,
             Semicolon,
@@ -142,7 +145,7 @@ impl Parser<'_> {
             let is_allowed =
                 Parser::ALLOWED_BEFORE_PREFIX.contains(&before_token.kind());
 
-            if space_before || is_allowed {
+            if !(space_before || is_allowed) {
                 return Err(Error::PrefixNoSpaceBefore);
             }
         }
@@ -189,9 +192,8 @@ impl Parser<'_> {
         // 4
         let before_token = self.tokens[self.cursor - 1];
         let space_before = before_token.span().end() != token.span().start();
-
         if space_before {
-            return Err(Error::PostfixNoSpaceAfter);
+            return Err(Error::PostfixSpaceBefore);
         }
 
         // 5
@@ -199,10 +201,10 @@ impl Parser<'_> {
             let after_token = self.tokens[self.cursor + 1];
             let space_after = token.span().end() != after_token.span().start();
             let is_allowed =
-                Parser::ALLOWED_AFTER_POSTFIX.contains(&before_token.kind());
+                Parser::ALLOWED_AFTER_POSTFIX.contains(&after_token.kind());
 
-            if space_after || is_allowed {
-                return Err(Error::PrefixNoSpaceBefore);
+            if !(space_after || is_allowed) {
+                return Err(Error::PostfixNoSpaceAfter);
             }
         }
 
@@ -287,6 +289,8 @@ mod tests {
         DefinedOperators::default().get_infix(s).unwrap().1
     }
 
+    // This was embarrassingly difficult to get right.
+
     #[test]
     fn defined_operator_assumptions() {
         // In our tests, we'll be using some operators to test things, and we
@@ -306,28 +310,59 @@ mod tests {
     }
 
     #[test]
-    fn prefix_at_eof() {
+    fn prefix_1_at_eof() {
         let mut parser = Parser::new("-").unwrap();
         assert!(parser.consume_prefix().is_err());
     }
 
     #[test]
-    fn prefix_with_space() {
+    fn prefix_2_non_operator() {
+        let mut parser = Parser::new("= a").unwrap();
+        assert!(parser.consume_prefix().is_err());
+    }
+
+    #[test]
+    fn prefix_3_undefined() {
+        let mut parser = Parser::new("<$> a").unwrap();
+        assert!(!parser.operators.is_prefix("<$>"));
+        assert!(parser.consume_prefix().is_err());
+    }
+
+    #[test]
+    fn prefix_4_no_right_whitespace() {
         let mut parser = Parser::new("- a").unwrap();
         assert!(parser.consume_prefix().is_err());
     }
 
     #[test]
-    fn prefix_missing_space() {
+    fn prefix_5_missing_space_and_disallowed() {
         let mut parser = Parser::new("a-a").unwrap();
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume_prefix().is_err());
+    }
+
+    #[test]
+    fn prefix_5_missing_space_but_allowed() {
+        let mut parser = Parser::new("(-a)").unwrap();
+        assert!(parser
+            .consume(TokenKind::Open(Delimiter::Parenthesis), "(")
+            .is_ok());
+        assert!(parser.consume_prefix().is_ok());
+    }
+
+    #[test]
+    fn prefix_5_disallowed_but_space() {
+        let mut parser = Parser::new("a -a").unwrap();
         assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
         assert!(parser.consume_prefix().is_ok());
     }
 
     #[test]
-    fn prefix_missing_space_okay() {
-        let mut parser = Parser::new("(-a)").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "(").is_ok());
+    fn prefix_5_allowed_and_space() {
+        let mut parser = Parser::new("( -a)").unwrap();
+        assert!(parser
+            .consume(TokenKind::Open(Delimiter::Parenthesis), "(")
+            .is_ok());
         assert!(parser.consume_prefix().is_ok());
     }
 
@@ -339,23 +374,61 @@ mod tests {
     }
 
     #[test]
-    fn postfix_at_start() {
+    fn postfix_1_at_start() {
         let mut parser = Parser::new("?a").unwrap();
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
-    fn postfix_with_space() {
+    fn postfix_2_need_operator() {
+        let mut parser = Parser::new("a a").unwrap();
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume_postfix().is_err());
+    }
+
+    #[test]
+    fn postfix_3_undefined() {
+        let mut parser = Parser::new("a-").unwrap();
+        assert!(!parser.operators.is_postfix("-"));
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume_postfix().is_err());
+    }
+
+    #[test]
+    fn postfix_4_no_left_whitespace() {
         let mut parser = Parser::new("a ?").unwrap();
         assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
+    fn postfix_5_no_right_whitespace_and_disallowed() {
+        let mut parser = Parser::new("a?a").unwrap();
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume_postfix().is_err());
+    }
+
+    #[test]
+    fn postfix_5_no_right_whitespace_but_allowed() {
+        let mut parser = Parser::new("a?[").unwrap();
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        let result = parser.consume_postfix();
+        assert!(result.is_ok(), "got {:?}", result);
+    }
+
+    #[test]
+    fn postfix_5_whitespace_after() {
+        let mut parser = Parser::new("a? a").unwrap();
+        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume_postfix().is_ok());
+    }
+
+    #[test]
     fn postfix_with_dot() {
         let mut parser = Parser::new("a?.b").unwrap();
         assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
-        assert!(parser.consume_postfix().is_ok());
+        let result = parser.consume_postfix();
+        assert!(result.is_ok(), "got {:?}", result);
         assert!(parser.consume(TokenKind::Dot, ".").is_ok());
     }
 
@@ -363,7 +436,8 @@ mod tests {
     fn postfix_with_other() {
         let mut parser = Parser::new("a?[b]").unwrap();
         assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
-        assert!(parser.consume_postfix().is_ok());
+        let result = parser.consume_postfix();
+        assert!(result.is_ok(), "got {:?}", result);
     }
 
     #[test]
