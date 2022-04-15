@@ -7,6 +7,7 @@ use diagnostic::Span;
 use crate::{
     error::Error,
     lexer::{Lexer, Token, TokenKind},
+    operator::Operators,
     Parse,
 };
 
@@ -22,6 +23,9 @@ pub struct Parser<'a> {
     /// The grammar can be recursive in a few places, we track our 'depth' into
     /// these recursive forms here to prevent stack overflows.
     depth: usize,
+
+    /// The operators we know how to parse.
+    operators: Operators,
 }
 
 impl<'a> Parser<'a> {
@@ -45,6 +49,7 @@ impl<'a> Parser<'a> {
             cursor: 0,
             depth: 0,
             tokens,
+            operators: Operators::default(),
         })
     }
 
