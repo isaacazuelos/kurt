@@ -55,7 +55,7 @@ fn lexer_punctuation() {
     );
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Comma);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
-    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Equals);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::DoubleArrow);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
 }
@@ -152,7 +152,7 @@ fn unicode_identifier() {
         TokenKind::Reserved(Reserved::Let)
     );
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
-    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Equals);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Semicolon);
     assert!(lexer.is_empty());

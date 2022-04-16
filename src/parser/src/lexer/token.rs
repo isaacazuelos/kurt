@@ -76,8 +76,7 @@ pub enum Kind {
 
     /// Things like `foo` are identifies, names for things.
     Identifier,
-    /// Things like `+`, `==` or `>>=` are operators. Notably, a single `=` is
-    /// not.
+    /// Things like `+`, `==` or `>>=` are operators.
     Operator,
 
     /// `->` or `→`
@@ -92,8 +91,6 @@ pub enum Kind {
     Comma,
     /// `=>` or `⇒`
     DoubleArrow,
-    ///`=`
-    Equals,
     /// `;`
     Semicolon,
 
@@ -139,7 +136,6 @@ impl Kind {
             Colon => "colon (:)",
             Comma => "comma (,)",
             DoubleArrow => "double arrow (=>)",
-            Equals => "equals sign (=)",
             Semicolon => "semicolon (;)",
             Dot => "period (.)",
             Range => "range (..)",
