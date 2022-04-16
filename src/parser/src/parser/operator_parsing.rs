@@ -47,7 +47,7 @@ use crate::{
 // These methods are long, but not too complicated. To disambiguate operators, a
 // lot of things have to be checked. To the control flow flatter we use early
 // returns as each condition is violated.
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     pub const ALLOWED_BEFORE_PREFIX: &'static [TokenKind] = {
         use Delimiter::*;
         use TokenKind::*;
@@ -105,7 +105,7 @@ impl Parser<'_> {
     ///
     /// 5. If there's a token before the operator, there's either whitespace
     ///    between them, or the token is in [`Parser::ALLOWED_BEFORE_PREFIX`].
-    pub fn consume_prefix(&mut self) -> Result<Token, Error> {
+    pub fn consume_prefix(&mut self) -> Result<Token<'a>, Error> {
         const WANTED: &str = "a prefix operator";
 
         // 1
@@ -167,7 +167,7 @@ impl Parser<'_> {
     ///
     /// 5. If there's a token after, there must be whitespace between them, or
     ///    the token must be in [`Parser::ALLOWED_AFTER_POSTFIX`].
-    pub fn consume_postfix(&mut self) -> Result<Token, Error> {
+    pub fn consume_postfix(&mut self) -> Result<Token<'a>, Error> {
         const WANTED: &str = "a postfix operator";
 
         // 1
@@ -232,7 +232,7 @@ impl Parser<'_> {
     pub fn consume_infix(
         &mut self,
         wanted: Precedence,
-    ) -> Result<(Token, Associativity), Error> {
+    ) -> Result<(Token<'a>, Associativity), Error> {
         const WANTED: &str = "a prefix operator";
 
         // 1

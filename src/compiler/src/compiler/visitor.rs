@@ -118,6 +118,7 @@ impl Compiler {
     /// Compile an expression
     fn expression(&mut self, syntax: &syntax::Expression) -> Result<()> {
         match syntax {
+            syntax::Expression::Binary(b) => self.binary(b),
             syntax::Expression::Block(b) => self.block(b),
             syntax::Expression::Call(c) => self.call(c),
             syntax::Expression::Function(f) => self.function(f),
@@ -126,7 +127,22 @@ impl Compiler {
             syntax::Expression::If(i) => self.if_else(i),
             syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Literal(l) => self.literal(l),
+            syntax::Expression::Unary(u) => self.unary(u),
         }
+    }
+
+    /// Compile a binary operator expression.
+    fn binary(&mut self, _syntax: &syntax::Binary) -> Result<()> {
+        unimplemented!("operator compiling not yet implemented")
+    }
+
+    /// Compile a unary operator expression.
+    ///
+    /// We want to evaluate left-to-right, and we're not sure if retrieving a
+    /// definition of an operator could have side effects, so we need to be
+    /// careful.
+    fn unary(&mut self, _syntax: &syntax::Unary) -> Result<()> {
+        unimplemented!("operator compiling not yet implemented")
     }
 
     /// Compile a block expression.
@@ -234,7 +250,7 @@ impl Compiler {
     /// Compile a literal
     fn literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         match syntax.kind() {
-            syntax::LiteralKind::Binary => self.binary(syntax),
+            syntax::LiteralKind::Binary => self.binary_literal(syntax),
             syntax::LiteralKind::Bool => self.bool(syntax),
             syntax::LiteralKind::Char => self.char(syntax),
             syntax::LiteralKind::Decimal => self.decimal(syntax),
@@ -248,7 +264,7 @@ impl Compiler {
     }
 
     /// Compile an binary numeric literal
-    fn binary(&mut self, syntax: &syntax::Literal) -> Result<()> {
+    fn binary_literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 2)?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())

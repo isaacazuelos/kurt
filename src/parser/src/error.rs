@@ -34,6 +34,8 @@ pub enum Error {
     InfixUnbalancedWhitespace,
     InfixWrongPrecedence,
 
+    MultipleNonAssociativeOperators,
+
     UnusedInput,
     LexerError(lexer::Error),
 }
@@ -86,11 +88,11 @@ impl fmt::Display for Error {
             PrefixNoSpaceBefore => write!(f, "Prefix operators must have whitespace before them"),
             PostfixNoSpaceAfter => write!(f, "Postfix operators must have whitespace after them"),
             PostfixSpaceBefore => write!(f, "Postfix operators cannot have whitespace before them"),
-            PostfixOperatorAtStartOfInput => write!(f, "Postfix operators cannot be at the start of the input."),
+            PostfixOperatorAtStartOfInput => write!(f, "Postfix operators cannot be at the start of the input"),
             InfixAtStartOrEnd => write!(f, "Infix operators must have code on either side"),
             InfixUnbalancedWhitespace => write!(f, "Infix operators must have balanced whitespace"),
-
-            InfixWrongPrecedence  => write!(f, "An infix operator was found, but not with the right precedence."),
+            InfixWrongPrecedence  => write!(f, "An infix operator was found, but not with the right precedence"),
+            MultipleNonAssociativeOperators => write!(f, "Multiple non-associative operators"),
 
             UnusedInput => write!(f, "There was unused input when parsing"),
             LexerError(e) => write!(f, "{}", e),
