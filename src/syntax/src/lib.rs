@@ -17,6 +17,7 @@ mod grouping;
 mod ident;
 mod list;
 mod literal;
+mod operator;
 mod statement;
 
 pub use self::{
@@ -31,6 +32,7 @@ pub use self::{
     ident::Identifier,
     list::List,
     literal::{Kind as LiteralKind, Literal},
+    operator::{Binary, Unary},
     statement::{Statement, StatementSequence},
 };
 

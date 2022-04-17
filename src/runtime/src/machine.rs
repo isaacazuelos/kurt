@@ -28,30 +28,54 @@ impl Runtime {
             let op = self.fetch()?;
 
             match op {
+                // control
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Yield => return Ok(Exit::Yield),
-
                 Op::Nop => continue,
+                // stack
                 Op::Pop => {
                     self.stack.pop();
                 }
-
+                // values
                 Op::True => self.stack.push(Value::TRUE),
                 Op::False => self.stack.push(Value::FALSE),
                 Op::Unit => self.stack.push(Value::UNIT),
-
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
-
                 Op::DefineLocal => self.define_local()?,
-
+                // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.return_op()?,
-
+                // branching
                 Op::Jump(i) => self.jump(i)?,
                 Op::BranchFalse(i) => self.branch_false(i)?,
-
+                // logic
+                Op::Not => todo!(),
+                // math
+                Op::Neg => todo!(),
+                Op::Add => todo!(),
+                Op::Sub => todo!(),
+                Op::Mul => todo!(),
+                Op::Div => todo!(),
+                Op::Pow => todo!(),
+                Op::Mod => todo!(),
+                // bitwise
+                Op::BitAnd => todo!(),
+                Op::BitOr => todo!(),
+                Op::BitNot => todo!(),
+                Op::BitXOR => todo!(),
+                Op::SLL => todo!(),
+                Op::SRL => todo!(),
+                Op::SRA => todo!(),
+                // comparison
+                Op::Eq => todo!(),
+                Op::NEq => todo!(),
+                Op::Gt => todo!(),
+                Op::GEq => todo!(),
+                Op::Lt => todo!(),
+                Op::LEq => todo!(),
+                // temporary
                 Op::List(n) => self.list(n)?,
             }
         }

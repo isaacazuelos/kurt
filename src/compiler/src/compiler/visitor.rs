@@ -118,6 +118,7 @@ impl Compiler {
     /// Compile an expression
     fn expression(&mut self, syntax: &syntax::Expression) -> Result<()> {
         match syntax {
+            syntax::Expression::Binary(b) => self.binary(b),
             syntax::Expression::Block(b) => self.block(b),
             syntax::Expression::Call(c) => self.call(c),
             syntax::Expression::Function(f) => self.function(f),
@@ -126,6 +127,66 @@ impl Compiler {
             syntax::Expression::If(i) => self.if_else(i),
             syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Literal(l) => self.literal(l),
+            syntax::Expression::Unary(u) => self.unary(u),
+        }
+    }
+
+    /// Compile a binary operator expression.
+    fn binary(&mut self, syntax: &syntax::Binary) -> Result<()> {
+        self.expression(syntax.left())?;
+        self.expression(syntax.right())?;
+
+        let op = match syntax.operator() {
+            // math
+            "+" => Ok(Op::Add),
+            "-" => Ok(Op::Sub),
+            "*" => Ok(Op::Mul),
+            "/" => Ok(Op::Div),
+            "^" => Ok(Op::Pow),
+            "%" => Ok(Op::Mod),
+            // bitwise
+            "&" => Ok(Op::BitAnd),
+            "|" => Ok(Op::BitOr),
+            "⊕" => Ok(Op::BitXOR),
+            "<<" => Ok(Op::SLL),
+            ">>" => Ok(Op::SRL),
+            ">>>" => Ok(Op::SRA),
+            // comparison
+            "==" => Ok(Op::Eq),
+            "!=" => Ok(Op::NEq),
+            ">" => Ok(Op::Gt),
+            ">=" => Ok(Op::GEq),
+            "<" => Ok(Op::Lt),
+            "<=" => Ok(Op::LEq),
+
+            _ => Err(Error::UndefinedInfix),
+        }?;
+
+        self.emit(op, syntax.operator_span())
+    }
+
+    /// Compile a unary operator expression.
+    ///
+    /// We want to evaluate left-to-right, and we're not sure if retrieving a
+    /// definition of an operator could have side effects, so we'll need to be
+    /// careful when this is doing more than compiling to a single op code.
+    fn unary(&mut self, syntax: &syntax::Unary) -> Result<()> {
+        // This is mostly temporary until a real built-ins system is in place.
+        self.expression(syntax.operand())?;
+
+        let span = syntax.operator_span();
+        if syntax.is_prefix() {
+            match syntax.operator() {
+                "!" => self.emit(Op::Not, span),
+                "-" => self.emit(Op::Neg, span),
+                "+" => Ok(()),
+                _ => Err(Error::UndefinedPostfix),
+            }
+        } else {
+            match syntax.operator() {
+                // None defined, yet.
+                _ => Err(Error::UndefinedPostfix),
+            }
         }
     }
 
@@ -234,7 +295,7 @@ impl Compiler {
     /// Compile a literal
     fn literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         match syntax.kind() {
-            syntax::LiteralKind::Binary => self.binary(syntax),
+            syntax::LiteralKind::Binary => self.binary_literal(syntax),
             syntax::LiteralKind::Bool => self.bool(syntax),
             syntax::LiteralKind::Char => self.char(syntax),
             syntax::LiteralKind::Decimal => self.decimal(syntax),
@@ -248,7 +309,7 @@ impl Compiler {
     }
 
     /// Compile an binary numeric literal
-    fn binary(&mut self, syntax: &syntax::Literal) -> Result<()> {
+    fn binary_literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 2)?;
         let index = self.constants.insert(n)?;
         self.emit(Op::LoadConstant(index), syntax.span())

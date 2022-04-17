@@ -114,7 +114,6 @@ impl Lexer<'_> {
             "" => unreachable!(
                 "Lexer::operator should only be called after an operator start"
             ),
-            "=" => Ok(TokenKind::Equals),
             "->" => Ok(TokenKind::Arrow),
             "=>" => Ok(TokenKind::DoubleArrow),
             _ => Ok(TokenKind::Operator),
@@ -204,5 +203,11 @@ fn is_operator(c: char) -> bool {
         && c != '"'
         && c != '\''
         && c != '_'
+        && c != '{'
+        && c != '('
+        && c != '['
+        && c != ']'
+        && c != ')'
+        && c != '}'
         && (c.is_symbol() || c.is_punctuation())
 }

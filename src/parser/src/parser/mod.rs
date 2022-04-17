@@ -1,16 +1,24 @@
-//! A parser.
+//! Parsers.
 //!
-//! This takes some input
+//! See the [module documentation][crate] for more information on how this all
+//! fits together, and how to use it.
+
+pub mod operator_parsing;
 
 use diagnostic::Span;
 
 use crate::{
     error::Error,
     lexer::{Lexer, Token, TokenKind},
+    operator::DefinedOperators,
     Parse,
 };
 
-/// A parser.
+/// A Parser wraps breaks input up into tokens and provides ways to work with
+/// that sequence of tokens to define a grammar using [`Parse`].
+///
+/// See the [module documentation][crate] for more information on how this all
+/// fits together, and how to use it.
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// The tokens from our input.
@@ -22,6 +30,9 @@ pub struct Parser<'a> {
     /// The grammar can be recursive in a few places, we track our 'depth' into
     /// these recursive forms here to prevent stack overflows.
     depth: usize,
+
+    /// The operators we know how to parse.
+    operators: DefinedOperators,
 }
 
 impl<'a> Parser<'a> {
@@ -45,11 +56,11 @@ impl<'a> Parser<'a> {
             cursor: 0,
             depth: 0,
             tokens,
+            operators: DefinedOperators::default(),
         })
     }
 
-    /// Consume input to produce the specified piece of [`Parse`]able
-    /// [`Syntax`][crate::Syntax].
+    /// Consume input to produce the specified piece of [`Parse`]able syntax.
     ///
     /// # Note
     ///
@@ -333,6 +344,6 @@ mod parser_tests {
     // A few things are tested elsewhere since testing makes more sense with a
     // grammar specified. See tests in `/tests/parser_tests.rs` for more.
     //
-    // - `track_depth`
+    // - `depth_track`
     // - `sep_by_trailing`
 }

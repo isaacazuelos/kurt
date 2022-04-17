@@ -63,11 +63,28 @@ impl<'a> Parse<'a> for Binding<'a> {
             "a `let` or `var`",
         )?;
 
+        let name = parser.parse()?;
+
+        let equals = parser.consume(Kind::Operator, "equals sign").and_then(
+            |token| {
+                if token.body() == "=" {
+                    Ok(token)
+                } else {
+                    Err(Error::Unexpected {
+                        wanted: "an equals sign",
+                        found: token.kind(),
+                    })
+                }
+            },
+        )?;
+
+        let body = parser.parse()?;
+
         Ok(Binding {
             keyword,
-            name: parser.parse()?,
-            equals: parser.consume(Kind::Equals, "an equals sign")?,
-            body: parser.parse()?,
+            name,
+            equals,
+            body,
         })
     }
 }

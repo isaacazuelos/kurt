@@ -55,7 +55,7 @@ fn lexer_punctuation() {
     );
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Comma);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
-    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Equals);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::DoubleArrow);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
 }
@@ -82,6 +82,27 @@ fn lexer_operator_intuition() {
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier); // Bar
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot); // .
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier); // Foo
+}
+
+#[test]
+fn lexer_operator_chaining() {
+    let mut lexer = Lexer::new("a?.b");
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Dot);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
+}
+
+#[test]
+fn lexer_operator_chaining_bracket() {
+    let mut lexer = Lexer::new("a?[b");
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
+    assert_eq!(
+        lexer.token().unwrap().kind(),
+        TokenKind::Open(Delimiter::Bracket)
+    );
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
 }
 
 #[test]
@@ -131,7 +152,7 @@ fn unicode_identifier() {
         TokenKind::Reserved(Reserved::Let)
     );
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
-    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Equals);
+    assert_eq!(lexer.token().unwrap().kind(), TokenKind::Operator);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Identifier);
     assert_eq!(lexer.token().unwrap().kind(), TokenKind::Semicolon);
     assert!(lexer.is_empty());

@@ -8,8 +8,7 @@
 
 use diagnostic::Span;
 
-/// An individual lexeme in our language, along with the surrounding whitespace,
-/// comments and location tracking information.
+/// An individual lexeme in our language.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Token<'a> {
     /// The semantic kind thing the token is. See `Kind` for more.
@@ -77,8 +76,7 @@ pub enum Kind {
 
     /// Things like `foo` are identifies, names for things.
     Identifier,
-    /// Things like `+`, `==` or `>>=` are operators. Notably, a single `=` is
-    /// not.
+    /// Things like `+`, `==` or `>>=` are operators.
     Operator,
 
     /// `->` or `→`
@@ -93,8 +91,6 @@ pub enum Kind {
     Comma,
     /// `=>` or `⇒`
     DoubleArrow,
-    ///`=`
-    Equals,
     /// `;`
     Semicolon,
 
@@ -140,7 +136,6 @@ impl Kind {
             Colon => "colon (:)",
             Comma => "comma (,)",
             DoubleArrow => "double arrow (=>)",
-            Equals => "equals sign (=)",
             Semicolon => "semicolon (;)",
             Dot => "period (.)",
             Range => "range (..)",
