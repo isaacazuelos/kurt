@@ -132,17 +132,62 @@ impl Compiler {
     }
 
     /// Compile a binary operator expression.
-    fn binary(&mut self, _syntax: &syntax::Binary) -> Result<()> {
-        unimplemented!("operator compiling not yet implemented")
+    fn binary(&mut self, syntax: &syntax::Binary) -> Result<()> {
+        self.expression(syntax.left())?;
+        self.expression(syntax.right())?;
+
+        let op = match syntax.operator() {
+            // math
+            "+" => Ok(Op::Add),
+            "-" => Ok(Op::Sub),
+            "*" => Ok(Op::Mul),
+            "/" => Ok(Op::Div),
+            "^" => Ok(Op::Pow),
+            "%" => Ok(Op::Mod),
+            // bitwise
+            "&" => Ok(Op::BitAnd),
+            "|" => Ok(Op::BitOr),
+            "⊕" => Ok(Op::BitXOR),
+            "<<" => Ok(Op::SLL),
+            ">>" => Ok(Op::SRL),
+            ">>>" => Ok(Op::SRA),
+            // comparison
+            "==" => Ok(Op::Eq),
+            "!=" => Ok(Op::NEq),
+            ">" => Ok(Op::Gt),
+            ">=" => Ok(Op::GEq),
+            "<" => Ok(Op::Lt),
+            "<=" => Ok(Op::LEq),
+
+            _ => Err(Error::UndefinedInfix),
+        }?;
+
+        self.emit(op, syntax.operator_span())
     }
 
     /// Compile a unary operator expression.
     ///
     /// We want to evaluate left-to-right, and we're not sure if retrieving a
-    /// definition of an operator could have side effects, so we need to be
-    /// careful.
-    fn unary(&mut self, _syntax: &syntax::Unary) -> Result<()> {
-        unimplemented!("operator compiling not yet implemented")
+    /// definition of an operator could have side effects, so we'll need to be
+    /// careful when this is doing more than compiling to a single op code.
+    fn unary(&mut self, syntax: &syntax::Unary) -> Result<()> {
+        // This is mostly temporary until a real built-ins system is in place.
+        self.expression(syntax.operand())?;
+
+        let span = syntax.operator_span();
+        if syntax.is_prefix() {
+            match syntax.operator() {
+                "!" => self.emit(Op::Not, span),
+                "-" => self.emit(Op::Neg, span),
+                "+" => Ok(()),
+                _ => Err(Error::UndefinedPostfix),
+            }
+        } else {
+            match syntax.operator() {
+                // None defined, yet.
+                _ => Err(Error::UndefinedPostfix),
+            }
+        }
     }
 
     /// Compile a block expression.

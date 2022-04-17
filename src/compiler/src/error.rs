@@ -13,6 +13,9 @@ pub enum Error {
 
     MutationNotSupported,
     UndefinedLocal,
+    UndefinedPrefix,
+    UndefinedInfix,
+    UndefinedPostfix,
 
     TooManyArguments,
     TooManyConstants,

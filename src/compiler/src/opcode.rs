@@ -8,18 +8,25 @@ use crate::{
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[rustfmt::skip]
 pub enum Op {
-    /// Stop the program for good.
+    // ## VM control
+
+    /// Stop the program.
     Halt,
 
-    /// Stop but in a way where it could be resumed.
+    /// Stop the program, but in a way that signals an intent to restart it.
     Yield,
 
     /// Does nothing.
     Nop,
 
+    // ## Stack Manipulation
+
     /// Discard the value on the top of the stack, if there is one.
     Pop,
+
+    // ## Loading constant values
 
     /// Push a `true` to the top of the stack.
     True,
@@ -34,6 +41,8 @@ pub enum Op {
     /// stack. The currently executing module's constant pool is used.
     LoadConstant(Index<Constant>),
 
+    // ## Loading other kinds of values
+
     /// Load a local binding.
     LoadLocal(Index<Local>),
 
@@ -42,6 +51,8 @@ pub enum Op {
 
     /// Load a prototype and make a closure from it, placing it on the stack.
     LoadClosure(Index<Prototype>),
+
+    // ## Function Calls
 
     /// Call a closure on the stack.
     ///
@@ -52,6 +63,8 @@ pub enum Op {
     /// Return from the currently executing function.
     Return,
 
+    // ## Branching
+
     /// Jump to the given opcode index _in the current prototype_
     /// unconditionally.
     Jump(Index<Op>),
@@ -60,17 +73,99 @@ pub enum Op {
     /// stack if false.
     BranchFalse(Index<Op>),
 
+    // ## Logical Operators
+    //
+    // We don't have a logical `And` or `Or`, since these would normally be
+    // short-circuiting implementations which need branching.
+
+    /// Unary logical negation
+    Not,
+
+    // ## Math operators
+
+    /// Unary negation, `-n`
+    Neg,
+
+    /// Binary addition
+    Add,
+
+    /// Binary subtraction
+    Sub,
+
+    /// Binary multiplication
+    Mul,
+
+    /// Binary division
+    Div,
+
+    /// Binary Exponentiation
+    Pow,
+
+    /// Modulus, `n % 2`
+    Mod,
+
+    // ## Bitwise Operators
+
+    /// Bitwise And
+    BitAnd,
+
+    /// Bitwise Or
+    BitOr,
+
+    /// Bitwise Not
+    BitNot,
+
+    /// Bitwise XOR
+    BitXOR,
+
+    /// Shift Left (logical)
+    SLL,
+
+    /// Shift right logical
+    SRL,
+
+    /// Shift right arithmetic
+    SRA,
+
+    // ## Comparison Operators
+
+    /// Equals
+    Eq,
+
+    /// Not Equals
+    NEq,
+
+    /// Greater Than
+    Gt,
+
+    /// Greater than or equal to
+    GEq,
+
+    /// Less Than
+    Lt,
+
+    /// Less than or equal to
+    LEq,
+
+    // ## Temporary
+    //
+    // Until the 'real' implementation is done, 
+
     /// Make a list using the indicated number of arguments on the stack.
     List(u32),
+
 }
 
 impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
+            // control
             Op::Halt => write!(f, "Halt"),
             Op::Yield => write!(f, "Yield"),
             Op::Nop => write!(f, "Nop"),
+            // stack
             Op::Pop => write!(f, "Pop"),
+            // values
             Op::True => write!(f, "True"),
             Op::False => write!(f, "False"),
             Op::Unit => write!(f, "Unit"),
@@ -78,11 +173,37 @@ impl Display for Op {
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
             Op::DefineLocal => write!(f, "DefineLocal"),
             Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
+            // functions
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Return => write!(f, "Return"),
             Op::Jump(i) => write!(f, "Jump {}", i.as_u32()),
             Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_u32()),
-
+            // logic
+            Op::Not => write!(f, "Not"),
+            // math
+            Op::Neg => write!(f, "Neg"),
+            Op::Add => write!(f, "Add"),
+            Op::Sub => write!(f, "Sub"),
+            Op::Mul => write!(f, "Mul"),
+            Op::Div => write!(f, "Div"),
+            Op::Pow => write!(f, "Pow"),
+            Op::Mod => write!(f, "Mod"),
+            // bitwise
+            Op::BitAnd => write!(f, "BitAnd"),
+            Op::BitOr => write!(f, "BitOr"),
+            Op::BitNot => write!(f, "BitNot"),
+            Op::BitXOR => write!(f, "BitXOR"),
+            Op::SLL => write!(f, "SLL"),
+            Op::SRL => write!(f, "SRL"),
+            Op::SRA => write!(f, "SRA"),
+            // comparison
+            Op::Eq => write!(f, "Eq"),
+            Op::NEq => write!(f, "NEq"),
+            Op::Gt => write!(f, "Gt"),
+            Op::GEq => write!(f, "GEq"),
+            Op::Lt => write!(f, "Lt"),
+            Op::LEq => write!(f, "LEq"),
+            // temporary
             Op::List(n) => write!(f, "List {n}"),
         }
     }

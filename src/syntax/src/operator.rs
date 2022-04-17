@@ -42,6 +42,11 @@ impl<'a> Unary<'a> {
         self.token.body()
     }
 
+    /// The span of the operator token.
+    pub fn operator_span(&self) -> Span {
+        self.token.span()
+    }
+
     /// Was this unary operator prefix (or postfix)?
     pub fn is_prefix(&self) -> bool {
         self.is_prefix
@@ -82,6 +87,11 @@ impl<'a> Binary<'a> {
     /// The body of the operator token.
     pub fn operator(&self) -> &str {
         self.token.body()
+    }
+
+    /// The span of the operator token.
+    pub fn operator_span(&self) -> Span {
+        self.token.span()
     }
 
     /// Get a left hand side of the binary expression.

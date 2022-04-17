@@ -222,11 +222,6 @@ impl Default for DefinedOperators {
         op.define_infix("+", Left, p); // add
         op.define_infix("-", Left, p); // sub
 
-        // shifts
-        p = p.next();
-        op.define_infix("<<", Left, p); // sl
-        op.define_infix(">>", Left, p); // sr
-
         // comparison
         p = p.next();
         op.define_infix("<", Left, p); // less
@@ -245,6 +240,12 @@ impl Default for DefinedOperators {
         p = p.next();
         op.define_infix("&", Left, p); // bit and
         op.define_infix("|", Left, p); // bit or
+
+        // shifts
+        p = p.next();
+        op.define_infix("<<", Left, p); // sll
+        op.define_infix(">>", Left, p); // srl
+        op.define_infix(">>>", Left, p); // sra
 
         // error
         op.define_infix("??", Left, p); // coalescing
