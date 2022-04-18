@@ -1,13 +1,8 @@
 //! Function calls
-//!
-//!
 
 use diagnostic::Span;
 
-use parser::{
-    lexer::{Delimiter, TokenKind},
-    Parse,
-};
+use parser::lexer::{Delimiter, TokenKind};
 
 use super::*;
 
@@ -16,6 +11,15 @@ use super::*;
 /// # Grammar
 ///
 /// Call := Expression '(' sep_by_trailing(Argument, ',') ')'
+///
+/// Note that [`Call`] doesn't implement [`Parse`]. This is is because we can't
+/// reasonably know the 'most greedy' parse of a call without mixing in
+/// different kinds of postfix expressions. For example `f()[0]()` should use
+/// all the input. We'd have to parse any ['primary'][1] expression, and then
+/// unpack backwards to find the outer-most call, but we can't do that without
+/// messing up the parser state.
+///
+/// [1]: crate::Expression::primary
 #[derive(Debug)]
 pub struct Call<'a> {
     target: Box<Expression<'a>>,
@@ -60,28 +64,9 @@ impl<'a> Syntax for Call<'a> {
     }
 }
 
-impl<'a> Parse<'a> for Call<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
-        let primary = Expression::primary(parser)?;
-
-        let mut call = Call::parse_from(primary, parser)?;
-
-        // This bit is tricky. Since we need it to be as greedy as possible, and
-        // something like `f(a)(b)` should parse the whole thing, we need to
-        // check for that.
-        //
-        // TODO: We'll need to revisit when we have things like `foo().b()`.
-        while let Some(TokenKind::Open(Delimiter::Parenthesis)) = parser.peek()
-        {
-            let inner = Expression::Call(call);
-            call = Call::parse_from(inner, parser)?;
-        }
-
-        Ok(call)
-    }
-}
-
 impl<'a> Call<'a> {
+    /// Parse a single call, starting with an already-parsed given primary
+    /// 'target' for the call.
     pub(crate) fn parse_from(
         target: Expression<'a>,
         parser: &mut Parser<'a>,
@@ -100,7 +85,7 @@ impl<'a> Call<'a> {
         let close = parser
             .consume(
                 TokenKind::Close(Delimiter::Parenthesis),
-                "a function call's open parenthesis",
+                "a function call's close parenthesis",
             )?
             .span();
 
@@ -118,10 +103,13 @@ impl<'a> Call<'a> {
 mod parser_tests {
     use super::*;
 
+    // We use the Expression::parse since we don't implement Parse. See the note
+    // on [`Call`].
+
     #[test]
     fn call_empty() {
         let mut parser = Parser::new(" foo() ").unwrap();
-        let result = parser.parse::<Call>();
+        let result = parser.parse::<Expression>();
         assert!(result.is_ok(), "failed with {:?}", result);
         assert!(parser.is_empty());
     }
@@ -129,21 +117,21 @@ mod parser_tests {
     #[test]
     fn call_arg() {
         let mut parser = Parser::new(" foo(1) ").unwrap();
-        assert!(parser.parse::<Call>().is_ok());
+        assert!(parser.parse::<Expression>().is_ok());
         assert!(parser.is_empty());
     }
 
     #[test]
     fn call_arg_trailing() {
         let mut parser = Parser::new(" foo(1, 2, 3, ) ").unwrap();
-        assert!(parser.parse::<Call>().is_ok());
+        assert!(parser.parse::<Expression>().is_ok());
         assert!(parser.is_empty());
     }
 
     #[test]
     fn call_nested() {
         let mut parser = Parser::new(" foo(bar()) ").unwrap();
-        let result = parser.parse::<Call>();
+        let result = parser.parse::<Expression>();
         assert!(result.is_ok(), "expected call but got {:?}", result);
         assert!(parser.is_empty());
     }
@@ -151,7 +139,7 @@ mod parser_tests {
     #[test]
     fn call_curry() {
         let mut parser = Parser::new(" foo(1)(2) ").unwrap();
-        let result = parser.parse::<Call>();
+        let result = parser.parse::<Expression>();
         assert!(result.is_ok(), "expected call but got {:?}", result);
         assert!(parser.is_empty());
     }
