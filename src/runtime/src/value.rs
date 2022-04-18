@@ -456,7 +456,13 @@ impl std::fmt::Debug for Value {
             Some(InlineType::Nat(u)) => write!(f, "{}", u),
             Some(InlineType::Int(i)) => write!(f, "{}", i),
             Some(InlineType::Float(n)) => write!(f, "{}", n),
-            None => write!(f, "<unknown: {:x}>", self.0),
+            None => {
+                if let Some(obj) = self.as_object() {
+                    write!(f, "{}", obj)
+                } else {
+                    write!(f, "<unknown: {:x}>", self.0)
+                }
+            }
         }
     }
 }

@@ -78,8 +78,7 @@ mod primitive_operations {
     test_eval! { bit_or, "7 | 16", "23" }
     test_eval! { bit_xor, "1 ⊕ 3", "2" }
     test_eval! { shift_left, "2 << 1", "4" }
-    test_eval! { shift_right, "4 >> 1", "2" }
-    test_eval! { shift_arithmetic, "-1 >>> 1", "0" }
+    test_eval! { shift_arithmetic, "-4 >>> 1", "-2" }
     test_eval! { eq, "1 == 1", "true" }
     test_eval! { ne, "1 != 1", "false" }
     test_eval! { lt, "2 < 4", "true" }

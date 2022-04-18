@@ -170,15 +170,15 @@ impl Value {
     pub fn bit_and(&self, rhs: &Value) -> Result<Value, Error> {
         match (self.inline_type(), rhs.inline_type()) {
             (Some(InlineType::Bool(a)), Some(InlineType::Bool(b))) => {
-                Ok(Value::bool(a != b))
+                Ok(Value::bool(a && b))
             }
 
             (Some(InlineType::Nat(a)), Some(InlineType::Nat(b))) => {
-                Ok(Value::nat((a & b) & Value::MAX_NAT).unwrap())
+                Ok(Value::nat(a & b).unwrap())
             }
 
             (Some(InlineType::Int(a)), Some(InlineType::Int(b))) => {
-                Ok(Value::int((a & b) & (Value::MIN_INT as i64)).unwrap())
+                Ok(Value::int(a & b).unwrap())
             }
 
             (_, _) => Err(Error::OperationNotSupported),
@@ -192,12 +192,11 @@ impl Value {
             }
 
             (Some(InlineType::Nat(a)), Some(InlineType::Nat(b))) => {
-                Value::nat((a | b) & Value::MAX_NAT).ok_or(Error::Overflow)
+                Value::nat(a | b).ok_or(Error::Overflow)
             }
 
             (Some(InlineType::Int(a)), Some(InlineType::Int(b))) => {
-                Value::int((a | b) & (Value::MIN_INT as i64))
-                    .ok_or(Error::Overflow)
+                Value::int(a | b).ok_or(Error::Overflow)
             }
 
             (_, _) => Err(Error::OperationNotSupported),
@@ -211,11 +210,11 @@ impl Value {
             }
 
             (Some(InlineType::Nat(a)), Some(InlineType::Nat(b))) => {
-                Value::nat((a ^ b) & Value::MAX_NAT).ok_or(Error::Overflow)
+                Value::nat((a ^ b) & Value::PAYLOAD_MASK).ok_or(Error::Overflow)
             }
 
             (Some(InlineType::Int(a)), Some(InlineType::Int(b))) => {
-                Value::int((a ^ b) & (Value::MIN_INT as i64))
+                Value::int((a ^ b) & Value::PAYLOAD_MASK as i64)
                     .ok_or(Error::Overflow)
             }
 
@@ -226,7 +225,8 @@ impl Value {
     pub fn bit_shl(&self, rhs: &Value) -> Result<Value, Error> {
         match (self.inline_type(), rhs.inline_type()) {
             (Some(InlineType::Nat(a)), Some(InlineType::Nat(b))) => {
-                Ok(Value::nat((a << b) & Value::MAX_NAT).unwrap())
+                Value::nat((a << b) & Value::PAYLOAD_MASK)
+                    .ok_or(Error::Overflow)
             }
 
             (Some(InlineType::Int(a)), Some(InlineType::Int(b))) => {
@@ -240,7 +240,7 @@ impl Value {
     pub fn bit_shr(&self, rhs: &Value) -> Result<Value, Error> {
         match (self.inline_type(), rhs.inline_type()) {
             (Some(InlineType::Nat(a)), Some(InlineType::Nat(b))) => {
-                Ok(Value::nat((a >> b) & Value::MAX_NAT).unwrap())
+                Value::nat((a >> b) & Value::MAX_NAT).ok_or(Error::Overflow)
             }
 
             (_, _) => Err(Error::OperationNotSupported),
@@ -250,7 +250,7 @@ impl Value {
     pub fn bit_sha(&self, rhs: &Value) -> Result<Value, Error> {
         match (self.inline_type(), rhs.inline_type()) {
             (Some(InlineType::Int(a)), Some(InlineType::Int(b))) => {
-                Ok(Value::int(a >> b).unwrap())
+                Value::int(a >> b).ok_or(Error::Overflow)
             }
 
             (_, _) => Err(Error::OperationNotSupported),
