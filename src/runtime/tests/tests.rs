@@ -50,6 +50,7 @@ mod functions {
     test_eval! { simple_function, "let x = () => {;}", "()" }
     test_eval! { call, "((x) => x)(10)", "10" }
     test_eval! { call_multiple_args, "((a, b) => b)(10, 20)", "20" }
+    test_eval! { nested_call, "let snd = (x, y) => y; snd(snd(0, 1), snd(2, 3))", "3"}
 }
 
 mod lists {
