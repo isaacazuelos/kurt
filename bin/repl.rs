@@ -8,7 +8,6 @@ use rustyline::{error::ReadlineError, Editor};
 use syntax::{Parse, TopLevel};
 
 use crate::Args;
-
 /// Start an interactive session
 #[derive(clap::Parser)]
 pub struct Repl; // For now there are no repl settings.
@@ -16,6 +15,17 @@ pub struct Repl; // For now there are no repl settings.
 impl Repl {
     /// Run a repl with the given settings.
     pub(crate) fn run(&self, args: &Args) {
+        eprintln!(
+            r"|----------------------|
+|      REPL BROKEN     |
+| UNTIL FURTHER NOTICE |
+|      HAPPY EASTER    |
+|______________________| 
+(\__/) || 
+(•ㅅ•) || 
+/    づ
+"
+        );
         let repl = ReplState::new(args);
         repl.start()
     }
