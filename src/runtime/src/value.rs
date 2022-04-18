@@ -5,7 +5,7 @@
 //!
 //! This is done so we can have `f64`s without needing any other type tags or
 //! heap allocations, in a dynamically typed context. This is mostly to allow
-//! for faster floating point math.
+//! for faster floating point math. I also just think it's neat.
 //!
 //! In essence, an [`f64`] is like this struct:
 //!
@@ -17,7 +17,7 @@
 //! }
 //! ```
 //!
-//! When all the bits in the exponent are ones, it indicate a special value, as
+//! When all the bits in the exponent are ones, it indicates a special value, as
 //! seen in the table below.
 //!
 //! ``` text
@@ -35,7 +35,7 @@
 //!
 //! We can then take the 3 extra bits between the 13 bits which signal a NAN and
 //! the lower 48 bits to tag the type tag the remaining smaller value like a
-//! small integer, boolean or even a unicode code point.
+//! small integer, boolean or unicode code point.
 //!
 //! One important thing to keep in mind here is that `f64`s can do 53-bit
 //! integers without a loss of precision, so when we do pack 48-bit integers and
@@ -50,8 +50,13 @@ use crate::memory::{
     Gc, Object,
 };
 
-/// A value which is either stored inline or a pointer to a garbage collected
-/// [`Managed`] value.
+/// A value which is either stored inline or as pointer to a garbage collected
+/// [`Object`].
+///
+/// # Note
+///
+/// Most of the methods are `const` where possible to help indicate if they do
+/// anything more than bit twiddling.
 #[derive(Clone, Copy)]
 pub struct Value(u64);
 
@@ -105,6 +110,7 @@ impl Value {
 
     /// Do the bits of this value represent some other value packed inside a
     /// NaN, or is it a floating point number?
+    #[inline(always)]
     const fn is_packed_value(&self) -> bool {
         self.0 & Value::PACKED_MASK == Value::PACKED_MASK
     }
@@ -112,6 +118,7 @@ impl Value {
 
 impl Value {
     /// Create a new unit.
+    #[inline]
     pub const fn unit() -> Value {
         Value::UNIT
     }
@@ -136,7 +143,8 @@ impl Value {
 
     /// Store an [`u64`] as an Nat [`Value`] if it fits inside
     /// [`Value::MAX_NAT`].
-    pub fn nat(n: u64) -> Option<Value> {
+    #[inline]
+    pub const fn nat(n: u64) -> Option<Value> {
         if n > Value::MAX_NAT {
             None
         } else {
@@ -167,9 +175,8 @@ impl Value {
     /// Store an [`i64`] as an Integer [`Value`] if it fits inside
     /// [`Value::MAX_INT`] and [`Value::MIN_INT`].
     #[inline]
-    pub fn int(i: i64) -> Option<Value> {
+    pub const fn int(i: i64) -> Option<Value> {
         if i > Value::MAX_INT || i < Value::MIN_INT {
-            eprintln!("i doesn't fit as {} {:x}", i, i);
             None
         } else {
             Some(Value(
@@ -180,15 +187,10 @@ impl Value {
         }
     }
 
-    /// Store the lower 48 bits of an [`i64`] as an Integer [`Value`],
-
     /// Store a [`f64`] as a [`Value`].
     ///
     /// Note that due to how [`Value`] is stored, quiet NaNs are converted into
     /// signaling NaNs.
-    ///
-    /// This function isn't `const` because some needed parts of [`f64`] aren't
-    /// yet either.
     #[inline]
     pub fn float(f: f64) -> Value {
         let bits = if f.is_nan() {
@@ -200,7 +202,7 @@ impl Value {
         Value(bits)
     }
 
-    /// Store a [`Gc`] pointer to any object as a [`Value`].
+    /// Store a [`Gc`] pointer to any [`Object`] as a [`Value`].
     #[inline]
     pub fn object(gc: Gc) -> Value {
         let bits: u64 = unsafe { std::mem::transmute(gc) };
@@ -215,17 +217,20 @@ impl Value {
 
 impl Value {
     /// Is this value `()`
-    pub fn is_unit(&self) -> bool {
+    #[inline]
+    pub const fn is_unit(&self) -> bool {
         self.0 == Value::UNIT.0
     }
 
     /// Is this value a Boolean?
-    pub fn is_bool(&self) -> bool {
+    #[inline]
+    pub const fn is_bool(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Bool as u64
     }
 
     /// Use this value as a Rust [`bool`] if it's a Boolean.
-    pub fn as_bool(&self) -> Option<bool> {
+    #[inline]
+    pub const fn as_bool(&self) -> Option<bool> {
         if self.0 == Value::TRUE.0 {
             Some(true)
         } else if self.0 == Value::FALSE.0 {
@@ -236,11 +241,13 @@ impl Value {
     }
 
     /// Is this value a Character?
-    pub fn is_char(&self) -> bool {
+    #[inline]
+    pub const fn is_char(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Char as u64
     }
 
     /// Use this value as a Rust [`char`] if it's a Character.
+    #[inline]
     pub fn as_char(&self) -> Option<char> {
         if self.is_char() {
             char::from_u32(self.0 as u32)
@@ -250,14 +257,16 @@ impl Value {
     }
 
     /// Is this value a Natural number?
-    pub fn is_nat(&self) -> bool {
+    #[inline]
+    pub const fn is_nat(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Nat as u64
     }
 
     /// Use this value as a Rust [`u64`] if it's an natural number. Note that
     /// this will always be between 0 and [`Value::MAX_NAT`], i.e it must fit in
     /// a 48-bit unsigned value.
-    pub fn as_nat(&self) -> Option<u64> {
+    #[inline]
+    pub const fn as_nat(&self) -> Option<u64> {
         if self.is_nat() {
             // We shift back and forth to get the right sign extension.
             Some(self.0 & Value::PAYLOAD_MASK)
@@ -267,14 +276,16 @@ impl Value {
     }
 
     /// Is this value an Integer?
-    pub fn is_int(&self) -> bool {
+    #[inline]
+    pub const fn is_int(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Int as u64
     }
 
     /// Use this value as a Rust [`i64`] if it's an Integer. Note that this will
     /// always be between [`Value::MAX_INT`] and [`Value::MIN_INT`], i.e it must
     /// fit in a 48-bit integer.
-    pub fn as_int(&self) -> Option<i64> {
+    #[inline]
+    pub const fn as_int(&self) -> Option<i64> {
         if self.is_int() {
             // We shift back and forth to get the right sign extension.
             Some(((self.0 & Value::PAYLOAD_MASK) << 16) as i64 >> 16)
@@ -284,11 +295,13 @@ impl Value {
     }
 
     /// Is this value an [`f64`]?
-    pub fn is_float(&self) -> bool {
+    #[inline]
+    pub const fn is_float(&self) -> bool {
         !self.is_packed_value()
     }
 
     /// View this value as a [`f64`] if it is one.
+    #[inline]
     pub fn as_float(&self) -> Option<f64> {
         if self.is_float() {
             Some(f64::from_bits(self.0))
@@ -298,14 +311,13 @@ impl Value {
     }
 
     /// Is this value a pointer to a garbage collected value?
-    ///
-    /// If you need to know if the pointer is to a specific managed type, you
-    /// want to use [`is_gc`][Value::is_gc].
+    #[inline]
     pub fn is_object(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Object as u64
     }
 
     /// View this value as an opaque [`Gc`] reference to an [`Object`].
+    #[inline]
     pub fn as_object(&self) -> Option<Gc> {
         if self.is_object() {
             unsafe {
@@ -327,8 +339,10 @@ impl Value {
     /// the [`Tag`] indicates this should be used as pointer. This has no
     /// guarantees here beyond what you'd expect of any `*mut` pointer.
     ///
-    /// Note that this is _not_ really a pointer to a `u8`, I just need to give
-    /// it something with a size so the compiler's happy here.
+    /// Note that this is _not_ really a pointer to a [`u8`], I just need to
+    /// give it something so the compiler's happy here, and pointers to
+    /// zero-sized types like `()` make me suspicious.
+    #[inline(always)]
     const unsafe fn as_raw_ptr_unchecked(&self) -> *mut u8 {
         let bits: usize;
 
@@ -410,7 +424,10 @@ impl PartialEq for Value {
         if self.is_float() && other.is_float() {
             self.as_float() == other.as_float()
         } else if self.is_object() && other.is_object() {
-            self.as_object() == other.as_object()
+            self.as_object()
+                .unwrap()
+                .deref()
+                .eq(other.as_object().unwrap().deref())
         } else {
             self.0 == other.0
         }
@@ -458,7 +475,7 @@ impl std::fmt::Debug for Value {
             Some(InlineType::Float(n)) => write!(f, "{}", n),
             None => {
                 if let Some(obj) = self.as_object() {
-                    write!(f, "{}", obj)
+                    write!(f, "{:?}", obj.deref())
                 } else {
                     write!(f, "<unknown: {:x}>", self.0)
                 }

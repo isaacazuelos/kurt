@@ -6,13 +6,24 @@
 //! To try and keep some things clearer, object-oriented terms are used, even
 //! though we don't have a real object system.
 
-// IDEA: Write a macro that takes a struct definition and makes it a class by
-//       adding the #[repr], `base: Object` field, and tests for object
-//       assumptions?
-
-use std::{any::TypeId, fmt::Debug};
+use std::fmt::Debug;
 
 use crate::memory::{trace::Trace, Object};
+
+/// Class IDs are used as type tags.
+///
+/// In the past Rust's [`Any`] type id was used, but I kept missing places where
+/// I was matching on it. Instead, now we can use these (and [`dispatch!`][1])
+/// to keep things exhaustive and safe.
+///
+/// [1]: crate::memory::object::dispatch!
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub(crate) enum ClassId {
+    Closure,
+    Keyword,
+    List,
+    String,
+}
 
 /// Each of our runtime types must implement this trait to allow for proper
 /// resource management by the runtime.
@@ -34,19 +45,14 @@ use crate::memory::{trace::Trace, Object};
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub(crate) trait Class: 'static + Debug + Sized + Trace {
+pub(crate) trait Class:
+    'static + Debug + Sized + Trace + PartialEq + PartialOrd
+{
+    /// The [`ClassId`] that's unique to objects of this class.
+    const ID: ClassId;
+
     /// View our value as an [`Object`].
     fn upcast(&self) -> &Object {
         unsafe { std::mem::transmute(self) }
-    }
-
-    /// Get the [`TypeId`] of the value.
-    ///
-    /// # Note
-    ///
-    /// Rather than computing this with the usual Rust [`std::any`] mechanisms,
-    /// it retrieves the value it saved when creating the value.
-    fn concrete_type_id(&self) -> TypeId {
-        self.upcast().concrete_type_id()
     }
 }

@@ -1,12 +1,18 @@
 //! Our common base object type that all run time values which allocate are
 //! based on.
 
-use std::{any::TypeId, cmp::Ordering};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Formatter},
+};
 
 use crate::{
     memory::{
-        class::Class,
+        class::{Class, ClassId},
+        closure::Closure,
         collector::GCHeader,
+        keyword::Keyword,
+        list::List,
         string::String,
         trace::{Trace, WorkList},
     },
@@ -14,7 +20,16 @@ use crate::{
     Error,
 };
 
-use super::{closure::Closure, keyword::Keyword, list::List};
+macro_rules! dispatch {
+    ($f: path, $obj: ident, $($arg: expr)*) => {
+        match $obj.class_id {
+            ClassId::Closure => $f($obj.downcast::<Closure>().unwrap(), $( $arg, )*),
+            ClassId::Keyword => $f($obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
+            ClassId::List    => $f($obj.downcast::<List>().unwrap(), $( $arg, )*),
+            ClassId::String  => $f($obj.downcast::<String>().unwrap(), $( $arg, )*),
+        }
+    };
+}
 
 /// All our runtime values which live on the heap must share some common
 /// metadata and methods to allow the runtime to be aware of them and manage
@@ -37,23 +52,23 @@ pub(crate) struct Object {
 
     /// The concrete type of the object, it's [`Class`]. This is used to recover
     /// the type of an [`Object`] and safely downcast it.
-    concrete_type_id: TypeId,
+    class_id: ClassId,
 }
 
 impl Object {
     /// The alignment used for all objects.
     pub const ALIGN: usize = 8; // Must keep in sync with repr directive.
 
-    /// The specific [`Class`] of this object, as initialized.
-    pub(crate) fn concrete_type_id(&self) -> TypeId {
-        self.concrete_type_id
+    /// The specific [`Class`] of this object.
+    pub(crate) fn class_id(&self) -> ClassId {
+        self.class_id
     }
 
     /// Attempt to cast the object as an reference to a specific [`Class`].
     ///
     /// This return's `None` if the object is not the right class.
     pub fn downcast<C: Class>(&self) -> Option<&C> {
-        if self.concrete_type_id() == TypeId::of::<C>() {
+        if self.class_id() == C::ID {
             Some(unsafe { std::mem::transmute::<_, _>(self) })
         } else {
             None
@@ -61,31 +76,7 @@ impl Object {
     }
 
     pub fn enqueue_gc_references(&self, worklist: &mut WorkList) {
-        match self.concrete_type_id {
-            id if id == TypeId::of::<String>() => {
-                let string = self.downcast::<String>().unwrap();
-                string.enqueue_gc_references(worklist)
-            }
-
-            id if id == TypeId::of::<Keyword>() => {
-                let keyword = self.downcast::<Keyword>().unwrap();
-                keyword.enqueue_gc_references(worklist)
-            }
-
-            id if id == TypeId::of::<Closure>() => {
-                let closure = self.downcast::<Closure>().unwrap();
-                closure.enqueue_gc_references(worklist)
-            }
-
-            id if id == TypeId::of::<List>() => {
-                let list = self.downcast::<List>().unwrap();
-                list.enqueue_gc_references(worklist)
-            }
-
-            other => {
-                panic!("object with unknown class {:?}", other);
-            }
-        }
+        dispatch!(Trace::enqueue_gc_references, self, worklist)
     }
 
     /// A reference to this object's GC state.
@@ -115,25 +106,13 @@ impl Object {
         ptr.write(Object {
             size,
             gc_header: GCHeader::default(),
-            concrete_type_id: TypeId::of::<C>(),
+            class_id: C::ID,
         })
     }
 
     /// The size of the object's underlying allocation, in bytes.
     pub(crate) fn size(&self) -> usize {
         self.size
-    }
-}
-
-impl PartialEq for Object {
-    fn eq(&self, _other: &Self) -> bool {
-        unimplemented!("object equality is not yet implemented")
-    }
-}
-
-impl PartialOrd for Object {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unimplemented!("object equality is not yet implemented")
     }
 }
 
@@ -151,5 +130,33 @@ impl Value {
         }
 
         Err(Error::CastError)
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        if other.class_id() == self.class_id() {
+            dispatch!(PartialEq::eq, self, other.downcast().unwrap())
+        } else {
+            // Different types are always unequal.
+            false
+        }
+    }
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if other.class_id() == self.class_id() {
+            dispatch!(PartialOrd::partial_cmp, self, other.downcast().unwrap())
+        } else {
+            // Different types are not ordered. Sorry Erlang, it's weird.
+            None
+        }
+    }
+}
+
+impl Debug for Object {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        dispatch!(Debug::fmt, self, f)
     }
 }

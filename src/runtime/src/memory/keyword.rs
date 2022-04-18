@@ -3,7 +3,7 @@
 use std::fmt::{self, Debug};
 
 use crate::memory::{
-    class::Class,
+    class::{Class, ClassId},
     string::String,
     trace::{Trace, WorkList},
     InitFrom,
@@ -18,7 +18,21 @@ pub struct Keyword {
     string: String,
 }
 
-impl Class for Keyword {}
+impl Class for Keyword {
+    const ID: ClassId = ClassId::Keyword;
+}
+
+impl PartialEq for Keyword {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl PartialOrd for Keyword {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.string.partial_cmp(&other.string)
+    }
+}
 
 impl Trace for Keyword {
     fn enqueue_gc_references(&self, _: &mut WorkList) {}
