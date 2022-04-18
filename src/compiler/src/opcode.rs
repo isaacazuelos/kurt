@@ -52,6 +52,12 @@ pub enum Op {
     /// Load a prototype and make a closure from it, placing it on the stack.
     LoadClosure(Index<Prototype>),
 
+    // ## Accessing
+
+    /// Index the item just below the top of the stack by the value on the top
+    /// of the stack. Used for `a[b]` style indexing.
+    Subscript,
+
     // ## Function Calls
 
     /// Call a closure on the stack.
@@ -173,6 +179,8 @@ impl Display for Op {
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
             Op::DefineLocal => write!(f, "DefineLocal"),
             Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
+            // accessing
+            Op::Subscript => write!(f, "Subscript"),
             // functions
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Return => write!(f, "Return"),

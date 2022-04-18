@@ -9,13 +9,17 @@
 //! We'll want to come back in and expand on the [`Error`] type here once we
 //! have runtime support for handling these types of errors.
 
-use crate::value::{InlineType, Value};
+use crate::{
+    memory::list::List,
+    value::{InlineType, Value},
+};
 
 #[derive(Debug)]
 pub enum Error {
     Overflow,
     OverflowOrDivByZero,
     OperationNotSupported,
+    SubscriptIndexOutOfRange,
 }
 
 impl Value {
@@ -254,6 +258,18 @@ impl Value {
             }
 
             (_, _) => Err(Error::OperationNotSupported),
+        }
+    }
+
+    pub fn subscript(&self, index: Value) -> Result<Value, Error> {
+        if let Some(object) = self.as_object() {
+            object
+                .deref()
+                .downcast::<List>()
+                .ok_or(Error::OperationNotSupported)?
+                .subscript(index)
+        } else {
+            Err(Error::OperationNotSupported)
         }
     }
 }

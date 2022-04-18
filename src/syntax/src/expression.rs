@@ -24,6 +24,7 @@ pub enum Expression<'a> {
     If(IfElse<'a>),
     List(List<'a>),
     Literal(Literal<'a>),
+    Subscript(Subscript<'a>),
     Unary(Unary<'a>),
 }
 
@@ -41,6 +42,7 @@ impl<'a> Syntax for Expression<'a> {
             Expression::If(i) => i.span(),
             Expression::List(l) => l.span(),
             Expression::Literal(e) => e.span(),
+            Expression::Subscript(s) => s.span(),
             Expression::Unary(u) => u.span(),
         }
     }
@@ -125,7 +127,7 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// Postfix := primary | Call | PostfixOperator
+    /// Postfix := primary | Call | Subscript | PostfixOperator
     pub(crate) fn postfix(
         parser: &mut Parser<'a>,
     ) -> Result<Expression<'a>, Error> {
@@ -137,6 +139,12 @@ impl<'a> Expression<'a> {
                     Call::parse_from(expression, parser)
                         .map(Expression::Call)?
                 }
+
+                Some(TokenKind::Open(Delimiter::Bracket)) => {
+                    Subscript::parse_from(expression, parser)
+                        .map(Expression::Subscript)?
+                }
+
                 Some(TokenKind::Operator) => {
                     if let Ok(op) = parser.consume_postfix() {
                         Expression::Unary(Unary::new_postfix(op, expression))

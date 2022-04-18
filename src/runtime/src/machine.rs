@@ -44,6 +44,7 @@ impl Runtime {
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
                 Op::DefineLocal => self.define_local()?,
+                Op::Subscript => self.subscript()?,
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.return_op()?,
@@ -136,6 +137,15 @@ impl Runtime {
         let module = self.pc().module;
         let gc_obj = self.make_from::<Closure, _>((module, index));
         self.stack.push(Value::object(gc_obj));
+        Ok(())
+    }
+
+    /// The [`Subscript`][Op::Subscript] instruction
+    fn subscript(&mut self) -> Result<()> {
+        let index = self.stack.pop();
+        let target = self.stack.pop();
+        let result = target.subscript(index)?;
+        self.stack.push(result);
         Ok(())
     }
 

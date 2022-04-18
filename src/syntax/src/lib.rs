@@ -19,6 +19,7 @@ mod list;
 mod literal;
 mod operator;
 mod statement;
+mod subscript;
 
 pub use self::{
     binding::Binding,
@@ -34,6 +35,7 @@ pub use self::{
     literal::{Kind as LiteralKind, Literal},
     operator::{Binary, Unary},
     statement::{Statement, StatementSequence},
+    subscript::Subscript,
 };
 
 /// Convert a byte array into a string, but return one of our [`parser::Error`]s.

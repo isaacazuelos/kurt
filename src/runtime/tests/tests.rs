@@ -87,3 +87,8 @@ mod primitive_operations {
     test_eval! { gt, "2 > 4", "false" }
     test_eval! { ge, "2 >= 1", "true" }
 }
+
+mod subscripts {
+    test_eval! { subscript, "[1,2,3][1]", "2" }
+    test_eval! { subscript_neg, "[1,2,3][-1]", "3" }
+}

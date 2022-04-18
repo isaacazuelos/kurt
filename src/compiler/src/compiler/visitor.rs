@@ -128,6 +128,7 @@ impl Compiler {
             syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Literal(l) => self.literal(l),
             syntax::Expression::Unary(u) => self.unary(u),
+            syntax::Expression::Subscript(s) => self.subscript(s),
         }
     }
 
@@ -290,6 +291,13 @@ impl Compiler {
         }
 
         self.emit(Op::List(syntax.elements().len() as u32), syntax.span())
+    }
+
+    fn subscript(&mut self, syntax: &syntax::Subscript) -> Result<()> {
+        self.expression(syntax.target())?;
+        self.expression(syntax.index())?;
+        let span = syntax.open() + syntax.close();
+        self.emit(Op::Subscript, span)
     }
 
     /// Compile a literal
