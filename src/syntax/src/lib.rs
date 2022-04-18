@@ -36,7 +36,7 @@ pub use self::{
     statement::{Statement, StatementSequence},
 };
 
-/// Convert a byte array into a string, but return one of our [`parser::Errors`].
+/// Convert a byte array into a string, but return one of our [`parser::Error`]s.
 pub fn verify_utf8(input: &[u8]) -> Result<&str, Error> {
     std::str::from_utf8(input)
         .map_err(|e| parser::Error::LexerError(lexer::Error::from(e)))

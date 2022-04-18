@@ -9,7 +9,7 @@ use std::{
 use crate::{
     memory::{
         trace::{Trace, WorkList},
-        Class, InitFrom, Object,
+        Class, ClassId, InitFrom, Object,
     },
     value::Value,
 };
@@ -20,7 +20,21 @@ pub struct List {
     elements: Vec<Value>,
 }
 
-impl Class for List {}
+impl Class for List {
+    const ID: ClassId = ClassId::List;
+}
+
+impl PartialEq for List {
+    fn eq(&self, other: &Self) -> bool {
+        self.elements == other.elements
+    }
+}
+
+impl PartialOrd for List {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.elements.partial_cmp(&other.elements)
+    }
+}
 
 impl Trace for List {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {

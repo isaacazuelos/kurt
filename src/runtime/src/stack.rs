@@ -25,8 +25,10 @@ impl Stack {
         self.values.pop().unwrap_or_default()
     }
 
+    /// Drop all the values from the top of the stack down to (and including)
+    /// the given index.
     pub fn truncate_to(&mut self, index: Index<Stack>) {
-        self.values.truncate(index.as_usize());
+        self.values.truncate(index.as_usize().saturating_sub(1));
     }
 
     pub(crate) fn last(&self) -> Value {

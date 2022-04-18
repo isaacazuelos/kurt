@@ -7,11 +7,13 @@ use std::{
 use compiler::{index::Index, prototype::Prototype};
 
 use crate::{
-    memory::{class::Class, trace::Trace, Object},
+    memory::{
+        class::{Class, ClassId},
+        trace::Trace,
+        InitFrom, Object,
+    },
     module::Module,
 };
-
-use super::InitFrom;
 
 #[repr(C, align(8))]
 pub struct Closure {
@@ -33,7 +35,31 @@ impl Closure {
     }
 }
 
-impl Class for Closure {}
+impl Class for Closure {
+    const ID: ClassId = ClassId::Closure;
+}
+
+impl PartialOrd for Closure {
+    /// Closures cannot be ordered.
+    ///
+    /// What would you even order them by?
+    fn partial_cmp(&self, _other: &Self) -> Option<std::cmp::Ordering> {
+        None
+    }
+}
+
+impl PartialEq for Closure {
+    /// Closure equality is identity.
+    ///
+    /// In theory we could see if they have the same prototype and captures
+    /// instead, so multiple closures which we know will behave identically are
+    /// equal, but I think that's probably not useful.
+    ///
+    /// Frankly, I'm not sure I wouldn't rather have this always be false.
+    fn eq(&self, other: &Closure) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
 
 impl Trace for Closure {
     fn enqueue_gc_references(&self, _worklist: &mut super::trace::WorkList) {

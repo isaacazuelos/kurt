@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::memory::{
-    class::Class,
+    class::{Class, ClassId},
     trace::{Trace, WorkList},
     InitFrom, Object,
 };
@@ -35,7 +35,21 @@ impl Debug for String {
     }
 }
 
-impl Class for String {}
+impl Class for String {
+    const ID: ClassId = ClassId::String;
+}
+
+impl PartialOrd for String {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.as_str().partial_cmp(other.as_str())
+    }
+}
+
+impl PartialEq for String {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
 
 impl Trace for String {
     fn enqueue_gc_references(&self, _: &mut WorkList) {

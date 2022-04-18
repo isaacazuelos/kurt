@@ -240,6 +240,7 @@ impl Default for DefinedOperators {
         p = p.next();
         op.define_infix("&", Left, p); // bit and
         op.define_infix("|", Left, p); // bit or
+        op.define_infix("⊕", Left, p); // bit xor
 
         // shifts
         p = p.next();

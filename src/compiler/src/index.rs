@@ -9,7 +9,7 @@
 //! indexes in the wrong places.
 //!
 //! It also lets us have an overridable (but not dynamically dispatched)
-//! [`get`][self::Indexable::get] method, which is neat.
+//! [`get`][Get::get] method, which is neat.
 //!
 //! Since it's a struct with [`PhantomData`], we also know it won't take up any
 //! extra space to do things this way.

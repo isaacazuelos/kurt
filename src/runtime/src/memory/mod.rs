@@ -31,7 +31,10 @@ use crate::Runtime;
 
 pub use self::gc::Gc;
 
-pub(crate) use self::{class::Class, object::Object};
+pub(crate) use self::{
+    class::{Class, ClassId},
+    object::Object,
+};
 
 /// Since our [`Class`] values can be [DSTs][dst], we need a way to initialize
 /// them. This trait helps us do that.

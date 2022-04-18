@@ -1,6 +1,6 @@
 //! Operator syntax nodes.
 //!
-//! Notable, these do not implement [`Parse`].
+//! Notable, these do not implement [`Parse`][crate::Parse].
 //!
 //! [`Unary`] would need to understand primary and base expressions for things
 //! like `-a.?b!`, and [`Binary`] would need to know at what precedence. Both
