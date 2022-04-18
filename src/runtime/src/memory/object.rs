@@ -1,7 +1,7 @@
 //! Our common base object type that all run time values which allocate are
 //! based on.
 
-use std::any::TypeId;
+use std::{any::TypeId, cmp::Ordering};
 
 use crate::{
     memory::{
@@ -127,6 +127,12 @@ impl Object {
 
 impl PartialEq for Object {
     fn eq(&self, _other: &Self) -> bool {
+        unimplemented!("object equality is not yet implemented")
+    }
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         unimplemented!("object equality is not yet implemented")
     }
 }

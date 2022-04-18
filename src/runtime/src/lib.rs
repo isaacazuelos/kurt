@@ -6,6 +6,7 @@ mod error;
 mod machine;
 mod memory;
 mod module;
+mod primitives;
 mod stack;
 mod tracing;
 mod value;
@@ -33,6 +34,7 @@ pub use crate::error::{Error, Result};
 
 /// Each [`Exit`] is a reason a [`Runtime`] may have stopped running (which
 /// isn't an [`Error`]).
+#[derive(Debug)]
 pub enum Exit {
     /// The runtime hit the end of it's code.
     Halt,
@@ -206,7 +208,12 @@ impl Runtime {
     fn inflate(&mut self, constant: &Constant) -> Result<Value> {
         match constant {
             Constant::Character(c) => Ok(Value::char(*c)),
-            Constant::Number(n) => Value::nat(*n).ok_or(Error::NumberTooBig),
+            Constant::Number(n) => {
+                // TODO: this is wrong at n > i64::MAX, and inelegant.
+                //
+                // For now everything loads as an integer.
+                Value::int(*n as i64).ok_or(Error::NumberTooBig)
+            }
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {
                 let string: Gc = self.make_from::<String, _>(s.as_str());

@@ -43,16 +43,11 @@
 //! just an `f64`. The reason we _want_ to use these types then should be
 //! _because they're never imprecise_, not because they are larger.
 
-#![allow(unused)]
-
 use std::ptr::NonNull;
 
-use crate::{
-    memory::{
-        trace::{Trace, WorkList},
-        Class, Gc, Object,
-    },
-    Error,
+use crate::memory::{
+    trace::{Trace, WorkList},
+    Gc, Object,
 };
 
 /// A value which is either stored inline or a pointer to a garbage collected
@@ -71,7 +66,7 @@ impl Value {
     const PACKED_MASK: u64 = 0xFFF8_0000_0000_0000;
 
     /// The bits used by the payload.
-    const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
+    pub const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 
     /// The bits used to create a "safe" nan value that will not be interpreted
     /// as a packed value.
@@ -143,7 +138,6 @@ impl Value {
     /// [`Value::MAX_NAT`].
     pub fn nat(n: u64) -> Option<Value> {
         if n > Value::MAX_NAT {
-            eprintln!("{} doesn't fit in a 48-bit unsigned integer.", n);
             None
         } else {
             Some(Value(
@@ -172,6 +166,7 @@ impl Value {
 
     /// Store an [`i64`] as an Integer [`Value`] if it fits inside
     /// [`Value::MAX_INT`] and [`Value::MIN_INT`].
+    #[inline]
     pub fn int(i: i64) -> Option<Value> {
         if i > Value::MAX_INT || i < Value::MIN_INT {
             eprintln!("i doesn't fit as {} {:x}", i, i);
@@ -184,6 +179,8 @@ impl Value {
             ))
         }
     }
+
+    /// Store the lower 48 bits of an [`i64`] as an Integer [`Value`],
 
     /// Store a [`f64`] as a [`Value`].
     ///
@@ -253,14 +250,14 @@ impl Value {
     }
 
     /// Is this value a Natural number?
-    fn is_nat(&self) -> bool {
+    pub fn is_nat(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Nat as u64
     }
 
     /// Use this value as a Rust [`u64`] if it's an natural number. Note that
     /// this will always be between 0 and [`Value::MAX_NAT`], i.e it must fit in
     /// a 48-bit unsigned value.
-    fn as_nat(&self) -> Option<u64> {
+    pub fn as_nat(&self) -> Option<u64> {
         if self.is_nat() {
             // We shift back and forth to get the right sign extension.
             Some(self.0 & Value::PAYLOAD_MASK)
@@ -270,14 +267,14 @@ impl Value {
     }
 
     /// Is this value an Integer?
-    fn is_int(&self) -> bool {
+    pub fn is_int(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Int as u64
     }
 
     /// Use this value as a Rust [`i64`] if it's an Integer. Note that this will
     /// always be between [`Value::MAX_INT`] and [`Value::MIN_INT`], i.e it must
     /// fit in a 48-bit integer.
-    fn as_int(&self) -> Option<i64> {
+    pub fn as_int(&self) -> Option<i64> {
         if self.is_int() {
             // We shift back and forth to get the right sign extension.
             Some(((self.0 & Value::PAYLOAD_MASK) << 16) as i64 >> 16)
@@ -287,12 +284,12 @@ impl Value {
     }
 
     /// Is this value an [`f64`]?
-    fn is_float(&self) -> bool {
+    pub fn is_float(&self) -> bool {
         !self.is_packed_value()
     }
 
     /// View this value as a [`f64`] if it is one.
-    fn as_float(&self) -> Option<f64> {
+    pub fn as_float(&self) -> Option<f64> {
         if self.is_float() {
             Some(f64::from_bits(self.0))
         } else {
@@ -308,7 +305,7 @@ impl Value {
         self.0 & Value::TAG_BITS_MASK == Tag::Object as u64
     }
 
-    /// View this value as a reference to an [`Object`].
+    /// View this value as an opaque [`Gc`] reference to an [`Object`].
     pub fn as_object(&self) -> Option<Gc> {
         if self.is_object() {
             unsafe {
@@ -399,17 +396,17 @@ impl Trace for Value {
 }
 
 impl PartialEq for Value {
+    /// Two values are equal if the unpacked values are equal.
+    ///
+    /// If they're both floats, we compare as floats.
+    ///
+    /// We defer to self as an [`Object`] to decide equality if they're both
+    /// objects.
+    ///
+    /// All other inline types are [`Copy`], so we can compare bits. Since the
+    /// tag bits won't match if they're different types, so don't need to worry
+    /// about the payloads colliding.
     fn eq(&self, other: &Self) -> bool {
-        // If they're both floats, we compare as floats.
-        //
-        // If they're packed [`Gc`] pointers, we defer to the [`Object`]s to do
-        // equality.
-        //
-        // If the tag bits don't match bitwise, then they're different types and
-        // shouldn't match.
-        //
-        // All non-pointer types are [`Copy`], so we can just compare bits for
-        // comparing payloads.
         if self.is_float() && other.is_float() {
             self.as_float() == other.as_float()
         } else if self.is_object() && other.is_object() {
@@ -420,26 +417,46 @@ impl PartialEq for Value {
     }
 }
 
-impl Eq for Value {}
+impl PartialOrd for Value {
+    /// We only implement PartialOrd as we don't try to order values of
+    /// different types. It also means we don't have to impose a total ordering
+    /// onto [`f64`], which doesn't actually have one.
+    ///
+    /// As with equality, defer to self as an [`Object`] to decide equality if
+    /// they're both objects.
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering;
+        use InlineType::*;
+
+        if self.is_object() && other.is_object() {
+            self.as_object()
+                .unwrap()
+                .deref()
+                .partial_cmp(other.as_object().unwrap().deref())
+        } else {
+            match (self.inline_type(), other.inline_type()) {
+                (Some(Unit), Some(Unit)) => Some(Ordering::Equal),
+                (Some(Bool(a)), Some(Bool(b))) => a.partial_cmp(&b),
+                (Some(Char(a)), Some(Char(b))) => a.partial_cmp(&b),
+                (Some(Nat(a)), Some(Nat(b))) => a.partial_cmp(&b),
+                (Some(Int(a)), Some(Int(b))) => a.partial_cmp(&b),
+                (Some(Float(a)), Some(Float(b))) => a.partial_cmp(&b),
+                _ => None,
+            }
+        }
+    }
+}
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0 == Value::UNIT.0 {
-            write!(f, "()")
-        } else if let Some(b) = self.as_bool() {
-            write!(f, "{}", b)
-        } else if let Some(c) = self.as_char() {
-            write!(f, "{:?}", c)
-        } else if let Some(n) = self.as_nat() {
-            write!(f, "{}", n)
-        } else if let Some(i) = self.as_int() {
-            write!(f, "{}", i)
-        } else if let Some(obj) = self.as_object() {
-            write!(f, "{}", obj)
-        } else if let Some(v) = self.as_float() {
-            write!(f, "{}", v)
-        } else {
-            write!(f, "<unknown: {:x}>", self.0)
+        match self.inline_type() {
+            Some(InlineType::Unit) => write!(f, "()"),
+            Some(InlineType::Bool(b)) => write!(f, "{}", b),
+            Some(InlineType::Char(c)) => write!(f, "{:?}", c),
+            Some(InlineType::Nat(u)) => write!(f, "{}", u),
+            Some(InlineType::Int(i)) => write!(f, "{}", i),
+            Some(InlineType::Float(n)) => write!(f, "{}", n),
+            None => write!(f, "<unknown: {:x}>", self.0),
         }
     }
 }
@@ -466,6 +483,39 @@ enum Tag {
     _Reserved0 = 0x0005_0000_0000_0000,
     _Reserved1 = 0x0006_0000_0000_0000,
     Object = 0x0007_0000_0000_0000,
+}
+
+pub enum InlineType {
+    Unit,
+    Bool(bool),
+    Char(char),
+    Nat(u64),
+    Int(i64),
+    Float(f64),
+}
+
+impl Value {
+    /// Get the type of this value as an inline type
+    pub fn inline_type(self) -> Option<InlineType> {
+        if self.is_float() {
+            return Some(InlineType::Float(self.as_float().unwrap()));
+        }
+
+        let tag_bits = self.0 & Value::TAG_BITS_MASK;
+
+        match tag_bits {
+            bits if bits == Tag::Unit as _ => Some(InlineType::Unit),
+            bits if bits == Tag::Bool as _ => {
+                self.as_bool().map(InlineType::Bool)
+            }
+            bits if bits == Tag::Char as _ => {
+                self.as_char().map(InlineType::Char)
+            }
+            bits if bits == Tag::Nat as _ => self.as_nat().map(InlineType::Nat),
+            bits if bits == Tag::Int as _ => self.as_int().map(InlineType::Int),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]

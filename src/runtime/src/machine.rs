@@ -51,30 +51,33 @@ impl Runtime {
                 Op::Jump(i) => self.jump(i)?,
                 Op::BranchFalse(i) => self.branch_false(i)?,
                 // logic
-                Op::Not => todo!(),
+                Op::Not => self.not()?,
                 // math
-                Op::Neg => todo!(),
-                Op::Add => todo!(),
-                Op::Sub => todo!(),
-                Op::Mul => todo!(),
-                Op::Div => todo!(),
-                Op::Pow => todo!(),
-                Op::Mod => todo!(),
+                Op::Neg => self.neg()?,
+                Op::Add => self.binop(Value::add)?,
+                Op::Sub => self.binop(Value::sub)?,
+                Op::Mul => self.binop(Value::mul)?,
+                Op::Div => self.binop(Value::div)?,
+                Op::Pow => self.binop(Value::pow)?,
+                Op::Mod => self.binop(Value::modulo)?,
                 // bitwise
-                Op::BitAnd => todo!(),
-                Op::BitOr => todo!(),
-                Op::BitNot => todo!(),
-                Op::BitXOR => todo!(),
-                Op::SLL => todo!(),
-                Op::SRL => todo!(),
-                Op::SRA => todo!(),
+                Op::BitNot => self.not()?,
+                Op::BitAnd => self.binop(Value::bit_and)?,
+                Op::BitOr => self.binop(Value::bit_or)?,
+                Op::BitXOR => self.binop(Value::bit_xor)?,
+                Op::SLL => self.binop(Value::bit_shl)?,
+                Op::SRL => self.binop(Value::bit_shr)?,
+                Op::SRA => self.binop(Value::bit_sha)?,
                 // comparison
-                Op::Eq => todo!(),
-                Op::NEq => todo!(),
-                Op::Gt => todo!(),
-                Op::GEq => todo!(),
-                Op::Lt => todo!(),
-                Op::LEq => todo!(),
+                Op::Eq => self.eq()?,
+                Op::NEq => {
+                    self.eq()?;
+                    self.not()?
+                }
+                Op::Gt => self.cmp(Value::gt)?,
+                Op::GEq => self.cmp(Value::ge)?,
+                Op::Lt => self.cmp(Value::lt)?,
+                Op::LEq => self.cmp(Value::le)?,
                 // temporary
                 Op::List(n) => self.list(n)?,
             }
@@ -205,5 +208,60 @@ impl Runtime {
         } else {
             Ok(())
         }
+    }
+
+    #[inline]
+    fn not(&mut self) -> Result<()> {
+        let value = self.stack.pop();
+        self.stack.push(value.not()?);
+        Ok(())
+    }
+
+    #[inline]
+    fn neg(&mut self) -> Result<()> {
+        let value = self.stack.pop();
+        self.stack.push(value.neg()?);
+        Ok(())
+    }
+
+    #[inline]
+    fn binop<F, E>(&mut self, op: F) -> Result<()>
+    where
+        F: Fn(&Value, &Value) -> std::result::Result<Value, E>,
+        E: Into<Error>,
+    {
+        // TODO: We should not remove these form teh stack until after calling
+        //       `op` in case it triggers garbage collection.
+        let rhs = self.stack.pop();
+        let lhs = self.stack.pop();
+
+        let result = op(&lhs, &rhs).map_err(|e| e.into())?;
+        self.stack.push(result);
+        Ok(())
+    }
+
+    #[inline]
+    fn eq(&mut self) -> Result<()> where {
+        // TODO: We should not remove these form teh stack until after calling
+        //       `op` in case it triggers garbage collection.
+        let rhs = self.stack.pop();
+        let lhs = self.stack.pop();
+
+        self.stack.push(Value::bool(lhs == rhs));
+        Ok(())
+    }
+
+    #[inline]
+    fn cmp<F>(&mut self, op: F) -> Result<()>
+    where
+        F: Fn(&Value, &Value) -> bool,
+    {
+        // TODO: We should not remove these form teh stack until after calling
+        //       `op` in case it triggers garbage collection.
+        let rhs = self.stack.pop();
+        let lhs = self.stack.pop();
+
+        self.stack.push(Value::bool(op(&lhs, &rhs)));
+        Ok(())
     }
 }
