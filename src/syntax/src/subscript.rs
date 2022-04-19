@@ -10,11 +10,11 @@ use crate::*;
 
 /// Subscript indexing
 ///
+/// See the note on [`Call`] about why don't implement [`Parse`].
+///
 /// # Grammar
 ///
-/// Subscript := Expression '[' Expression ']'
-///
-/// See the note on [`Call`] about why don't implement [`Parse`].
+/// [`Subscript`] := [`Expression`] `[` [`Expression`] `]`
 #[derive(Debug)]
 pub struct Subscript<'a> {
     target: Box<Expression<'a>>,

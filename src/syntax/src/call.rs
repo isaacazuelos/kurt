@@ -1,4 +1,4 @@
-//! Function calls
+//! Function calls, like `foo(1, 2)`
 
 use diagnostic::Span;
 
@@ -6,11 +6,14 @@ use parser::lexer::{Delimiter, TokenKind};
 
 use super::*;
 
-/// Function calls
+/// Function calls.
+///
+/// We don't have a lot of fancy features yet -- no keyword or optional
+/// arguments.
 ///
 /// # Grammar
 ///
-/// Call := Expression '(' sep_by_trailing(Argument, ',') ')'
+/// [`Call`] := Expression `(` [`sep_by_trailing`][1]([`Expression`], `,`) `)`
 ///
 /// Note that [`Call`] doesn't implement [`Parse`]. This is is because we can't
 /// reasonably know the 'most greedy' parse of a call without mixing in
@@ -40,16 +43,6 @@ impl<'a> Call<'a> {
         self.open
     }
 
-    /// Get a reference to the call's arguments.
-    pub fn arguments(&self) -> &[Expression] {
-        self.arguments.as_ref()
-    }
-
-    /// Get a reference to the call's commas.
-    pub fn commas(&self) -> &[Span] {
-        self.commas.as_ref()
-    }
-
     /// The span of the call's close parenthesis.
     pub fn close(&self) -> Span {
         self.close
@@ -61,6 +54,20 @@ impl<'a> Syntax for Call<'a> {
 
     fn span(&self) -> Span {
         self.target.span() + self.close
+    }
+}
+
+impl<'a> Sequence for Call<'a> {
+    type Element = Expression<'a>;
+
+    const SEPARATOR: TokenKind = TokenKind::Comma;
+
+    fn elements(&self) -> &[Self::Element] {
+        &self.arguments
+    }
+
+    fn separators(&self) -> &[Span] {
+        &self.commas
     }
 }
 

@@ -1,7 +1,7 @@
 //! The rules for walking a syntax tree.
 
 use diagnostic::Span;
-use syntax::{self, Syntax};
+use syntax::{self, Expression, Sequence, Statement, Syntax};
 
 use crate::{
     constant::Constant,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl Compiler {
-    /// Compile a module.
+    /// Compile a [`Module`][syntax::Module].
     ///
     /// Note that this emits a 'Halt', so you can't really compile more code
     /// meaningfully after this.
@@ -21,38 +21,23 @@ impl Compiler {
         main.set_name(Prototype::MAIN_NAME);
         self.compiling.push(main);
 
-        self.statement_sequence(syntax.statements())?;
+        self.statement_sequence(syntax)?;
+
         self.emit(Op::Halt, syntax.span())
     }
 
-    /// Compile a TopLevel.
+    /// Compile a [`TopLevel`][syntax::TopLevel].
     ///
     /// The code is added to main, and finished with a [`Op::Yield`] so the
     /// program can be restarted if more code is added later.
     pub fn top_level(&mut self, syntax: &syntax::TopLevel) -> Result<()> {
         let mut main = Prototype::new();
         main.set_name(Prototype::MAIN_NAME);
+        self.compiling.push(main);
 
-        self.statement_sequence(syntax.statements())?;
+        self.statement_sequence(syntax)?;
+
         self.emit(Op::Yield, syntax.span())
-    }
-
-    /// Compile a sequence of statements.
-    fn statement_sequence(
-        &mut self,
-        syntax: &syntax::StatementSequence,
-    ) -> Result<()> {
-        // each statement with a semicolon gets compiled
-        for i in 0..syntax.semicolons().len() {
-            self.statement(&syntax.as_slice()[i])?;
-            self.emit(Op::Pop, syntax.semicolons()[i])?;
-        }
-
-        if syntax.as_slice().is_empty() || syntax.has_trailing() {
-            self.emit(Op::Unit, syntax.span())
-        } else {
-            self.statement(syntax.as_slice().last().unwrap())
-        }
     }
 
     /// Compile a statement.
@@ -65,6 +50,30 @@ impl Compiler {
             syntax::Statement::Empty(span) => self.empty_statement(*span),
             syntax::Statement::Expression(e) => self.expression(e),
             syntax::Statement::If(i) => self.if_only(i),
+        }
+    }
+
+    /// Compile a sequence of statements.
+    ///
+    /// If it's empty or if it has a trailing semicolon, a `()` is left on the
+    /// stack, otherwise only the last result is.
+    fn statement_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
+    where
+        S: Sequence<Element = Statement<'a>>,
+    {
+        // Each separator (and it's statement) gets compiled and popped.
+        for i in 0..syntax.separators().len() {
+            self.statement(&syntax.elements()[i])?;
+            self.emit(Op::Pop, syntax.separators()[i])?;
+        }
+
+        if syntax.is_empty() || syntax.has_trailing() {
+            // If it's empty, or has a trailing semicolon, we need to return `()`
+            self.emit(Op::Unit, syntax.span())
+        } else {
+            // There might be a statement without a semicolon, in which case we
+            // compile it and leave it on the stack.
+            self.statement(syntax.elements().last().unwrap())
         }
     }
 
@@ -132,6 +141,18 @@ impl Compiler {
         }
     }
 
+    /// Compile a sequence of expressions, leaving each on the stack.
+    fn expression_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
+    where
+        S: Sequence<Element = Expression<'a>>,
+    {
+        for arg in syntax.elements() {
+            self.expression(arg)?;
+        }
+
+        Ok(())
+    }
+
     /// Compile a binary operator expression.
     fn binary(&mut self, syntax: &syntax::Binary) -> Result<()> {
         self.expression(syntax.left())?;
@@ -193,20 +214,16 @@ impl Compiler {
 
     /// Compile a block expression.
     fn block(&mut self, syntax: &syntax::Block) -> Result<()> {
-        self.with_scope(|compiler| {
-            compiler.statement_sequence(syntax.statements())
-        })
+        self.with_scope(|compiler| compiler.statement_sequence(syntax))
     }
 
     /// Compile a function call.
     fn call(&mut self, syntax: &syntax::Call) -> Result<()> {
         self.expression(syntax.target())?;
 
-        for arg in syntax.arguments() {
-            self.expression(arg)?;
-        }
+        self.expression_sequence(syntax)?;
 
-        let count = syntax.arguments().len();
+        let count = syntax.elements().len();
         if count >= u32::MAX as usize {
             Err(Error::TooManyArguments)
         } else {
@@ -217,15 +234,15 @@ impl Compiler {
     /// Compile a function.
     fn function(&mut self, syntax: &syntax::Function) -> Result<()> {
         let i = self.with_prototype(|compiler| {
-            if syntax.parameters().len() > u32::MAX as usize {
+            if syntax.elements().len() > u32::MAX as usize {
                 return Err(Error::TooManyParameters);
             }
 
             compiler
                 .active_prototype_mut()
-                .set_parameter_count(syntax.parameters().len() as u32);
+                .set_parameter_count(syntax.elements().len() as u32);
 
-            for parameter in syntax.parameters() {
+            for parameter in syntax.elements() {
                 compiler.bind_local(parameter.name());
             }
 
@@ -283,13 +300,7 @@ impl Compiler {
 
     /// Compile a list literal
     fn list(&mut self, syntax: &syntax::List) -> Result<()> {
-        // For now, we just push all the elements to the stack and call a
-        // MakeList opcode. We'll need to revisit this when we add spreads, etc.
-        // and when we have real modules/imports.
-        for element in syntax.elements() {
-            self.expression(element)?;
-        }
-
+        self.expression_sequence(syntax)?;
         self.emit(Op::List(syntax.elements().len() as u32), syntax.span())
     }
 

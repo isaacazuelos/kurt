@@ -8,15 +8,22 @@ use crate::lexer::{Delimiter, TokenKind};
 
 use super::*;
 
-/// Function definitions.
+/// Functions
+///
+/// For now all functions are anonymous, and we only have simple parameters --
+/// no keyword or optional parameters yet.
+///
+/// The [`Sequence`] implementation here covers the parameters.
 ///
 /// # Grammar
 ///
-/// Function := '(' sep_by_trailing(Parameter, ',') ')' '=>' Expression
+/// [`Function`] := `(` [`sep_by_trailing`][1]([`Parameter`], `,`) `)` `=>` [`Expression`]
+///
+/// [1]: Parser::sep_by_trailing
 #[derive(Debug)]
 pub struct Function<'a> {
     open: Span,
-    parameters: Vec<Parameter<'a>>,
+    parameters: Vec<Parameter>,
     commas: Vec<Span>,
     close: Span,
     arrow: Span,
@@ -24,16 +31,6 @@ pub struct Function<'a> {
 }
 
 impl<'a> Function<'a> {
-    /// Get a reference to the function's parameter list.
-    pub fn parameters(&self) -> &[Parameter<'a>] {
-        &self.parameters
-    }
-
-    /// The span for the commas that were between parameters, in order.
-    pub fn comma(&self) -> &[Span] {
-        &self.commas
-    }
-
     /// Get a reference to the function's body expression.
     pub fn body(&self) -> &Expression {
         self.body.as_ref()
@@ -90,19 +87,40 @@ impl<'a> Syntax for Function<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct Parameter<'a> {
-    name: Identifier<'a>,
+impl<'a> Sequence for Function<'a> {
+    type Element = Parameter;
+
+    const SEPARATOR: TokenKind = TokenKind::Comma;
+
+    fn elements(&self) -> &[Self::Element] {
+        &self.parameters
+    }
+
+    fn separators(&self) -> &[Span] {
+        &self.commas
+    }
 }
 
-impl<'a> Parameter<'a> {
+/// Function Parameters
+///
+/// For now we only have simple positional parameters.
+///
+/// # Grammar
+///
+/// [`Parameter`] := [`Identifier`]
+#[derive(Debug)]
+pub struct Parameter {
+    name: Identifier,
+}
+
+impl Parameter {
     /// The name of the parameter
-    pub fn name(&self) -> &Identifier<'a> {
+    pub fn name(&self) -> &Identifier {
         &self.name
     }
 }
 
-impl<'a> Parse<'a> for Parameter<'a> {
+impl<'a> Parse<'a> for Parameter {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
         parser
             .parse()
@@ -111,7 +129,7 @@ impl<'a> Parse<'a> for Parameter<'a> {
     }
 }
 
-impl<'a> Syntax for Parameter<'a> {
+impl<'a> Syntax for Parameter {
     const NAME: &'static str = "a parameter";
 
     fn span(&self) -> Span {

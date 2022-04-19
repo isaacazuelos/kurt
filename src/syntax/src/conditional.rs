@@ -1,7 +1,4 @@
 //! Conditional expressions.
-//!
-//! An `if` can occur with or without an `else`, but needs the `else` when used
-//! as an expression. We treat these as two different types of syntax nodes.
 
 use diagnostic::Span;
 
@@ -12,7 +9,14 @@ use parser::{
 
 use super::*;
 
-/// An `if` expression, which _must_ have an `else` as well.
+/// Conditional expressions, ones with `else` clauses.
+///
+/// These are different than [`IfOnly`] nodes which don't have `else` blocks,
+/// since those can only appear as statements.
+///
+/// # Grammar
+///
+/// [`IfElse`] := `if` [`Expression`] [`Block`] `else` [`Block`]
 #[derive(Debug)]
 pub struct IfElse<'a> {
     if_keyword: Span,
@@ -50,7 +54,7 @@ impl<'a> IfElse<'a> {
 }
 
 impl<'a> Syntax for IfElse<'a> {
-    const NAME: &'static str = "an `if` with an `else`";
+    const NAME: &'static str = "an `if` expression with an `else`";
 
     fn span(&self) -> Span {
         self.if_keyword + self.false_block.close()
@@ -65,7 +69,14 @@ impl<'a> Parse<'a> for IfElse<'a> {
     }
 }
 
-/// An `if` expression, which _must_ have an `else` as well.
+/// Conditional expressions which don't have an `else` part.
+///
+/// See [`IfOnly::expand_with_else`] to try and parse more and turn this into an
+/// [`IfElse`].
+///
+/// # Grammar
+///
+/// [`IfOnly`] := `if` [`Expression`] [`Block`]
 #[derive(Debug)]
 pub struct IfOnly<'a> {
     if_keyword: Span,
@@ -90,7 +101,7 @@ impl<'a> IfOnly<'a> {
     }
 
     /// Turn an [`IfOnly`] into an [`IfElse`].
-    pub(crate) fn expand_with_else(
+    pub fn expand_with_else(
         self,
         parser: &mut Parser<'a>,
     ) -> Result<IfElse<'a>, Error> {
@@ -117,7 +128,7 @@ impl<'a> IfOnly<'a> {
 }
 
 impl<'a> Syntax for IfOnly<'a> {
-    const NAME: &'static str = "an `if` with no `else`";
+    const NAME: &'static str = "an `if` statement";
 
     fn span(&self) -> Span {
         self.if_keyword + self.block.close()

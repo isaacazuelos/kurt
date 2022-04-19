@@ -1,29 +1,33 @@
-//! Block expressions, like {}
+//! Block expressions, like `{}`
 
 use diagnostic::Span;
 
 use parser::{
-    lexer::{Delimiter, TokenKind as Kind},
+    lexer::{Delimiter, TokenKind},
     Parse,
 };
 
 use super::*;
 
+/// Block expressions
+///
 /// A block expression is a brace-delimited and semicolon-separated sequence of
 /// statements, like `{ first; second(); }`.
+///
+/// # Grammar
+///
+/// [`Block`] := `{` [`sep_by_trailing`][1]([`Statement`], `;`) `}`
+///
+/// [1]: Parser::sep_by_trailing
 #[derive(Debug)]
 pub struct Block<'a> {
     open: Span,
-    statements: StatementSequence<'a>,
+    statements: Vec<Statement<'a>>,
+    semicolons: Vec<Span>,
     close: Span,
 }
 
 impl<'a> Block<'a> {
-    /// Get a reference to the top level statements.
-    pub fn statements(&self) -> &StatementSequence {
-        &self.statements
-    }
-
     /// The span of the block's closing brace.
     pub fn close(&self) -> Span {
         self.close
@@ -38,25 +42,35 @@ impl<'a> Syntax for Block<'a> {
     }
 }
 
+impl<'a> Sequence for Block<'a> {
+    type Element = Statement<'a>;
+
+    const SEPARATOR: TokenKind = TokenKind::Semicolon;
+
+    fn elements(&self) -> &[Self::Element] {
+        &self.statements
+    }
+
+    fn separators(&self) -> &[Span] {
+        &self.semicolons
+    }
+}
+
 impl<'a> Parse<'a> for Block<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Block<'a>, Error> {
         let open = parser
             .consume(
-                Kind::Open(Delimiter::Brace),
+                TokenKind::Open(Delimiter::Brace),
                 "an opening brace for a block",
             )?
             .span();
 
-        let statements =
-            if let Some(Kind::Close(Delimiter::Brace)) = parser.peek() {
-                StatementSequence::empty()
-            } else {
-                parser.parse()?
-            };
+        let (statements, semicolons) =
+            parser.sep_by_trailing(TokenKind::Semicolon)?;
 
         let close = parser
             .consume(
-                Kind::Close(Delimiter::Brace),
+                TokenKind::Close(Delimiter::Brace),
                 "an closing brace for a block",
             )?
             .span();
@@ -64,6 +78,7 @@ impl<'a> Parse<'a> for Block<'a> {
         Ok(Block {
             open,
             statements,
+            semicolons,
             close,
         })
     }
@@ -89,7 +104,7 @@ mod parser_tests {
         let mut parser = Parser::new("{}").unwrap();
         let block = parser.parse::<Block>();
         assert!(block.is_ok(), "expected a block but got {:?}", block);
-        assert!(block.unwrap().statements().as_slice().is_empty())
+        assert!(block.unwrap().elements().is_empty())
     }
 
     #[test]
@@ -103,8 +118,8 @@ mod parser_tests {
             parser
         );
         let block = block.unwrap();
-        assert!(block.statements().as_slice().len() == 1);
-        assert!(block.statements().semicolons().len() == 1);
+        assert!(block.elements().len() == 1);
+        assert!(block.separators().len() == 1);
     }
 
     #[test]
@@ -118,7 +133,7 @@ mod parser_tests {
             parser
         );
         let block = block.unwrap();
-        assert!(block.statements().as_slice().len() == 3);
-        assert!(block.statements().semicolons().len() == 3);
+        assert!(block.elements().len() == 3);
+        assert!(block.separators().len() == 3);
     }
 }

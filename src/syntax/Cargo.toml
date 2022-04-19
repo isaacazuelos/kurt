@@ -12,3 +12,4 @@ parser = { path = "../parser" }
 # external
 unicode_categories = "0.1"
 unicode-xid = "0.2"
+unicode-normalization = "0.1.19"

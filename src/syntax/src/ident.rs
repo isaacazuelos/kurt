@@ -1,8 +1,7 @@
 //! Identifiers
 
-// TODO: UTF-8 Normalization?
-
 use diagnostic::Span;
+use unicode_normalization::UnicodeNormalization;
 
 use parser::{
     lexer::{Token, TokenKind},
@@ -11,31 +10,48 @@ use parser::{
 
 use crate::Syntax;
 
+/// Identifiers
+///
+/// This does UTF8 normalization so that consumers of the AST can compare
+/// identifiers.
+///
+/// # Grammar
+///
+/// [`Identifier`] := [`TokenKind::Identifier`]
 #[derive(Debug)]
-pub struct Identifier<'a> {
-    token: Token<'a>,
+pub struct Identifier {
+    body: String,
+    span: Span,
 }
 
-impl<'a> Identifier<'a> {
+impl Identifier {
+    /// Create a new identifier from a token.
+    fn new(token: Token) -> Identifier {
+        Identifier {
+            body: token.body().nfc().collect(),
+            span: token.span(),
+        }
+    }
+
     /// View the identifier as a `&str`.
-    pub fn as_str(&'a self) -> &'a str {
-        self.token.body()
+    pub fn as_str(&self) -> &str {
+        &self.body
     }
 }
 
-impl<'a> Syntax for Identifier<'a> {
+impl<'a> Syntax for Identifier {
     const NAME: &'static str = "an identifier";
 
     fn span(&self) -> Span {
-        self.token.span()
+        self.span
     }
 }
 
-impl<'a> Parse<'a> for Identifier<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Identifier<'a>, Error> {
+impl<'a> Parse<'a> for Identifier {
+    fn parse_with(parser: &mut Parser<'a>) -> Result<Identifier, Error> {
         parser
             .consume(TokenKind::Identifier, Self::NAME)
-            .map(|token| Identifier { token })
+            .map(|token| Identifier::new(token))
     }
 }
 

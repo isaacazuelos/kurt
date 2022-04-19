@@ -14,6 +14,10 @@ use super::*;
 ///
 /// Note that the statement never includes the semicolon at the end (if
 /// present).
+///
+/// # Grammar
+///
+/// [`Statement`] := [`Binding`] | [`IfOnly`] | [`Expression`] | nothing
 #[derive(Debug)]
 pub enum Statement<'a> {
     Binding(Binding<'a>),
@@ -61,80 +65,6 @@ impl<'a> Parse<'a> for Statement<'a> {
 
             None => Err(Error::EOFExpecting("a statement")),
         }
-    }
-}
-
-/// A sequence of [`Statement`]s, with semicolons between them and optionally a
-/// trailing semicolon.
-#[derive(Debug)]
-pub struct StatementSequence<'a> {
-    statements: Vec<Statement<'a>>,
-    semicolons: Vec<Span>,
-}
-
-impl<'a> Syntax for StatementSequence<'a> {
-    const NAME: &'static str = "a module";
-
-    fn span(&self) -> Span {
-        if let Some(first) = self.statements.first() {
-            first.span() + self.statements.last().unwrap().span()
-        } else {
-            Span::default()
-        }
-    }
-}
-
-impl<'a> Parse<'a> for StatementSequence<'a> {
-    fn parse_with(
-        parser: &mut Parser<'a>,
-    ) -> Result<StatementSequence<'a>, Error> {
-        parser.sep_by_trailing(TokenKind::Semicolon).map(
-            |(statements, semicolons)| StatementSequence {
-                statements,
-                semicolons,
-            },
-        )
-    }
-}
-
-impl<'a> StatementSequence<'a> {
-    /// Create a new module.
-    pub fn new(
-        statements: Vec<Statement<'a>>,
-        semicolons: Vec<Span>,
-    ) -> StatementSequence<'a> {
-        StatementSequence {
-            statements,
-            semicolons,
-        }
-    }
-
-    pub fn empty() -> Self {
-        StatementSequence {
-            statements: Vec::new(),
-            semicolons: Vec::new(),
-        }
-    }
-
-    /// The statements in the module in order.
-    pub fn as_slice(&self) -> &[Statement<'a>] {
-        &self.statements
-    }
-
-    /// The semicolons that come after the statements.
-    ///
-    /// Because of the grammar, the length of this is either the same as the
-    /// length of [`Module::statements`], or one less if there's no trailing
-    /// semicolon. Multiple semicolons are accompanied by a corresponding
-    /// [`Statement::Empty`].
-    pub fn semicolons(&self) -> &[Span] {
-        &self.semicolons
-    }
-
-    /// Does this sequence of statements have a trailing semicolon?
-    pub fn has_trailing(&self) -> bool {
-        !self.semicolons.is_empty()
-            && self.semicolons.len() == self.statements.len()
     }
 }
 
@@ -203,86 +133,5 @@ mod parser_tests {
             syntax
         );
         assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_empty() {
-        let mut parser = Parser::new("  ").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().is_empty()));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().is_empty()));
-
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_empty_semicolon() {
-        let mut parser = Parser::new(";").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 1));
-
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_empty_semicolons_only() {
-        let mut parser = Parser::new("; ;;").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 3));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 3));
-
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_no_trailing() {
-        let mut parser = Parser::new("0").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().is_empty()));
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_trailing_semicolon() {
-        let mut parser = Parser::new("0;").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 1));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 1));
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_extra_semicolons() {
-        let mut parser = Parser::new(";;;").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(matches!(literal, Ok(ref m) if m.as_slice().len() == 3));
-        assert!(matches!(literal, Ok(ref m) if m.semicolons().len() == 3));
-        assert!(parser.is_empty());
-    }
-
-    #[test]
-    fn parse_statements_trailing() {
-        let mut parser = Parser::new("1 1").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(
-            matches!(literal, Ok(ref m) if m.as_slice().len() == 1),
-            "expected 1 statement, but got {:#?}",
-            literal
-        );
-        assert!(!parser.is_empty());
-    }
-
-    #[test]
-    fn parse_with_extra() {
-        let mut parser = Parser::new("1 1").unwrap();
-        let literal = parser.parse::<StatementSequence>();
-        assert!(
-            matches!(literal, Ok(ref m) if m.as_slice().len() == 1),
-            "expected 1 statement, but got {:#?}",
-            literal
-        );
-        assert!(!parser.is_empty());
     }
 }

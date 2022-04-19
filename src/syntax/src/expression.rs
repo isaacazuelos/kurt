@@ -8,11 +8,17 @@ use parser::{
 
 use super::*;
 
+/// Expressions are pieces of the language which evaluate into values.
+///
 /// This type is a syntax tree enum, like those found in the [`syn`][syn-crate]
 /// crate. This means it's an `enum` to dispatch on different types of
 /// expressions, each of which is their own actual struct.
 ///
 /// [syn-crate]: https://docs.rs/syn/1.0.84/syn/enum.Expr.html#syntax-tree-enums
+///
+/// # Grammar
+///
+/// [`Expression`] := [`infix`][Expression::infix]( [`Precedence::MIN`] )
 #[derive(Debug)]
 pub enum Expression<'a> {
     Binary(Binary<'a>),
@@ -20,7 +26,7 @@ pub enum Expression<'a> {
     Call(Call<'a>),
     Function(Function<'a>),
     Grouping(Grouping<'a>),
-    Identifier(Identifier<'a>),
+    Identifier(Identifier),
     If(IfElse<'a>),
     List(List<'a>),
     Literal(Literal<'a>),
@@ -62,15 +68,20 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// infix(max) := prefix
-    /// infix(n)   := infix(n+1) (consume_infix(n) (infix(n+1)))*
+    /// - [`infix`][i] (max) := [`prefix`][p]
+    /// - [`infix`][i] (n)   := [`infix`][i] (n+1)
+    ///                      ([`consume_infix`][c] (n) ( [`infix`][i] (n+1)))*
     ///
     /// What this means is the highest precedence level
     ///
     /// # How this works
     ///
     /// Honestly, I have no idea. I'm not even sure that it does.
-    fn infix(
+    ///
+    /// [c]: Parser::consume_infix
+    /// [p]: Expression::prefix
+    /// [i]: Expression::infix
+    pub fn infix(
         parser: &mut Parser<'a>,
         precedence: Precedence,
     ) -> Result<Expression<'a>, Error> {
@@ -106,13 +117,17 @@ impl<'a> Expression<'a> {
         Ok(lhs)
     }
 
-    /// Parse a prefix operator expression.
+    /// Prefix operator expressions
     ///
     /// # Grammar
     ///
-    /// Prefix := prefix_operator Prefix
-    /// Prefix := base
-    fn prefix(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    /// [`prefix`][0] := [`consume_prefix()`][1] [`prefix`][0]
+    ///                | [`postfix`][2]
+    ///
+    /// [0]: Expression::prefix
+    /// [1]: Parser::consume_prefix
+    /// [2]: Expression::postfix
+    pub fn prefix(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
         parser.depth_track(|parser| {
             if let Ok(token) = parser.consume_prefix() {
                 let expression = Expression::prefix(parser)?;
@@ -123,14 +138,17 @@ impl<'a> Expression<'a> {
         })
     }
 
-    /// Postfix expressions are primary expressions with
+    /// Postfix expressions are primary expressions followed by some number of
+    /// subscripts, calls, or postfix operators.
     ///
     /// # Grammar
     ///
-    /// Postfix := primary | Call | Subscript | PostfixOperator
-    pub(crate) fn postfix(
-        parser: &mut Parser<'a>,
-    ) -> Result<Expression<'a>, Error> {
+    /// [`postfix`][0] := [`Call`] | [`Subscript`] | [`primary`][1] [`consume_postfix`][2]
+    ///
+    /// [0]: Expression::postfix
+    /// [2]: Expression::primary
+    /// [1]: Parser::consume_postfix
+    pub fn postfix(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
         let mut expression = Expression::primary(parser)?;
 
         loop {
@@ -165,10 +183,12 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// primary := Identifier | Block | Function | Literal | List | If
-    pub(crate) fn primary(
-        parser: &mut Parser<'a>,
-    ) -> Result<Expression<'a>, Error> {
+    /// - [`primary`][p] := [`Identifier`] | [`Block`] | [`Function`]
+    ///                   | [`Literal`]    | [`List`]  | [`IfOnly`]   
+    ///                   | [`IfElse`]
+    ///
+    /// [p]: Expression::primary
+    pub fn primary(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
         match parser.peek() {
             Some(TokenKind::Reserved(Reserved::If)) => {
                 parser.parse().map(Expression::If)
@@ -218,7 +238,9 @@ impl<'a> Expression<'a> {
     ///
     /// # Grammar
     ///
-    /// open_parenthesis := Function | Grouping
+    /// [`open_parenthesis`][0] := [`Function`] | [`Grouping`]
+    ///
+    /// [0]: Expression::open_parenthesis
     fn open_parenthesis(
         parser: &mut Parser<'a>,
     ) -> Result<Expression<'a>, Error> {

@@ -1,8 +1,13 @@
-//! Kurt syntax tools.
+//! Kurt syntax tools
+//!
+//! The syntax nodes have a 'grammar' listed, but it's not exactly formal.
 
 use diagnostic::Span;
 
-use parser::{lexer, Parser};
+use parser::{
+    lexer::{self, TokenKind},
+    Parser,
+};
 
 pub use parser::{Error, Parse};
 
@@ -28,13 +33,13 @@ pub use self::{
     conditional::{IfElse, IfOnly},
     entry::{Module, TopLevel},
     expression::Expression,
-    function::Function,
+    function::{Function, Parameter},
     grouping::Grouping,
     ident::Identifier,
     list::List,
     literal::{Kind as LiteralKind, Literal},
     operator::{Binary, Unary},
-    statement::{Statement, StatementSequence},
+    statement::Statement,
     subscript::Subscript,
 };
 
@@ -54,4 +59,26 @@ pub trait Syntax: std::fmt::Debug {
     /// The [`Span`] in the original source code that this piece of syntax came
     /// from.
     fn span(&self) -> Span;
+}
+
+pub trait Sequence: Syntax {
+    type Element;
+    const SEPARATOR: TokenKind;
+
+    /// A slice containing the elements of this sequence.
+    fn elements(&self) -> &[Self::Element];
+
+    /// The spans of the separators in this sequence.
+    fn separators(&self) -> &[Span];
+
+    /// A slice containing the elements of this sequence.
+    fn is_empty(&self) -> bool {
+        self.elements().is_empty()
+    }
+
+    /// Does the block have a trailing semicolon?
+    fn has_trailing(&self) -> bool {
+        !self.elements().is_empty()
+            && self.separators().len() == self.elements().len()
+    }
 }

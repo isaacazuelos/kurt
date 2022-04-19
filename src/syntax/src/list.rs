@@ -1,17 +1,18 @@
 //! List are sequences of values
-//!
-//! A comma-delimited sequence of expressions between square brackets.
 
 use crate::lexer::{Delimiter, TokenKind};
 
 use super::*;
 
-/// List literals
+/// List literals.
+///
+/// A comma-delimited sequence of expressions between square brackets.
 ///
 /// # Grammar
 ///
+/// [`List`] := `[` [`sep_by_trailing`][1]([`Expression`], `,`) `]`
 ///
-/// List := '[' sep_by_trailing(Expression, ',') ']'
+/// [1]: Parser::sep_by_trailing
 #[derive(Debug)]
 pub struct List<'a> {
     open: Span,
@@ -21,16 +22,6 @@ pub struct List<'a> {
 }
 
 impl<'a> List<'a> {
-    /// Get a slice containing the elements of the list.
-    pub fn elements(&self) -> &[Expression<'a>] {
-        &self.elements
-    }
-
-    /// Get a slice with the span for each comma in the list
-    pub fn commas(&self) -> &[Span] {
-        &self.commas
-    }
-
     /// The span for the opening bracket token.
     pub fn open(&self) -> Span {
         self.open
@@ -60,6 +51,20 @@ impl<'a> Parse<'a> for List<'a> {
             commas,
             close,
         })
+    }
+}
+
+impl<'a> Sequence for List<'a> {
+    type Element = Expression<'a>;
+
+    const SEPARATOR: TokenKind = TokenKind::Comma;
+
+    fn elements(&self) -> &[Self::Element] {
+        &self.elements
+    }
+
+    fn separators(&self) -> &[Span] {
+        &self.commas
     }
 }
 

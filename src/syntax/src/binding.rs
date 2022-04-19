@@ -1,4 +1,4 @@
-//! Binding statements, things like `let` and `var`.
+//! Binding statements like `let x = 10`
 
 use parser::{
     lexer::{Reserved, Token, TokenKind as Kind},
@@ -7,11 +7,17 @@ use parser::{
 
 use super::*;
 
+/// Binding statements.
+///
+/// # Grammar
+///
+/// [`Binding`] := `let`[Identifier] `=` [`Expression`]  
+/// [`Binding`] := `let`[`Identifier`] `=` [`Expression`]  
 #[derive(Debug)]
 pub struct Binding<'a> {
     keyword: Token<'a>,
-    name: Identifier<'a>,
-    equals: Token<'a>,
+    name: Identifier,
+    equals: Span,
     body: Expression<'a>,
 }
 
@@ -26,20 +32,19 @@ impl Binding<'_> {
         self.keyword.kind() == Kind::Reserved(Reserved::Let)
     }
 
-    /// A reference to the expression which is evaluated to be bound to the
-    /// name.
+    /// The expression on the right of the `=` which is evaluated and bound.
     pub fn body(&self) -> &Expression {
         &self.body
     }
 
-    /// The identifier the value is being bound to.
+    /// The name the value is being bound to.
     pub fn name(&self) -> &Identifier {
         &self.name
     }
 
-    /// The token used for the `=` in the binding site.
-    pub fn equals(&self) -> &Token {
-        &self.equals
+    /// The span of the `=` used in this statement.
+    pub fn equals(&self) -> Span {
+        self.equals
     }
 }
 
@@ -65,8 +70,9 @@ impl<'a> Parse<'a> for Binding<'a> {
 
         let name = parser.parse()?;
 
-        let equals = parser.consume(Kind::Operator, "equals sign").and_then(
-            |token| {
+        let equals = parser
+            .consume(Kind::Operator, "equals sign")
+            .and_then(|token| {
                 if token.body() == "=" {
                     Ok(token)
                 } else {
@@ -75,8 +81,8 @@ impl<'a> Parse<'a> for Binding<'a> {
                         found: token.kind(),
                     })
                 }
-            },
-        )?;
+            })?
+            .span();
 
         let body = parser.parse()?;
 

@@ -13,6 +13,13 @@ use parser::lexer::Token;
 
 use crate::{Expression, Syntax};
 
+/// Unary expressions
+///
+/// Both prefix and postfix
+///
+/// # Grammar
+///
+/// [`Unary`] := [`Expression::prefix`] | [`Expression::postfix`]
 #[derive(Debug)]
 pub struct Unary<'a> {
     token: Token<'a>,
@@ -66,6 +73,11 @@ impl Syntax for Unary<'_> {
     }
 }
 
+/// Binary expressions
+///
+/// # Grammar
+///
+/// [`Binary`] := [`Expression::infix`]
 #[derive(Debug)]
 pub struct Binary<'a> {
     token: Token<'a>,

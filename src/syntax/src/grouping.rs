@@ -4,6 +4,11 @@ use crate::lexer::{Delimiter, TokenKind};
 
 use super::*;
 
+/// Parentheses used for groupings.
+///
+/// # Grammar
+///
+/// [`Grouping`] := `(` [`Expression`] `)`
 #[derive(Debug)]
 pub struct Grouping<'a> {
     open: Span,
