@@ -107,8 +107,8 @@ pub enum Op {
     /// Binary Exponentiation
     Pow,
 
-    /// Modulus, `n % 2`
-    Mod,
+    /// Remainder, `n % 2`
+    Rem,
 
     // ## Bitwise Operators
 
@@ -118,20 +118,14 @@ pub enum Op {
     /// Bitwise Or
     BitOr,
 
-    /// Bitwise Not
-    BitNot,
-
     /// Bitwise XOR
     BitXOR,
 
-    /// Shift Left (logical)
-    SLL,
+    /// Shift Left
+    SHL,
 
-    /// Shift right logical
-    SRL,
-
-    /// Shift right arithmetic
-    SRA,
+    /// Shift right
+    SHR,
 
     // ## Comparison Operators
 
@@ -139,19 +133,19 @@ pub enum Op {
     Eq,
 
     /// Not Equals
-    NEq,
+    Ne,
 
     /// Greater Than
     Gt,
 
     /// Greater than or equal to
-    GEq,
+    Ge,
 
     /// Less Than
     Lt,
 
     /// Less than or equal to
-    LEq,
+    Le,
 
     // ## Temporary
     //
@@ -195,22 +189,21 @@ impl Display for Op {
             Op::Mul => write!(f, "Mul"),
             Op::Div => write!(f, "Div"),
             Op::Pow => write!(f, "Pow"),
-            Op::Mod => write!(f, "Mod"),
+            Op::Rem => write!(f, "Rem"),
             // bitwise
             Op::BitAnd => write!(f, "BitAnd"),
             Op::BitOr => write!(f, "BitOr"),
-            Op::BitNot => write!(f, "BitNot"),
+
             Op::BitXOR => write!(f, "BitXOR"),
-            Op::SLL => write!(f, "SLL"),
-            Op::SRL => write!(f, "SRL"),
-            Op::SRA => write!(f, "SRA"),
+            Op::SHL => write!(f, "SHL"),
+            Op::SHR => write!(f, "SHR"),
             // comparison
             Op::Eq => write!(f, "Eq"),
-            Op::NEq => write!(f, "NEq"),
+            Op::Ne => write!(f, "Ne"),
             Op::Gt => write!(f, "Gt"),
-            Op::GEq => write!(f, "GEq"),
+            Op::Ge => write!(f, "Ge"),
             Op::Lt => write!(f, "Lt"),
-            Op::LEq => write!(f, "LEq"),
+            Op::Le => write!(f, "Le"),
             // temporary
             Op::List(n) => write!(f, "List {n}"),
         }

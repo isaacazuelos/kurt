@@ -2,11 +2,14 @@
 
 use std::fmt::{self, Debug};
 
-use crate::memory::{
-    class::{Class, ClassId},
-    string::String,
-    trace::{Trace, WorkList},
-    InitFrom,
+use crate::{
+    memory::{
+        class::{Class, ClassId},
+        string::String,
+        trace::{Trace, WorkList},
+        InitFrom,
+    },
+    primitives::PrimitiveOperations,
 };
 
 /// In many dynamic languages, strings are used both to represent text and also
@@ -54,6 +57,16 @@ impl InitFrom<&str> for Keyword {
     /// [obj]: super::Object
     unsafe fn init(ptr: *mut Self, args: &str) {
         String::init(ptr as *mut String, args);
+    }
+}
+
+impl PrimitiveOperations for Keyword {
+    fn type_name(&self) -> &'static str {
+        "Keyword"
+    }
+
+    fn cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        PartialOrd::partial_cmp(self, other)
     }
 }
 

@@ -68,7 +68,9 @@ mod conditionals {
 }
 
 mod primitive_operations {
-    test_eval! { not, "!true", "false" }
+    test_eval! { not_bool, "!true", "false" }
+    test_eval! { not_int, "!0", "-1" }
+    test_eval! { not_int_more, "!(!123123)", "123123" }
     test_eval! { addition, "1 + 2", "3" }
     test_eval! { subtraction, "4 - 2", "2" }
     test_eval! { mul, "8 * 8", "64" }
@@ -79,7 +81,7 @@ mod primitive_operations {
     test_eval! { bit_or, "7 | 16", "23" }
     test_eval! { bit_xor, "1 ⊕ 3", "2" }
     test_eval! { shift_left, "2 << 1", "4" }
-    test_eval! { shift_arithmetic, "-4 >>> 1", "-2" }
+    test_eval! { shift_arithmetic, "-4 >> 1", "-2" }
     test_eval! { eq, "1 == 1", "true" }
     test_eval! { ne, "1 != 1", "false" }
     test_eval! { lt, "2 < 4", "true" }
@@ -88,7 +90,7 @@ mod primitive_operations {
     test_eval! { ge, "2 >= 1", "true" }
 }
 
-mod subscripts {
-    test_eval! { subscript, "[1,2,3][1]", "2" }
-    test_eval! { subscript_neg, "[1,2,3][-1]", "3" }
+mod indexing {
+    test_eval! { index, "[1,2,3][1]", "2" }
+    test_eval! { index_neg, "[1,2,3][-1]", "3" }
 }

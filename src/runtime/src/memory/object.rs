@@ -16,17 +16,18 @@ use crate::{
         string::String,
         trace::{Trace, WorkList},
     },
+    primitives::{Error, PrimitiveOperations},
     value::Value,
-    Error,
+    Runtime,
 };
 
 macro_rules! dispatch {
-    ($f: path, $obj: ident, $($arg: expr)*) => {
+    ($f: path, $obj: ident, $( $arg: expr, )*) => {
         match $obj.class_id {
-            ClassId::Closure => $f($obj.downcast::<Closure>().unwrap(), $( $arg, )*),
-            ClassId::Keyword => $f($obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
-            ClassId::List    => $f($obj.downcast::<List>().unwrap(), $( $arg, )*),
-            ClassId::String  => $f($obj.downcast::<String>().unwrap(), $( $arg, )*),
+            ClassId::Closure => $f( $obj.downcast::<Closure>().unwrap(), $( $arg, )*),
+            ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
+            ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
+            ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
         }
     };
 }
@@ -41,7 +42,7 @@ macro_rules! dispatch {
 /// # Notes
 ///
 /// There's deliberately no way to create an [`Object`] that's not some other
-/// concrete [`Class`] (using the [`Runtime::make`][crate::Runtime::make])
+/// concrete [`Class`] (using the [`Runtime::make`][Runtime::make])
 #[repr(C, align(8))]
 pub(crate) struct Object {
     /// The size (in bytes) of the allocation belonging to this [`Object`].
@@ -76,7 +77,7 @@ impl Object {
     }
 
     pub fn enqueue_gc_references(&self, worklist: &mut WorkList) {
-        dispatch!(Trace::enqueue_gc_references, self, worklist)
+        dispatch!(Trace::enqueue_gc_references, self, worklist,)
     }
 
     /// A reference to this object's GC state.
@@ -129,14 +130,17 @@ impl Value {
             }
         }
 
-        Err(Error::CastError)
+        Err(Error::CastError {
+            from: self.type_name(),
+            to: C::ID.name(),
+        })
     }
 }
 
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
         if other.class_id() == self.class_id() {
-            dispatch!(PartialEq::eq, self, other.downcast().unwrap())
+            dispatch!(PartialEq::eq, self, other.downcast().unwrap(),)
         } else {
             // Different types are always unequal.
             false
@@ -147,7 +151,7 @@ impl PartialEq for Object {
 impl PartialOrd for Object {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if other.class_id() == self.class_id() {
-            dispatch!(PartialOrd::partial_cmp, self, other.downcast().unwrap())
+            dispatch!(PartialOrd::partial_cmp, self, other.downcast().unwrap(),)
         } else {
             // Different types are not ordered. Sorry Erlang, it's weird.
             None
@@ -157,6 +161,36 @@ impl PartialOrd for Object {
 
 impl Debug for Object {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        dispatch!(Debug::fmt, self, f)
+        dispatch!(Debug::fmt, self, f,)
+    }
+}
+
+impl PrimitiveOperations for Object {
+    fn type_name(&self) -> &'static str {
+        dispatch!(PrimitiveOperations::type_name, self,)
+    }
+
+    fn neg(&self, rt: &mut Runtime) -> Result<Value, Error> {
+        dispatch!(PrimitiveOperations::neg, self, rt,)
+    }
+
+    fn not(&self, rt: &mut Runtime) -> Result<Value, Error> {
+        dispatch!(PrimitiveOperations::not, self, rt,)
+    }
+
+    fn add(&self, other: Value, rt: &mut Runtime) -> Result<Value, Error> {
+        dispatch!(PrimitiveOperations::add, self, other, rt,)
+    }
+
+    fn index(&self, key: Value, rt: &mut Runtime) -> Result<Value, Error> {
+        dispatch!(PrimitiveOperations::index, self, key, rt,)
+    }
+
+    fn is_truthy(&self) -> bool {
+        true
+    }
+
+    fn cmp(&self, other: &Self) -> Option<Ordering> {
+        PartialOrd::partial_cmp(self, other)
     }
 }

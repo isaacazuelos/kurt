@@ -45,10 +45,21 @@
 
 use std::ptr::NonNull;
 
-use crate::memory::{
-    trace::{Trace, WorkList},
-    Gc, Object,
+mod primitives;
+
+pub mod i48_type;
+pub mod u48_type;
+
+use crate::{
+    memory::{
+        trace::{Trace, WorkList},
+        Gc, Object,
+    },
+    primitives::{Error, PrimitiveOperations},
 };
+
+use self::i48_type::i48;
+use self::u48_type::u48;
 
 /// A value which is either stored inline or as pointer to a garbage collected
 /// [`Object`].
@@ -71,7 +82,7 @@ impl Value {
     const PACKED_MASK: u64 = 0xFFF8_0000_0000_0000;
 
     /// The bits used by the payload.
-    pub const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
+    const PAYLOAD_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 
     /// The bits used to create a "safe" nan value that will not be interpreted
     /// as a packed value.
@@ -94,20 +105,6 @@ impl Value {
     /// A "safe" non-signaling NaN value.
     pub const NAN: Value = Value(Value::SAFE_NAN_BITS);
 
-    /// The largest valid natural number value that can be stored inline. The
-    /// smallest is `0`.
-    pub const MAX_NAT: u64 = 281_474_976_710_655u64;
-
-    /// The largest valid (signed) integer value that can be stored inline.
-    ///
-    /// This is the largest 48-bit int.
-    pub const MAX_INT: i64 = 140_737_488_355_327i64;
-
-    /// The smallest valid (signed) integer value that can be stored inline.
-    ///
-    /// This is the smallest 48-bit int.
-    pub const MIN_INT: i64 = -140_737_488_355_328i64;
-
     /// Do the bits of this value represent some other value packed inside a
     /// NaN, or is it a floating point number?
     #[inline(always)]
@@ -117,9 +114,9 @@ impl Value {
 }
 
 impl Value {
-    /// Create a new unit.
+    /// Store a [`()`] in a [`Value`].
     #[inline]
-    pub const fn unit() -> Value {
+    pub const fn unit(_: ()) -> Value {
         Value::UNIT
     }
 
@@ -135,62 +132,30 @@ impl Value {
         Value(Value::PACKED_MASK | Tag::Char as u64 | c as u64)
     }
 
-    /// Store a [`u32`] as a Nat [`Value`].
+    /// Store an [`u48`] as an [`Value`].
     #[inline]
-    pub const fn nat_u32(u: u32) -> Value {
-        Value(Value::PACKED_MASK | Tag::Nat as u64 | u as u64)
+    pub const fn nat(n: u48) -> Value {
+        Value(
+            (n.as_u64() & Value::PAYLOAD_MASK)
+                | Value::PACKED_MASK
+                | Tag::Nat as u64,
+        )
     }
 
-    /// Store an [`u64`] as an Nat [`Value`] if it fits inside
-    /// [`Value::MAX_NAT`].
+    /// Store an [`i48`] as an [`Value`].
     #[inline]
-    pub const fn nat(n: u64) -> Option<Value> {
-        if n > Value::MAX_NAT {
-            None
-        } else {
-            Some(Value(
-                (n & Value::PAYLOAD_MASK)
-                    | Value::PACKED_MASK
-                    | Tag::Nat as u64,
-            ))
-        }
-    }
-
-    /// Store a [`u32`] as an Integer [`Value`].
-    #[inline]
-    pub const fn int_u32(u: u32) -> Value {
-        Value(Value::PACKED_MASK | Tag::Int as u64 | u as u64)
-    }
-
-    /// Store a [`i32`] as an Integer [`Value`].
-    #[inline]
-    pub const fn int_i32(i: i32) -> Value {
-        // We need to do some work to get the right sign bits set for the high
-        // payload byte.
-        let i = i as i64 as u64 & Value::PAYLOAD_MASK;
-
-        Value(Value::PACKED_MASK | Tag::Int as u64 | i as u64)
-    }
-
-    /// Store an [`i64`] as an Integer [`Value`] if it fits inside
-    /// [`Value::MAX_INT`] and [`Value::MIN_INT`].
-    #[inline]
-    pub const fn int(i: i64) -> Option<Value> {
-        if i > Value::MAX_INT || i < Value::MIN_INT {
-            None
-        } else {
-            Some(Value(
-                (i as u64 & Value::PAYLOAD_MASK)
-                    | Value::PACKED_MASK
-                    | Tag::Int as u64,
-            ))
-        }
+    pub const fn int(i: i48) -> Value {
+        Value(
+            (i.as_i64() as u64 & Value::PAYLOAD_MASK)
+                | Value::PACKED_MASK
+                | Tag::Int as u64,
+        )
     }
 
     /// Store a [`f64`] as a [`Value`].
     ///
-    /// Note that due to how [`Value`] is stored, quiet NaNs are converted into
-    /// signaling NaNs.
+    /// Note that due to how [`Value`] is stored, any NaN value is converted
+    /// into [`Value::NAN`] specifically.
     #[inline]
     pub fn float(f: f64) -> Value {
         let bits = if f.is_nan() {
@@ -220,6 +185,16 @@ impl Value {
     #[inline]
     pub const fn is_unit(&self) -> bool {
         self.0 == Value::UNIT.0
+    }
+
+    /// Use this value as a Rust [`()`] if it's `()`.
+    #[inline]
+    pub const fn as_unit(&self) -> Option<()> {
+        if self.is_unit() {
+            Some(())
+        } else {
+            None
+        }
     }
 
     /// Is this value a Boolean?
@@ -262,14 +237,14 @@ impl Value {
         self.0 & Value::TAG_BITS_MASK == Tag::Nat as u64
     }
 
-    /// Use this value as a Rust [`u64`] if it's an natural number. Note that
+    /// Use this value as a Rust [`u48`] if it's an natural number. Note that
     /// this will always be between 0 and [`Value::MAX_NAT`], i.e it must fit in
     /// a 48-bit unsigned value.
     #[inline]
-    pub const fn as_nat(&self) -> Option<u64> {
+    pub const fn as_nat(&self) -> Option<u48> {
         if self.is_nat() {
-            // We shift back and forth to get the right sign extension.
-            Some(self.0 & Value::PAYLOAD_MASK)
+            let bits = self.0 & Value::PAYLOAD_MASK;
+            Some(u48::from_u64_unchecked(bits))
         } else {
             None
         }
@@ -285,10 +260,10 @@ impl Value {
     /// always be between [`Value::MAX_INT`] and [`Value::MIN_INT`], i.e it must
     /// fit in a 48-bit integer.
     #[inline]
-    pub const fn as_int(&self) -> Option<i64> {
+    pub const fn as_int(&self) -> Option<i48> {
         if self.is_int() {
-            // We shift back and forth to get the right sign extension.
-            Some(((self.0 & Value::PAYLOAD_MASK) << 16) as i64 >> 16)
+            let bits = self.0 & Value::PAYLOAD_MASK;
+            Some(i48::from_i64_unchecked(bits as _))
         } else {
             None
         }
@@ -401,14 +376,6 @@ impl Value {
     }
 }
 
-impl Trace for Value {
-    fn enqueue_gc_references(&self, worklist: &mut WorkList) {
-        if let Some(ptr) = self.as_object() {
-            worklist.enqueue(ptr);
-        }
-    }
-}
-
 impl PartialEq for Value {
     /// Two values are equal if the unpacked values are equal.
     ///
@@ -424,10 +391,10 @@ impl PartialEq for Value {
         if self.is_float() && other.is_float() {
             self.as_float() == other.as_float()
         } else if self.is_object() && other.is_object() {
-            self.as_object()
-                .unwrap()
-                .deref()
-                .eq(other.as_object().unwrap().deref())
+            PartialEq::eq(
+                self.as_object().unwrap().deref(),
+                other.as_object().unwrap().deref(),
+            )
         } else {
             self.0 == other.0
         }
@@ -435,52 +402,135 @@ impl PartialEq for Value {
 }
 
 impl PartialOrd for Value {
-    /// We only implement PartialOrd as we don't try to order values of
-    /// different types. It also means we don't have to impose a total ordering
-    /// onto [`f64`], which doesn't actually have one.
-    ///
-    /// As with equality, defer to self as an [`Object`] to decide equality if
-    /// they're both objects.
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering;
-        use InlineType::*;
-
-        if self.is_object() && other.is_object() {
-            self.as_object()
-                .unwrap()
-                .deref()
-                .partial_cmp(other.as_object().unwrap().deref())
-        } else {
-            match (self.inline_type(), other.inline_type()) {
-                (Some(Unit), Some(Unit)) => Some(Ordering::Equal),
-                (Some(Bool(a)), Some(Bool(b))) => a.partial_cmp(&b),
-                (Some(Char(a)), Some(Char(b))) => a.partial_cmp(&b),
-                (Some(Nat(a)), Some(Nat(b))) => a.partial_cmp(&b),
-                (Some(Int(a)), Some(Int(b))) => a.partial_cmp(&b),
-                (Some(Float(a)), Some(Float(b))) => a.partial_cmp(&b),
-                _ => None,
-            }
-        }
+        PrimitiveOperations::cmp(self, other)
     }
 }
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.inline_type() {
-            Some(InlineType::Unit) => write!(f, "()"),
-            Some(InlineType::Bool(b)) => write!(f, "{}", b),
-            Some(InlineType::Char(c)) => write!(f, "{:?}", c),
-            Some(InlineType::Nat(u)) => write!(f, "{}", u),
-            Some(InlineType::Int(i)) => write!(f, "{}", i),
-            Some(InlineType::Float(n)) => write!(f, "{}", n),
-            None => {
-                if let Some(obj) = self.as_object() {
-                    write!(f, "{:?}", obj.deref())
-                } else {
-                    write!(f, "<unknown: {:x}>", self.0)
-                }
+        match self.tag() {
+            Tag::Unit => write!(f, "()"),
+            Tag::Bool => write!(f, "{}", self.0 == Value::TRUE.0),
+            Tag::Char => write!(f, "{:?}", self.as_char().unwrap()),
+            Tag::Nat => write!(f, "{:?}", self.as_nat().unwrap()),
+            Tag::Int => write!(f, "{:?}", self.as_int().unwrap()),
+            Tag::Float => write!(f, "{:?}", self.as_float().unwrap()),
+            Tag::Object => write!(f, "{:?}", self.as_object().unwrap().deref()),
+            Tag::_Reserved0 | Tag::_Reserved1 => {
+                write!(f, "<invalid value>")
             }
         }
+    }
+}
+
+impl Trace for Value {
+    fn enqueue_gc_references(&self, worklist: &mut WorkList) {
+        if let Some(ptr) = self.as_object() {
+            worklist.enqueue(ptr);
+        }
+    }
+}
+
+impl TryInto<()> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<(), Self::Error> {
+        self.as_unit().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: true.type_name(),
+        })
+    }
+}
+
+impl TryInto<bool> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<bool, Self::Error> {
+        self.as_bool().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: true.type_name(),
+        })
+    }
+}
+
+impl TryInto<char> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<char, Self::Error> {
+        self.as_char().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: 'a'.type_name(),
+        })
+    }
+}
+
+impl TryInto<i48> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<i48, Self::Error> {
+        self.as_int().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: i48::ZERO.type_name(),
+        })
+    }
+}
+
+impl TryInto<u48> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<u48, Self::Error> {
+        self.as_nat().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: u48::MAX.type_name(),
+        })
+    }
+}
+
+impl TryInto<f64> for Value {
+    type Error = Error;
+
+    fn try_into(self) -> Result<f64, Self::Error> {
+        self.as_float().ok_or_else(|| Error::CastError {
+            from: self.type_name(),
+            to: 0f64.type_name(),
+        })
+    }
+}
+
+impl From<()> for Value {
+    fn from(_: ()) -> Value {
+        Value::unit(())
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Value {
+        Value::bool(b)
+    }
+}
+
+impl From<char> for Value {
+    fn from(c: char) -> Value {
+        Value::char(c)
+    }
+}
+
+impl From<u48> for Value {
+    fn from(n: u48) -> Value {
+        Value::nat(n)
+    }
+}
+
+impl From<i48> for Value {
+    fn from(i: i48) -> Value {
+        Value::int(i)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(f: f64) -> Value {
+        Value::float(f)
     }
 }
 
@@ -497,6 +547,7 @@ impl std::fmt::Debug for Value {
 /// Unit, Char) to a single 'Small' tag and use the bits in the third byte
 /// instead of the second to further differentiate.
 #[repr(u64)]
+#[derive(Debug, PartialEq)]
 enum Tag {
     Unit = 0x0000_0000_0000_0000,
     Bool = 0x0001_0000_0000_0000,
@@ -506,37 +557,27 @@ enum Tag {
     _Reserved0 = 0x0005_0000_0000_0000,
     _Reserved1 = 0x0006_0000_0000_0000,
     Object = 0x0007_0000_0000_0000,
-}
 
-pub enum InlineType {
-    Unit,
-    Bool(bool),
-    Char(char),
-    Nat(u64),
-    Int(i64),
-    Float(f64),
+    /// fake, only used by the `Value::tag` method to indicate it's a float.
+    Float = 0x0000_0000_0000_0001,
 }
 
 impl Value {
-    /// Get the type of this value as an inline type
-    pub fn inline_type(self) -> Option<InlineType> {
+    fn tag(self) -> Tag {
         if self.is_float() {
-            return Some(InlineType::Float(self.as_float().unwrap()));
+            return Tag::Float;
         }
 
-        let tag_bits = self.0 & Value::TAG_BITS_MASK;
-
-        match tag_bits {
-            bits if bits == Tag::Unit as _ => Some(InlineType::Unit),
-            bits if bits == Tag::Bool as _ => {
-                self.as_bool().map(InlineType::Bool)
-            }
-            bits if bits == Tag::Char as _ => {
-                self.as_char().map(InlineType::Char)
-            }
-            bits if bits == Tag::Nat as _ => self.as_nat().map(InlineType::Nat),
-            bits if bits == Tag::Int as _ => self.as_int().map(InlineType::Int),
-            _ => None,
+        match self.0 & Value::TAG_BITS_MASK {
+            0x0000_0000_0000_0000 => Tag::Unit,
+            0x0001_0000_0000_0000 => Tag::Bool,
+            0x0002_0000_0000_0000 => Tag::Char,
+            0x0003_0000_0000_0000 => Tag::Nat,
+            0x0004_0000_0000_0000 => Tag::Int,
+            0x0005_0000_0000_0000 => Tag::_Reserved0,
+            0x0006_0000_0000_0000 => Tag::_Reserved1,
+            0x0007_0000_0000_0000 => Tag::Object,
+            _ => unreachable!("All legal values are covered"),
         }
     }
 }
@@ -584,30 +625,21 @@ mod tests {
     }
 
     #[test]
-    fn packing_i32() {
-        let small = Value::int_u32(123456);
-        assert_eq!(small.as_int(), Some(123456));
-
-        let negative = Value::int_i32(-987654);
-        assert_eq!(negative.as_int(), Some(-987654));
-    }
-
-    #[test]
     fn packing_nat_max() {
-        let large = Value::nat(Value::MAX_NAT).unwrap();
-        assert_eq!(large.as_nat(), Some(Value::MAX_NAT));
+        let large = Value::nat(u48::MAX);
+        assert_eq!(large.as_nat(), Some(u48::MAX));
     }
 
     #[test]
     fn packing_int_max() {
-        let large = Value::int(Value::MAX_INT).unwrap();
-        assert_eq!(large.as_int(), Some(Value::MAX_INT));
+        let large = Value::int(i48::MAX);
+        assert_eq!(large.as_int(), Some(i48::MAX));
     }
 
     #[test]
     fn packing_int_min() {
-        let negative = Value::int(Value::MIN_INT).unwrap();
-        assert_eq!(negative.as_int(), Some(Value::MIN_INT));
+        let negative = Value::int(i48::MIN);
+        assert_eq!(negative.as_int(), Some(i48::MIN));
     }
 
     #[test]

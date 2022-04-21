@@ -165,21 +165,20 @@ impl Compiler {
             "*" => Ok(Op::Mul),
             "/" => Ok(Op::Div),
             "^" => Ok(Op::Pow),
-            "%" => Ok(Op::Mod),
+            "%" => Ok(Op::Rem),
             // bitwise
             "&" => Ok(Op::BitAnd),
             "|" => Ok(Op::BitOr),
             "⊕" => Ok(Op::BitXOR),
-            "<<" => Ok(Op::SLL),
-            ">>" => Ok(Op::SRL),
-            ">>>" => Ok(Op::SRA),
+            "<<" => Ok(Op::SHL),
+            ">>" => Ok(Op::SHR),
             // comparison
             "==" => Ok(Op::Eq),
-            "!=" => Ok(Op::NEq),
+            "!=" => Ok(Op::Ne),
             ">" => Ok(Op::Gt),
-            ">=" => Ok(Op::GEq),
+            ">=" => Ok(Op::Ge),
             "<" => Ok(Op::Lt),
-            "<=" => Ok(Op::LEq),
+            "<=" => Ok(Op::Le),
 
             _ => Err(Error::UndefinedInfix),
         }?;

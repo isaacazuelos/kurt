@@ -2,7 +2,7 @@
 
 use std::{error, fmt};
 
-use crate::primitives;
+use crate::primitives::Error as PrimitiveError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -27,7 +27,7 @@ pub enum Error {
     OpIndexOutOfRange,
     PrototypeIndexOutOfRange,
 
-    MathError(primitives::Error),
+    Primitive(PrimitiveError),
 }
 
 impl error::Error for Error {}
@@ -61,15 +61,12 @@ impl fmt::Display for Error {
                 write!(f, "function prototype index is out of range")
             }
 
-            MathError(e) => {
-                write!(f, "math error {:?}", e)
-            }
+            Primitive(p) => write!(f, "primitive error: {:?}", p),
         }
     }
 }
-
-impl From<primitives::Error> for Error {
-    fn from(e: primitives::Error) -> Self {
-        Error::MathError(e)
+impl Into<Error> for PrimitiveError {
+    fn into(self) -> Error {
+        Error::Primitive(self)
     }
 }

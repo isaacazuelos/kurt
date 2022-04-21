@@ -3,10 +3,13 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use crate::memory::{
-    class::{Class, ClassId},
-    trace::{Trace, WorkList},
-    InitFrom, Object,
+use crate::{
+    memory::{
+        class::{Class, ClassId},
+        trace::{Trace, WorkList},
+        InitFrom, Object,
+    },
+    primitives::PrimitiveOperations,
 };
 
 #[repr(C, align(8))]
@@ -37,6 +40,12 @@ impl Debug for String {
 
 impl Class for String {
     const ID: ClassId = ClassId::String;
+}
+
+impl PrimitiveOperations for String {
+    fn type_name(&self) -> &'static str {
+        "String"
+    }
 }
 
 impl PartialOrd for String {

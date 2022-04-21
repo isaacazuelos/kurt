@@ -13,6 +13,7 @@ use crate::{
     call_stack::CallFrame,
     error::Result,
     memory::{closure::Closure, list::List},
+    primitives::PrimitiveOperations,
     value::Value,
     Error, Exit, Runtime,
 };
@@ -60,25 +61,23 @@ impl Runtime {
                 Op::Mul => self.binop(Value::mul)?,
                 Op::Div => self.binop(Value::div)?,
                 Op::Pow => self.binop(Value::pow)?,
-                Op::Mod => self.binop(Value::modulo)?,
-                // bitwise
-                Op::BitNot => self.not()?,
-                Op::BitAnd => self.binop(Value::bit_and)?,
-                Op::BitOr => self.binop(Value::bit_or)?,
-                Op::BitXOR => self.binop(Value::bit_xor)?,
-                Op::SLL => self.binop(Value::bit_shl)?,
-                Op::SRL => self.binop(Value::bit_shr)?,
-                Op::SRA => self.binop(Value::bit_sha)?,
+                Op::Rem => self.binop(Value::rem)?,
+                // // bitwise
+                Op::BitAnd => self.binop(Value::bitand)?,
+                Op::BitOr => self.binop(Value::bitor)?,
+                Op::BitXOR => self.binop(Value::bitxor)?,
+                Op::SHL => self.binop(Value::shl)?,
+                Op::SHR => self.binop(Value::shr)?,
                 // comparison
                 Op::Eq => self.eq()?,
-                Op::NEq => {
+                Op::Ne => {
                     self.eq()?;
                     self.not()?
                 }
-                Op::Gt => self.cmp(Value::gt)?,
-                Op::GEq => self.cmp(Value::ge)?,
-                Op::Lt => self.cmp(Value::lt)?,
-                Op::LEq => self.cmp(Value::le)?,
+                Op::Gt => self.cmp(<Value as PrimitiveOperations>::gt)?,
+                Op::Ge => self.cmp(<Value as PrimitiveOperations>::ge)?,
+                Op::Lt => self.cmp(<Value as PrimitiveOperations>::lt)?,
+                Op::Le => self.cmp(<Value as PrimitiveOperations>::le)?,
                 // temporary
                 Op::List(n) => self.list(n)?,
             }
@@ -144,7 +143,7 @@ impl Runtime {
     fn subscript(&mut self) -> Result<()> {
         let index = self.stack.pop();
         let target = self.stack.pop();
-        let result = target.subscript(index)?;
+        let result = target.index(index, self).map_err(Into::into)?;
         self.stack.push(result);
         Ok(())
     }
@@ -162,7 +161,8 @@ impl Runtime {
         let prototype = self
             .stack
             .get_from_top(arg_count)?
-            .use_as(|c: &Closure| Ok(c.prototype()))?;
+            .use_as(|c: &Closure| Ok(c.prototype()))
+            .map_err(Into::into)?;
 
         match self.get(prototype) {
             Some(p) if p.parameter_count() == arg_count => Ok(()),
@@ -223,21 +223,23 @@ impl Runtime {
     #[inline]
     fn not(&mut self) -> Result<()> {
         let value = self.stack.pop();
-        self.stack.push(value.not()?);
+        let result = value.not(self).map_err(Into::into)?;
+        self.stack.push(result);
         Ok(())
     }
 
     #[inline]
     fn neg(&mut self) -> Result<()> {
         let value = self.stack.pop();
-        self.stack.push(value.neg()?);
+        let result = value.neg(self).map_err(Into::into)?;
+        self.stack.push(result);
         Ok(())
     }
 
     #[inline]
     fn binop<F, E>(&mut self, op: F) -> Result<()>
     where
-        F: Fn(&Value, &Value) -> std::result::Result<Value, E>,
+        F: Fn(&Value, Value, &mut Runtime) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
         // TODO: We should not remove these form teh stack until after calling
@@ -245,7 +247,7 @@ impl Runtime {
         let rhs = self.stack.pop();
         let lhs = self.stack.pop();
 
-        let result = op(&lhs, &rhs).map_err(|e| e.into())?;
+        let result = op(&lhs, rhs, self).map_err(Into::into)?;
         self.stack.push(result);
         Ok(())
     }
@@ -264,14 +266,18 @@ impl Runtime {
     #[inline]
     fn cmp<F>(&mut self, op: F) -> Result<()>
     where
-        F: Fn(&Value, &Value) -> bool,
+        F: Fn(&Value, &Value) -> Option<bool>,
     {
         // TODO: We should not remove these form teh stack until after calling
         //       `op` in case it triggers garbage collection.
         let rhs = self.stack.pop();
         let lhs = self.stack.pop();
 
-        self.stack.push(Value::bool(op(&lhs, &rhs)));
+        // TODO: Things which aren't comparable return `false` when compared to
+        //       anything. Not sure this is ideal.
+        let result = op(&lhs, &rhs).unwrap_or(false);
+
+        self.stack.push(Value::bool(result));
         Ok(())
     }
 }

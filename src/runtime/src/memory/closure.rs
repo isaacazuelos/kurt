@@ -13,6 +13,7 @@ use crate::{
         InitFrom, Object,
     },
     module::Module,
+    primitives::PrimitiveOperations,
 };
 
 #[repr(C, align(8))]
@@ -64,6 +65,12 @@ impl PartialEq for Closure {
 impl Trace for Closure {
     fn enqueue_gc_references(&self, _worklist: &mut super::trace::WorkList) {
         // no gc references until we have captures.
+    }
+}
+
+impl PrimitiveOperations for Closure {
+    fn type_name(&self) -> &'static str {
+        "Closure"
     }
 }
 

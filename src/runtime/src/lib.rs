@@ -23,6 +23,8 @@ use compiler::{
 };
 use memory::closure::Closure;
 
+use crate::value::i48_type::i48;
+
 use crate::{
     memory::{keyword::Keyword, string::String, Gc},
     module::Module,
@@ -212,7 +214,8 @@ impl Runtime {
                 // TODO: this is wrong at n > i64::MAX, and inelegant.
                 //
                 // For now everything loads as an integer.
-                Value::int(*n as i64).ok_or(Error::NumberTooBig)
+                let i = i48::from_i64(*n as i64).ok_or(Error::NumberTooBig)?;
+                Ok(Value::int(i))
             }
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {

@@ -25,6 +25,17 @@ pub(crate) enum ClassId {
     String,
 }
 
+impl ClassId {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ClassId::Closure => "Closure",
+            ClassId::Keyword => "Keyword",
+            ClassId::List => "List",
+            ClassId::String => "String",
+        }
+    }
+}
+
 /// Each of our runtime types must implement this trait to allow for proper
 /// resource management by the runtime.
 ///

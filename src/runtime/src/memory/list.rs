@@ -11,8 +11,8 @@ use crate::{
         trace::{Trace, WorkList},
         Class, ClassId, InitFrom, Object,
     },
-    primitives::Error,
-    value::Value,
+    primitives::{Error, PrimitiveOperations},
+    value::{i48_type::i48, Value},
 };
 
 #[repr(C, align(8))]
@@ -28,25 +28,28 @@ impl List {
     }
 
     /// Subscript the list by a value.
-    pub fn subscript(&self, index: Value) -> Result<Value, Error> {
-        // TODO: This requires that usize is 64 bit.
+    pub fn index(&self, index: Value) -> Result<Value, Error> {
         if let Some(i) = index.as_int() {
-            if i < 0 {
+            if i < i48::ZERO {
                 // i.abs can't overflow, since i came from a Value's 48-bits.
                 // the + 1 is safe because we just tested that it's not 0.
-                self.subscript_back((i + 1).abs() as usize)
+                let i = i.as_i64();
+                self.index_back((i + 1).abs() as usize)
             } else {
-                self.subscript_front(i as usize)
+                self.index_front(i.as_i64() as usize)
             }
         } else if let Some(n) = index.as_nat() {
-            self.subscript_front(n as usize)
+            self.index_front(n.as_u64() as usize)
         } else {
-            Err(Error::OperationNotSupported)
+            Err(Error::OperationNotSupported {
+                type_name: self.type_name(),
+                op_name: "index",
+            })
         }
     }
 
     // Subscript from the back of the list, with 0 being the last element.
-    fn subscript_back(&self, n: usize) -> Result<Value, Error> {
+    fn index_back(&self, n: usize) -> Result<Value, Error> {
         if n + 1 >= self.len() {
             Err(Error::SubscriptIndexOutOfRange)
         } else {
@@ -58,7 +61,7 @@ impl List {
         }
     }
 
-    fn subscript_front(&self, n: usize) -> Result<Value, Error> {
+    fn index_front(&self, n: usize) -> Result<Value, Error> {
         self.elements
             .get(n as usize)
             .cloned()
@@ -108,5 +111,19 @@ impl InitFrom<Vec<Value>> for List {
 
     unsafe fn init(ptr: *mut Self, arg: Vec<Value>) {
         addr_of_mut!((*ptr).elements).write(arg);
+    }
+}
+
+impl PrimitiveOperations for List {
+    fn type_name(&self) -> &'static str {
+        "List"
+    }
+
+    fn index(
+        &self,
+        key: Value,
+        _: &mut crate::Runtime,
+    ) -> Result<Value, Error> {
+        self.index(key)
     }
 }
