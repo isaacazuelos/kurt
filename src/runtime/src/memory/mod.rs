@@ -100,10 +100,9 @@ impl Runtime {
         let extra = C::extra_size(&arg);
         let layout = Runtime::object_layout_with_extra::<C>(extra);
 
-        // SAFETY: We're leaking by design, for now.
-        let raw = unsafe { self.allocate(layout) };
-
         unsafe {
+            let raw = self.allocate(layout);
+
             // SAFETY: For both parts of initialization, raw is uninitialized
             //         and points to something that `layout` fits in, because
             //         `raw` came from `allocate`.
@@ -117,8 +116,11 @@ impl Runtime {
             // SAFETY: We know it's initialized because we just initialized it.
             let gc = Gc::from_non_null(ptr);
 
-            //
+            // SAFETY: We just made the GC, so we know it's not tracked.
             self.register_gc_ptr(gc);
+
+            #[cfg(feature = "gc_trace")]
+            eprintln!("initialized {:?} as {:?}", gc, gc.deref());
 
             gc
         }
@@ -150,9 +152,14 @@ impl Runtime {
     /// Otherwise it's the caller's responsibility to ensure it is freed
     /// appropriately.
     unsafe fn allocate(&mut self, layout: Layout) -> *mut Object {
-        // self.collect_garbage();
+        self.collect_garbage();
 
-        std::alloc::alloc(layout) as _
+        let ptr = std::alloc::alloc(layout) as _;
+
+        #[cfg(feature = "gc_trace")]
+        eprintln!("allocating {:?}", ptr);
+
+        ptr
     }
 
     /// Deallocate the memory used by a GC pointer.
@@ -161,6 +168,9 @@ impl Runtime {
     ///
     /// The pointer must not be reachable. Good luck!
     pub(crate) unsafe fn deallocate(&mut self, gc: Gc) {
+        #[cfg(feature = "gc_trace")]
+        eprintln!("deallocating {:?}: {:?}", gc, gc.deref());
+
         let layout =
             Layout::from_size_align_unchecked(gc.deref().size(), Object::ALIGN);
         let ptr = std::mem::transmute(gc);

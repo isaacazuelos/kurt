@@ -92,8 +92,24 @@ impl Runtime {
     }
 
     pub fn load(&mut self, object: Object) -> Result<()> {
-        let module = self.make_module(object)?;
-        self.modules.push(module);
+        // We do things is a bit of a weird order here.
+        //
+        // The module is created with it's `constants` vector initiated to all
+        // `()` so that any indexes to it are valid. We then replace these with
+        // the live values. We do this so that any GC collection that's
+        // triggered during this process will find the constants properly.
+        self.modules.push(Module {
+            constants: vec![Value::UNIT; object.constants().len()],
+            prototypes: object.prototypes().to_owned(),
+        });
+
+        let m = self.modules.len() - 1;
+
+        for (i, constant) in object.constants().iter().enumerate() {
+            let value = self.inflate(constant)?;
+            self.modules[m].constants[i] = value;
+        }
+
         Ok(())
     }
 
@@ -122,12 +138,9 @@ impl Runtime {
     }
 
     /// Reload the main module specifically.
-    pub fn reload_main(&mut self, main: Object) -> Result<()> {
-        // TODO: We should replace this with a generic `reload`.
-        // TODO: We should do some sanity checks here.
-        let new = self.make_module(main)?;
-        self.modules[0] = new;
-        Ok(())
+    pub fn reload_main(&mut self, _main: Object) -> Result<()> {
+        // maybe have a load_to_index() and have this and load() call that?
+        unimplemented!()
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
@@ -151,20 +164,6 @@ impl Runtime {
 }
 
 impl Runtime {
-    fn make_module(&mut self, object: Object) -> Result<Module> {
-        let mut constants = Vec::with_capacity(object.constants().len());
-
-        for constant in object.constants() {
-            let value = self.inflate(constant)?;
-            constants.push(value);
-        }
-
-        Ok(Module {
-            constants,
-            prototypes: object.prototypes().to_owned(),
-        })
-    }
-
     /// The base pointer, or the value which indicates where in the stack values
     /// pertaining to the currently executing closure begin.
     ///

@@ -45,7 +45,7 @@ impl Runtime {
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
                 Op::DefineLocal => self.define_local()?,
-                Op::Subscript => self.subscript()?,
+                Op::Subscript => self.binop(Value::index)?,
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.return_op()?,
@@ -53,9 +53,9 @@ impl Runtime {
                 Op::Jump(i) => self.jump(i)?,
                 Op::BranchFalse(i) => self.branch_false(i)?,
                 // logic
-                Op::Not => self.not()?,
+                Op::Not => self.unary(Value::not)?,
                 // math
-                Op::Neg => self.neg()?,
+                Op::Neg => self.unary(Value::neg)?,
                 Op::Add => self.binop(Value::add)?,
                 Op::Sub => self.binop(Value::sub)?,
                 Op::Mul => self.binop(Value::mul)?,
@@ -72,7 +72,7 @@ impl Runtime {
                 Op::Eq => self.eq()?,
                 Op::Ne => {
                     self.eq()?;
-                    self.not()?
+                    self.unary(Value::not)?
                 }
                 Op::Gt => self.cmp(<Value as PrimitiveOperations>::gt)?,
                 Op::Ge => self.cmp(<Value as PrimitiveOperations>::ge)?,
@@ -139,15 +139,6 @@ impl Runtime {
         Ok(())
     }
 
-    /// The [`Subscript`][Op::Subscript] instruction
-    fn subscript(&mut self) -> Result<()> {
-        let index = self.stack.pop();
-        let target = self.stack.pop();
-        let result = target.index(index, self).map_err(Into::into)?;
-        self.stack.push(result);
-        Ok(())
-    }
-
     /// The [`Call`][Op::Call] instruction calls a function passing the
     /// indicated number of arguments. This is done by creating and pushing a
     /// new frame on the [`CallStack`][crate::call_stack::CallStack].
@@ -182,26 +173,22 @@ impl Runtime {
     #[inline]
     fn return_op(&mut self) -> Result<()> {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
-        let result = self.stack.pop();
+        let result = self.stack.last();
         self.stack.truncate_to(frame.bp);
         self.stack.push(result);
-
         Ok(())
     }
 
     #[inline]
     fn list(&mut self, n: u32) -> Result<()> {
-        let mut vec = Vec::with_capacity(n as _);
+        let start = self.stack_frame().len() - n as usize;
 
-        for _ in 0..n {
-            vec.push(self.stack.pop())
-        }
-
-        vec.reverse();
-
+        let slice = &self.stack_frame()[start..];
+        let vec = Vec::from(slice);
         let list = self.make_from::<List, _>(vec);
 
-        self.stack.push(Value::object(list));
+        self.stack.set_from_top(n, Value::object(list))?;
+        self.stack.truncate_by(n);
         Ok(())
     }
 
@@ -213,7 +200,10 @@ impl Runtime {
 
     #[inline]
     fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
-        if self.stack.pop() == Value::FALSE {
+        let truthy = self.stack.last().is_truthy();
+        self.stack.pop();
+
+        if !truthy {
             self.jump(i)
         } else {
             Ok(())
@@ -221,19 +211,15 @@ impl Runtime {
     }
 
     #[inline]
-    fn not(&mut self) -> Result<()> {
-        let value = self.stack.pop();
-        let result = value.not(self).map_err(Into::into)?;
-        self.stack.push(result);
-        Ok(())
-    }
+    fn unary<F, E>(&mut self, op: F) -> Result<()>
+    where
+        F: Fn(&Value, &mut Runtime) -> std::result::Result<Value, E>,
+        E: Into<Error>,
+    {
+        let arg = self.stack.last();
 
-    #[inline]
-    fn neg(&mut self) -> Result<()> {
-        let value = self.stack.pop();
-        let result = value.neg(self).map_err(Into::into)?;
-        self.stack.push(result);
-        Ok(())
+        let result = op(&arg, self).map_err(Into::into)?;
+        self.stack.set_from_top(0, result)
     }
 
     #[inline]
@@ -242,13 +228,18 @@ impl Runtime {
         F: Fn(&Value, Value, &mut Runtime) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
-        // TODO: We should not remove these form teh stack until after calling
-        //       `op` in case it triggers garbage collection.
-        let rhs = self.stack.pop();
-        let lhs = self.stack.pop();
+        // The order here is tricky, we don't want to remove the operands from
+        // the stack (and the GC root set) until after we have the result of
+        // `op`.
+
+        let rhs = self.stack.get_from_top(0)?;
+        let lhs = self.stack.get_from_top(1)?;
 
         let result = op(&lhs, rhs, self).map_err(Into::into)?;
-        self.stack.push(result);
+
+        self.stack.set_from_top(1, result)?;
+        self.stack.pop();
+
         Ok(())
     }
 
@@ -270,14 +261,16 @@ impl Runtime {
     {
         // TODO: We should not remove these form teh stack until after calling
         //       `op` in case it triggers garbage collection.
-        let rhs = self.stack.pop();
-        let lhs = self.stack.pop();
+        let rhs = self.stack.get_from_top(0)?;
+        let lhs = self.stack.get_from_top(1)?;
 
         // TODO: Things which aren't comparable return `false` when compared to
         //       anything. Not sure this is ideal.
         let result = op(&lhs, &rhs).unwrap_or(false);
 
-        self.stack.push(Value::bool(result));
+        self.stack.set_from_top(1, Value::bool(result))?;
+        self.stack.pop();
+
         Ok(())
     }
 }

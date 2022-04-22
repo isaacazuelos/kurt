@@ -10,6 +10,7 @@ path = "bin/main.rs"
 [workspace]
 
 [features]
+gc_trace = ["runtime/gc_trace"]
 
 [dependencies]
 compiler = { path = "src/compiler" }

@@ -1,13 +1,13 @@
 //! A simple garbage collector.
 //!
 //! The basic design is the same as the garbage collector in [Crafting
-//! Interpreters][cigc]. It's a super simple mark-sweep collector that keeps all
-//! objects in a big linked list.
+//! Interpreters][ci]. It's a super simple mark-sweep collector that keeps all
+//! objects in a big linked list. This is basically what Lua does too.
 //!
 //! The runtime includes reference to the head of a linked list of all allocated
 //! objects that's maintained.
 //!
-//! [cigc]: http://craftinginterpreters.com/garbage-collection.html
+//! [ci]: http://craftinginterpreters.com/garbage-collection.html
 
 // TODO: We could be clever and allocate the worklist upfront when we increase
 //       the max heap size.
@@ -55,6 +55,9 @@ impl Runtime {
     #[inline(always)] // inline the fast check, not slow collection.
     pub fn collect_garbage(&mut self) {
         if self.garbage_collection_is_needed() {
+            #[cfg(feature = "gc_trace")]
+            eprintln!("starting garbage collection");
+
             self.force_collect_garbage();
         }
     }
@@ -95,6 +98,9 @@ impl Runtime {
     /// reachable object and mark it so we can identify the unreachable objects
     /// which must be garbage.
     fn mark(&mut self) {
+        #[cfg(feature = "gc_trace")]
+        eprintln!("starting mark phase");
+
         let mut worklist = WorkList::default();
 
         // This adds the root set.
@@ -110,6 +116,9 @@ impl Runtime {
     /// Deallocate any objects managed by this runtime which are currently
     /// not marked. All objects which remain alive also have their mark cleared.
     fn sweep(&mut self) {
+        #[cfg(feature = "gc_trace")]
+        eprintln!("starting sweep phase");
+
         let mut list = self.heap_head.take();
 
         while let Some(ptr) = list {
