@@ -45,6 +45,10 @@ impl Get<Constant> for Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for (i, c) in self.constants().iter().enumerate() {
+            writeln!(f, "constant {:03} = {}", i, c)?;
+        }
+
         for prototype in self.prototypes() {
             self.display_prototype(prototype, f)?;
         }
@@ -59,16 +63,8 @@ impl Object {
         prototype: &Prototype,
         f: &mut Formatter,
     ) -> fmt::Result {
-        if let Some(name) = prototype.name() {
-            writeln!(f, "{}:", name)?;
-        } else {
-            writeln!(
-                f,
-                "<anonymous function, parameter_count: {}>:",
-                prototype.parameter_count()
-            )?;
-        }
-
+        let name = prototype.name().unwrap_or("anonymous");
+        writeln!(f, "{} ({}): ", name, prototype.parameter_count())?;
         for (i, (op, span)) in prototype.code().iter().enumerate() {
             write!(
                 f,
