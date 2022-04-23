@@ -1,4 +1,4 @@
-//! The instructions our VM will use.
+//! A listing of opcodes.
 
 use std::fmt::{Display, Formatter, Result};
 
@@ -37,8 +37,9 @@ pub enum Op {
     /// Push a `()` to the top of the stack.
     Unit,
 
-    /// Load the constant at the specified constant index to the top of the
-    /// stack. The currently executing module's constant pool is used.
+    /// Load the constant at the specified index to the top of the stack. 
+    /// 
+    /// The currently executing module's constant pool is used.
     LoadConstant(Index<Constant>),
 
     // ## Loading other kinds of values
@@ -46,7 +47,7 @@ pub enum Op {
     /// Load a local binding.
     LoadLocal(Index<Local>),
 
-    /// Define the top of the stack as a local.
+    /// Keep the top of the stack as a local.
     DefineLocal,
 
     /// Load a prototype and make a closure from it, placing it on the stack.
@@ -56,7 +57,7 @@ pub enum Op {
 
     /// Index the item just below the top of the stack by the value on the top
     /// of the stack. Used for `a[b]` style indexing.
-    Subscript,
+    Index,
 
     // ## Function Calls
 
@@ -159,53 +160,17 @@ pub enum Op {
 impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            // control
-            Op::Halt => write!(f, "Halt"),
-            Op::Yield => write!(f, "Yield"),
-            Op::Nop => write!(f, "Nop"),
-            // stack
-            Op::Pop => write!(f, "Pop"),
-            // values
-            Op::True => write!(f, "True"),
-            Op::False => write!(f, "False"),
-            Op::Unit => write!(f, "Unit"),
+            // We only need to match the ones with embedded arguments
             Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_u32()),
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
-            Op::DefineLocal => write!(f, "DefineLocal"),
             Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
-            // accessing
-            Op::Subscript => write!(f, "Subscript"),
-            // functions
             Op::Call(i) => write!(f, "Call {}", i),
-            Op::Return => write!(f, "Return"),
             Op::Jump(i) => write!(f, "Jump {}", i.as_u32()),
             Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_u32()),
-            // logic
-            Op::Not => write!(f, "Not"),
-            // math
-            Op::Neg => write!(f, "Neg"),
-            Op::Add => write!(f, "Add"),
-            Op::Sub => write!(f, "Sub"),
-            Op::Mul => write!(f, "Mul"),
-            Op::Div => write!(f, "Div"),
-            Op::Pow => write!(f, "Pow"),
-            Op::Rem => write!(f, "Rem"),
-            // bitwise
-            Op::BitAnd => write!(f, "BitAnd"),
-            Op::BitOr => write!(f, "BitOr"),
-
-            Op::BitXOR => write!(f, "BitXOR"),
-            Op::SHL => write!(f, "SHL"),
-            Op::SHR => write!(f, "SHR"),
-            // comparison
-            Op::Eq => write!(f, "Eq"),
-            Op::Ne => write!(f, "Ne"),
-            Op::Gt => write!(f, "Gt"),
-            Op::Ge => write!(f, "Ge"),
-            Op::Lt => write!(f, "Lt"),
-            Op::Le => write!(f, "Le"),
-            // temporary
             Op::List(n) => write!(f, "List {n}"),
+
+            // Everything else is the same as what is derived for Debug.
+            op => write!(f, "{:?}", op),
         }
     }
 }

@@ -1,4 +1,4 @@
-//! The virtual machine methods for our runtime.
+//! The virtual machine's big dispatch loop
 
 use compiler::{
     constant::Constant,
@@ -30,10 +30,10 @@ impl Runtime {
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Yield => return Ok(Exit::Yield),
                 Op::Nop => continue,
+
                 // stack
-                Op::Pop => {
-                    self.stack.pop();
-                }
+                Op::Pop => self.stack.pop(),
+
                 // values
                 Op::True => self.stack.push(Value::TRUE),
                 Op::False => self.stack.push(Value::FALSE),
@@ -42,15 +42,19 @@ impl Runtime {
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
                 Op::DefineLocal => self.define_local()?,
-                Op::Subscript => self.binop(Value::index)?,
+                Op::Index => self.binop(Value::index)?,
+
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.r#return()?,
+
                 // branching
                 Op::Jump(i) => self.jump(i)?,
                 Op::BranchFalse(i) => self.branch_false(i)?,
+
                 // logic
                 Op::Not => self.unary(Value::not)?,
+
                 // math
                 Op::Neg => self.unary(Value::neg)?,
                 Op::Add => self.binop(Value::add)?,
@@ -59,22 +63,22 @@ impl Runtime {
                 Op::Div => self.binop(Value::div)?,
                 Op::Pow => self.binop(Value::pow)?,
                 Op::Rem => self.binop(Value::rem)?,
-                // // bitwise
+
+                // bitwise
                 Op::BitAnd => self.binop(Value::bitand)?,
                 Op::BitOr => self.binop(Value::bitor)?,
                 Op::BitXOR => self.binop(Value::bitxor)?,
                 Op::SHL => self.binop(Value::shl)?,
                 Op::SHR => self.binop(Value::shr)?,
+
                 // comparison
                 Op::Eq => self.binop(cmp(PrimitiveOperations::eq))?,
-                Op::Ne => {
-                    self.binop(cmp(PrimitiveOperations::eq))?;
-                    self.unary(Value::not)?
-                }
+                Op::Ne => self.binop(cmp(PrimitiveOperations::ne))?,
                 Op::Gt => self.binop(cmp(PrimitiveOperations::gt))?,
                 Op::Ge => self.binop(cmp(PrimitiveOperations::ge))?,
                 Op::Lt => self.binop(cmp(PrimitiveOperations::lt))?,
                 Op::Le => self.binop(cmp(PrimitiveOperations::le))?,
+
                 // temporary
                 Op::List(n) => self.list(n)?,
             }

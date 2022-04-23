@@ -301,11 +301,12 @@ impl Compiler {
         self.emit(Op::List(syntax.elements().len() as u32), syntax.span())
     }
 
+    /// Compile a subscript postfix
     fn subscript(&mut self, syntax: &syntax::Subscript) -> Result<()> {
         self.expression(syntax.target())?;
         self.expression(syntax.index())?;
         let span = syntax.open() + syntax.close();
-        self.emit(Op::Subscript, span)
+        self.emit(Op::Index, span)
     }
 
     /// Compile a literal
