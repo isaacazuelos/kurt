@@ -65,8 +65,8 @@ impl fmt::Display for Error {
         }
     }
 }
-impl Into<Error> for PrimitiveError {
-    fn into(self) -> Error {
-        Error::Primitive(self)
+impl From<PrimitiveError> for Error {
+    fn from(e: PrimitiveError) -> Error {
+        Error::Primitive(e)
     }
 }

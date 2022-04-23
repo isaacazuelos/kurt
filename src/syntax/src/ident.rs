@@ -51,7 +51,7 @@ impl<'a> Parse<'a> for Identifier {
     fn parse_with(parser: &mut Parser<'a>) -> Result<Identifier, Error> {
         parser
             .consume(TokenKind::Identifier, Self::NAME)
-            .map(|token| Identifier::new(token))
+            .map(Identifier::new)
     }
 }
 

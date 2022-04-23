@@ -85,9 +85,9 @@ pub enum TryFromIntError {
     PosOverflow,
 }
 
-impl Into<u64> for u48 {
-    fn into(self) -> u64 {
-        self.as_u64()
+impl From<u48> for u64 {
+    fn from(n: u48) -> u64 {
+        n.as_u64()
     }
 }
 

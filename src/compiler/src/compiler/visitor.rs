@@ -204,10 +204,8 @@ impl Compiler {
                 _ => Err(Error::UndefinedPostfix),
             }
         } else {
-            match syntax.operator() {
-                // None defined, yet.
-                _ => Err(Error::UndefinedPostfix),
-            }
+            // None defined, yet.
+            Err(Error::UndefinedPostfix)
         }
     }
 

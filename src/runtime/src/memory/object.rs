@@ -130,7 +130,7 @@ impl Value {
             }
         }
 
-        Err(Error::CastError {
+        Err(Error::Cast {
             from: self.type_name(),
             to: C::ID.name(),
         })

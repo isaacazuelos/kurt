@@ -436,7 +436,7 @@ impl TryInto<()> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<(), Self::Error> {
-        self.as_unit().ok_or_else(|| Error::CastError {
+        self.as_unit().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: true.type_name(),
         })
@@ -447,7 +447,7 @@ impl TryInto<bool> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<bool, Self::Error> {
-        self.as_bool().ok_or_else(|| Error::CastError {
+        self.as_bool().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: true.type_name(),
         })
@@ -458,7 +458,7 @@ impl TryInto<char> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<char, Self::Error> {
-        self.as_char().ok_or_else(|| Error::CastError {
+        self.as_char().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: 'a'.type_name(),
         })
@@ -469,7 +469,7 @@ impl TryInto<i48> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<i48, Self::Error> {
-        self.as_int().ok_or_else(|| Error::CastError {
+        self.as_int().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: i48::ZERO.type_name(),
         })
@@ -480,7 +480,7 @@ impl TryInto<u48> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<u48, Self::Error> {
-        self.as_nat().ok_or_else(|| Error::CastError {
+        self.as_nat().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: u48::MAX.type_name(),
         })
@@ -491,7 +491,7 @@ impl TryInto<f64> for Value {
     type Error = Error;
 
     fn try_into(self) -> Result<f64, Self::Error> {
-        self.as_float().ok_or_else(|| Error::CastError {
+        self.as_float().ok_or_else(|| Error::Cast {
             from: self.type_name(),
             to: 0f64.type_name(),
         })

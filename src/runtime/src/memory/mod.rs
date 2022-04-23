@@ -154,6 +154,7 @@ impl Runtime {
     unsafe fn allocate(&mut self, layout: Layout) -> *mut Object {
         self.collect_garbage();
 
+        #[allow(clippy::let_and_return)]
         let ptr = std::alloc::alloc(layout) as _;
 
         #[cfg(feature = "gc_trace")]

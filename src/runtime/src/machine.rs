@@ -149,8 +149,7 @@ impl Runtime {
         let prototype = self
             .stack
             .get_from_top(arg_count)?
-            .use_as(|c: &Closure| Ok(c.prototype()))
-            .map_err(Into::into)?;
+            .use_as(|c: &Closure| Ok(c.prototype()))?;
 
         match self.get(prototype) {
             Some(p) if p.parameter_count() == arg_count => Ok(()),

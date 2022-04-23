@@ -24,7 +24,7 @@ pub enum Error {
 
     SubscriptIndexOutOfRange,
 
-    CastError {
+    Cast {
         from: &'static str,
         to: &'static str,
     },
