@@ -202,6 +202,10 @@ impl PrimitiveOperations for i48 {
     fn shr(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
         basic_impl!(std::ops::Shr::shr, i48, self, other)
     }
+
+    fn cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.as_i64().partial_cmp(&other.as_i64())
+    }
 }
 
 impl PrimitiveOperations for Value {

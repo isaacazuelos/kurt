@@ -13,7 +13,7 @@ use crate::{
     call_stack::CallFrame,
     error::Result,
     memory::{closure::Closure, list::List},
-    primitives::PrimitiveOperations,
+    primitives::{Error as PrimitiveError, PrimitiveOperations},
     value::Value,
     Error, Exit, Runtime,
 };
@@ -22,13 +22,10 @@ impl Runtime {
     /// Start the VM up again.
     pub(crate) fn run(&mut self) -> Result<Exit> {
         loop {
-            if self.tracing {
-                self.trace();
-            }
+            #[cfg(feature = "trace")]
+            self.trace();
 
-            let op = self.fetch()?;
-
-            match op {
+            match self.fetch()? {
                 // control
                 Op::Halt => return Ok(Exit::Halt),
                 Op::Yield => return Ok(Exit::Yield),
@@ -48,7 +45,7 @@ impl Runtime {
                 Op::Subscript => self.binop(Value::index)?,
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
-                Op::Return => self.return_op()?,
+                Op::Return => self.r#return()?,
                 // branching
                 Op::Jump(i) => self.jump(i)?,
                 Op::BranchFalse(i) => self.branch_false(i)?,
@@ -69,15 +66,15 @@ impl Runtime {
                 Op::SHL => self.binop(Value::shl)?,
                 Op::SHR => self.binop(Value::shr)?,
                 // comparison
-                Op::Eq => self.eq()?,
+                Op::Eq => self.binop(cmp(PrimitiveOperations::eq))?,
                 Op::Ne => {
-                    self.eq()?;
+                    self.binop(cmp(PrimitiveOperations::eq))?;
                     self.unary(Value::not)?
                 }
-                Op::Gt => self.cmp(<Value as PrimitiveOperations>::gt)?,
-                Op::Ge => self.cmp(<Value as PrimitiveOperations>::ge)?,
-                Op::Lt => self.cmp(<Value as PrimitiveOperations>::lt)?,
-                Op::Le => self.cmp(<Value as PrimitiveOperations>::le)?,
+                Op::Gt => self.binop(cmp(PrimitiveOperations::gt))?,
+                Op::Ge => self.binop(cmp(PrimitiveOperations::ge))?,
+                Op::Lt => self.binop(cmp(PrimitiveOperations::lt))?,
+                Op::Le => self.binop(cmp(PrimitiveOperations::le))?,
                 // temporary
                 Op::List(n) => self.list(n)?,
             }
@@ -170,15 +167,23 @@ impl Runtime {
         Ok(())
     }
 
+    /// The [`Return`][Op::Return] instruction returns from a function call,
+    /// which means it saves the top of the stack, pops the frame, drops the
+    /// values up to the old base pointer, and then puts the result back on the
+    /// stack.
     #[inline]
-    fn return_op(&mut self) -> Result<()> {
+    fn r#return(&mut self) -> Result<()> {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
         let result = self.stack.last();
         self.stack.truncate_to(frame.bp);
+        // TODO: are we worried about it collecting result before this?
         self.stack.push(result);
         Ok(())
     }
 
+    /// The [`List(n)`][Op::List] instruction takes the top `n` values on the
+    /// stack and makes them the elements of a new list which is let on the top
+    /// of the stack.
     #[inline]
     fn list(&mut self, n: u32) -> Result<()> {
         let start = self.stack_frame().len() - n as usize;
@@ -192,12 +197,17 @@ impl Runtime {
         Ok(())
     }
 
+    /// The [`Jump(i)`][Op::Jump] instruction jumps to `i` in the current
+    /// prototype. We don't have inter-function or inter-module jumps.
     #[inline]
     fn jump(&mut self, i: Index<Op>) -> Result<()> {
         self.pc_mut().instruction = i;
         Ok(())
     }
 
+    /// The [`BranchFalse(i)`][Op::BranchFalse] instruction consumes teh top of
+    /// the stack, and if it [`is_truthy`][PrimitiveOperations::is_truthy] then
+    /// continues on. If it's not, then it jumps to `i`.
     #[inline]
     fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
         let truthy = self.stack.last().is_truthy();
@@ -210,6 +220,8 @@ impl Runtime {
         }
     }
 
+    /// Performs a unary operation `op` which applies some function to the value
+    /// on the top of the stack, replacing it.
     #[inline]
     fn unary<F, E>(&mut self, op: F) -> Result<()>
     where
@@ -222,6 +234,8 @@ impl Runtime {
         self.stack.set_from_top(0, result)
     }
 
+    /// Performs a binary operation `op` which applies some function to the two
+    /// values on the top of the stack, replacing them.
     #[inline]
     fn binop<F, E>(&mut self, op: F) -> Result<()>
     where
@@ -242,35 +256,22 @@ impl Runtime {
 
         Ok(())
     }
+}
 
-    #[inline]
-    fn eq(&mut self) -> Result<()> where {
-        // TODO: We should not remove these form teh stack until after calling
-        //       `op` in case it triggers garbage collection.
-        let rhs = self.stack.pop();
-        let lhs = self.stack.pop();
-
-        self.stack.push(Value::bool(lhs == rhs));
-        Ok(())
-    }
-
-    #[inline]
-    fn cmp<F>(&mut self, op: F) -> Result<()>
-    where
-        F: Fn(&Value, &Value) -> Option<bool>,
-    {
-        // TODO: We should not remove these form teh stack until after calling
-        //       `op` in case it triggers garbage collection.
-        let rhs = self.stack.get_from_top(0)?;
-        let lhs = self.stack.get_from_top(1)?;
-
-        // TODO: Things which aren't comparable return `false` when compared to
-        //       anything. Not sure this is ideal.
-        let result = op(&lhs, &rhs).unwrap_or(false);
-
-        self.stack.set_from_top(1, Value::bool(result))?;
-        self.stack.pop();
-
-        Ok(())
+/// An adapter that makes our comparator operations work more like other binary
+/// operators. Just a helper.
+#[inline(always)]
+fn cmp(
+    op: fn(&Value, &Value) -> Option<bool>,
+) -> impl Fn(&Value, Value, &mut Runtime) -> std::result::Result<Value, PrimitiveError>
+{
+    #[inline(always)]
+    move |lhs, rhs, _| {
+        op(lhs, &rhs).map(Value::bool).ok_or_else(|| {
+            PrimitiveError::OperationNotSupported {
+                type_name: lhs.type_name(),
+                op_name: "cmp",
+            }
+        })
     }
 }

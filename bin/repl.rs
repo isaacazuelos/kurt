@@ -50,8 +50,7 @@ impl ReplState {
 
         // TODO: Read history here.
 
-        let mut runtime = Runtime::default();
-        runtime.set_tracing(args.trace);
+        let runtime = Runtime::default();
 
         let compiler = Compiler::default();
 

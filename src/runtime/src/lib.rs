@@ -8,8 +8,10 @@ mod memory;
 mod module;
 mod primitives;
 mod stack;
-mod tracing;
 mod value;
+
+#[cfg(feature = "trace")]
+mod tracing;
 
 use address::Address;
 use call_stack::{CallFrame, CallStack};
@@ -48,8 +50,6 @@ pub enum Exit {
 /// A struct that manages an instance of the language runtime.
 #[derive(Default, Debug)]
 pub struct Runtime {
-    tracing: bool,
-
     // Loaded code
     modules: Vec<Module>,
 
@@ -62,26 +62,9 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    /// Set the Runtime's tracing mode.
-    ///
-    /// When tracing is on (`true`) the runtime will print some extra
-    /// information.
-    pub fn set_tracing(&mut self, tracing: bool) {
-        self.tracing = tracing;
-    }
-
-    /// Is the runtime's tracing mode on?
-    pub fn tracing(&self) -> bool {
-        self.tracing
-    }
-}
-
-impl Runtime {
     /// Create a new runtime with `object` as it's main module.
     pub fn new() -> Runtime {
         Runtime {
-            tracing: false,
-
             modules: Vec::new(),
 
             stack: Stack::default(),

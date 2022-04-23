@@ -17,10 +17,6 @@ struct Args {
     #[clap(subcommand)]
     command: Option<Command>,
 
-    /// Enable tracing of the VM
-    #[clap(short, long)]
-    trace: bool,
-
     /// Display the compiled code instead of running it
     #[clap(short, long)]
     dump: bool,

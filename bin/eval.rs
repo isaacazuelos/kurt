@@ -25,7 +25,6 @@ impl Evaluate {
         }
 
         let mut runtime = Runtime::new();
-        runtime.set_tracing(args.trace);
 
         match runtime.load(main) {
             Ok(rt) => rt,
