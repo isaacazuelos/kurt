@@ -18,7 +18,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{constant::Constant, opcode::Op, prototype::Prototype};
+use crate::{constant::Constant, opcode::Op};
 
 /// An index which refers to a specific opcode.
 ///
@@ -56,11 +56,6 @@ impl Index<Op> {
 impl Index<Constant> {
     /// The largest constant index.
     pub const MAX: usize = u32::MAX as usize;
-}
-
-impl Index<Prototype> {
-    /// The [`Index`] used to refer to the top level or main code.
-    pub const MAIN: Self = Index(0, PhantomData);
 }
 
 pub trait Get<In, Out = In> {
@@ -104,7 +99,7 @@ impl<T> Index<T> {
     /// hatch is useful. It's not `unsafe` since that feels a little too big a
     /// red flag for using this, but be careful!
     #[inline(always)]
-    pub fn new(n: u32) -> Index<T> {
+    pub const fn new(n: u32) -> Index<T> {
         Index(n as u32, PhantomData)
     }
 

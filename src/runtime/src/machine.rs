@@ -28,7 +28,6 @@ impl Runtime {
             match self.fetch()? {
                 // control
                 Op::Halt => return Ok(Exit::Halt),
-                Op::Yield => return Ok(Exit::Yield),
                 Op::Nop => continue,
 
                 // stack

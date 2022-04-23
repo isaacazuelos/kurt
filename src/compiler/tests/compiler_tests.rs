@@ -1,4 +1,7 @@
-//! Test evaluation of pieces of code to make sure things work as expected.
+//! Test the compilation pieces of code to make sure they compile.
+//!
+//! They're not executed, and the results of compilation aren't verified. These
+//! are more just sanity tests.
 
 macro_rules! test_compile {
     ($name: ident, $input: expr) => {

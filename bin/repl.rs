@@ -5,7 +5,7 @@ use std::io::Write;
 use compiler::Compiler;
 use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
-use syntax::{Parse, TopLevel};
+use syntax::{Module, Parse};
 
 use crate::Args;
 /// Start an interactive session
@@ -15,17 +15,6 @@ pub struct Repl; // For now there are no repl settings.
 impl Repl {
     /// Run a repl with the given settings.
     pub(crate) fn run(&self, args: &Args) {
-        eprintln!(
-            r"|----------------------|
-|      REPL BROKEN     |
-| UNTIL FURTHER NOTICE |
-|      HAPPY EASTER    |
-|______________________| 
-(\__/) || 
-(•ㅅ•) || 
-/    づ
-"
-        );
         let repl = ReplState::new(args);
         repl.start()
     }
@@ -51,7 +40,6 @@ impl ReplState {
         // TODO: Read history here.
 
         let runtime = Runtime::default();
-
         let compiler = Compiler::default();
 
         ReplState {
@@ -82,31 +70,25 @@ impl ReplState {
     fn step(&mut self) -> Result<(), ReplError> {
         let input = self.read()?;
 
-        let syntax = TopLevel::parse(&input)?;
+        let syntax = Module::parse(&input)?;
 
-        // Compiling bad code messes up the compiler state.
-        //
-        // To get around this, we clone a known-good state, compile the new code
-        // and rebuild the object, and if all that's successful update our
-        // known-good state.
+        self.compiler.push(&syntax)?;
 
-        let mut new_compiler_state = self.compiler.clone();
-        new_compiler_state.top_level(&syntax)?;
-        let updated_main = new_compiler_state.build()?;
-        self.compiler = new_compiler_state;
+        let new_main = self.compiler.build()?;
 
         if self.dump {
-            println!("{updated_main}");
-            return Ok(());
+            println!("{new_main}");
         }
 
-        self.runtime.reload_main(updated_main)?;
+        self.runtime.reload_main(new_main)?;
+
         self.runtime.resume()?;
         println!(
-            "{}{:?}",
+            "{} {}",
             ReplState::RESULT_PROMPT,
             self.runtime.last_result()
         );
+
         self.flush();
 
         Ok(())

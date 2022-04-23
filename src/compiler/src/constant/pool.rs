@@ -49,6 +49,17 @@ impl Pool {
 
         vec
     }
+
+    /// The number of constants in this pool.
+    pub(crate) fn len(&self) -> usize {
+        self.constants.len()
+    }
+
+    /// Keep the constants with an index less than `len`, which mean keeping the
+    /// constants until [`Pool::len`] is `len`.
+    pub(crate) fn truncate(&mut self, len: usize) {
+        self.constants.retain(|_, i| i.as_usize() < len)
+    }
 }
 
 #[cfg(test)]

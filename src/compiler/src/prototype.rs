@@ -4,13 +4,13 @@ use diagnostic::Span;
 
 use crate::{
     code::Code,
-    error::Result,
+    error::{Error, Result},
     index::{Get, Index},
     local::Local,
     opcode::Op,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Prototype {
     name: Option<String>,
     parameter_count: u32,
@@ -114,6 +114,8 @@ impl Prototype {
         self.bindings.push(local);
     }
 
+    /// Return the [`Index<Local>`] for a local variable with the given name, if
+    /// one is in scope.
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         // the rev is so we find more recently bound locals faster than less
         // recently bound ones, and ensures that shadowing works by finding the
@@ -125,6 +127,24 @@ impl Prototype {
         }
 
         None
+    }
+
+    /// Reopen the prototype.
+    ///
+    /// This is done to allow the compiler to push more code through. This can
+    /// only be done if the prototype ends in `Halt`.
+    pub(crate) fn reopen(&mut self) -> Result<()> {
+        match self.code().last() {
+            Some(Op::Halt) => {
+                let index = self.code().next_index().pred_saturating();
+                self.code_mut()
+                    .patch(index, Op::Nop)
+                    .ok_or(Error::CannotReopen)
+                    .map(|_| ())
+            }
+            None => Ok(()),
+            Some(_) => Err(Error::CannotReopen),
+        }
     }
 }
 

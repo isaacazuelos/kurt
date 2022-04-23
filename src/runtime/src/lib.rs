@@ -62,6 +62,8 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    const MAIN_INDEX: Index<Module> = Index::new(0);
+
     /// Create a new runtime with `object` as it's main module.
     pub fn new() -> Runtime {
         Runtime {
@@ -75,55 +77,37 @@ impl Runtime {
     }
 
     pub fn load(&mut self, object: Object) -> Result<()> {
-        // We do things is a bit of a weird order here.
-        //
-        // The module is created with it's `constants` vector initiated to all
-        // `()` so that any indexes to it are valid. We then replace these with
-        // the live values. We do this so that any GC collection that's
-        // triggered during this process will find the constants properly.
-        self.modules.push(Module {
-            constants: vec![Value::UNIT; object.constants().len()],
-            prototypes: object.prototypes().to_owned(),
-        });
-
-        let m = self.modules.len() - 1;
-
-        for (i, constant) in object.constants().iter().enumerate() {
-            let value = self.inflate(constant)?;
-            self.modules[m].constants[i] = value;
-        }
-
-        Ok(())
+        let new_index = Index::new(self.modules.len() as u32);
+        self.modules.push(Module::default());
+        self.load_at(object, new_index)
     }
 
     /// Begin running 'Main.main'
     pub fn start(&mut self) -> Result<Exit> {
-        // TODO: lots of clean up needed.
+        if self.modules.is_empty() {
+            return Err(Error::NoMainModule);
+        }
 
-        // We only have one module support right now.
-        let main_module_index = Index::new(0);
-        let main_module = self.modules.first().ok_or(Error::NoMainModule)?;
-        let main_prototype_index =
-            Index::new((main_module.prototypes.len() - 1) as u32);
-
-        let indexes = (main_module_index, main_prototype_index);
+        let indexes = (Self::MAIN_INDEX, Module::MAIN_INDEX);
         let main_closure = self.make_from::<Closure, _>(indexes);
 
         self.stack.push(Value::object(main_closure));
 
         self.call_stack.push(CallFrame::new(
-            Address::new(main_module_index, main_prototype_index, Index::START),
+            Address::new(Self::MAIN_INDEX, Module::MAIN_INDEX, Index::START),
             self.stack.index_from_top(0),
         ));
 
-        // TODO: checks.
         self.run()
     }
 
     /// Reload the main module specifically.
-    pub fn reload_main(&mut self, _main: Object) -> Result<()> {
-        // maybe have a load_to_index() and have this and load() call that?
-        unimplemented!()
+    pub fn reload_main(&mut self, main: Object) -> Result<()> {
+        if self.modules.is_empty() {
+            self.modules.push(Module::default());
+        }
+
+        self.load_at(main, Runtime::MAIN_INDEX)
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
@@ -188,6 +172,32 @@ impl Runtime {
 }
 
 impl Runtime {
+    fn load_at(&mut self, object: Object, index: Index<Module>) -> Result<()> {
+        if self.get(index).is_none() {
+            return Err(Error::ModuleIndexOutOfRange);
+        }
+
+        // We do things is a bit of a weird order here.
+        //
+        // The module is created with it's `constants` vector initiated to all
+        // `()` so that any indexes to it are valid. We then replace these with
+        // the live values. We do this so that any GC collection that's
+        // triggered during this process will find the constants properly.
+        let m = index.as_usize();
+
+        self.modules[m] = Module {
+            constants: vec![Value::UNIT; object.constants().len()],
+            prototypes: object.prototypes().to_owned(),
+        };
+
+        for (i, constant) in object.constants().iter().enumerate() {
+            let value = self.inflate(constant)?;
+            self.modules[m].constants[i] = value;
+        }
+
+        Ok(())
+    }
+
     /// Inflate a [`Constant`] into a full-fledged runtime value.
     fn inflate(&mut self, constant: &Constant) -> Result<Value> {
         match constant {

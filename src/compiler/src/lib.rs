@@ -31,6 +31,6 @@ use syntax::{Module, Parse};
 pub fn compile(input: &str) -> error::Result<Object> {
     let syntax = Module::parse(input)?;
     let mut compiler = Compiler::default();
-    compiler.module(&syntax)?;
+    compiler.push(&syntax)?;
     compiler.build()
 }

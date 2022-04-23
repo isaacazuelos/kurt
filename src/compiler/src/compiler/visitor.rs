@@ -7,57 +7,15 @@ use crate::{
     constant::Constant,
     error::{Error, Result},
     opcode::Op,
-    prototype::Prototype,
     Compiler,
 };
 
 impl Compiler {
-    /// Compile a [`Module`][syntax::Module].
-    ///
-    /// Note that this emits a 'Halt', so you can't really compile more code
-    /// meaningfully after this.
-    pub fn module(&mut self, syntax: &syntax::Module) -> Result<()> {
-        let mut main = Prototype::new();
-        main.set_name(Prototype::MAIN_NAME);
-        self.compiling.push(main);
-
-        self.statement_sequence(syntax)?;
-
-        self.emit(Op::Halt, syntax.span())
-    }
-
-    /// Compile a [`TopLevel`][syntax::TopLevel].
-    ///
-    /// The code is added to main, and finished with a [`Op::Yield`] so the
-    /// program can be restarted if more code is added later.
-    pub fn top_level(&mut self, syntax: &syntax::TopLevel) -> Result<()> {
-        let mut main = Prototype::new();
-        main.set_name(Prototype::MAIN_NAME);
-        self.compiling.push(main);
-
-        self.statement_sequence(syntax)?;
-
-        self.emit(Op::Yield, syntax.span())
-    }
-
-    /// Compile a statement.
-    ///
-    /// Each statement should leave it's resulting value as a new value on the
-    /// top of the stack, without consuming anything.
-    fn statement(&mut self, syntax: &syntax::Statement) -> Result<()> {
-        match syntax {
-            syntax::Statement::Binding(b) => self.binding(b),
-            syntax::Statement::Empty(span) => self.empty_statement(*span),
-            syntax::Statement::Expression(e) => self.expression(e),
-            syntax::Statement::If(i) => self.if_only(i),
-        }
-    }
-
     /// Compile a sequence of statements.
     ///
     /// If it's empty or if it has a trailing semicolon, a `()` is left on the
     /// stack, otherwise only the last result is.
-    fn statement_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
+    pub(crate) fn statement_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
     where
         S: Sequence<Element = Statement<'a>>,
     {
@@ -74,6 +32,19 @@ impl Compiler {
             // There might be a statement without a semicolon, in which case we
             // compile it and leave it on the stack.
             self.statement(syntax.elements().last().unwrap())
+        }
+    }
+
+    /// Compile a statement.
+    ///
+    /// Each statement should leave it's resulting value as a new value on the
+    /// top of the stack, without consuming anything.
+    fn statement(&mut self, syntax: &syntax::Statement) -> Result<()> {
+        match syntax {
+            syntax::Statement::Binding(b) => self.binding(b),
+            syntax::Statement::Empty(span) => self.empty_statement(*span),
+            syntax::Statement::Expression(e) => self.expression(e),
+            syntax::Statement::If(i) => self.if_only(i),
         }
     }
 

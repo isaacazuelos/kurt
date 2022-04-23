@@ -17,6 +17,10 @@ pub enum Error {
     UndefinedInfix,
     UndefinedPostfix,
 
+    CannotBuildWhileCompiling,
+    CanOnlyReopenMain,
+    CannotReopen,
+
     TooManyArguments,
     TooManyConstants,
     TooManyOps,

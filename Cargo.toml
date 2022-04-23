@@ -11,6 +11,7 @@ path = "bin/main.rs"
 
 [features]
 gc_trace = ["runtime/gc_trace"]
+trace = ["runtime/trace"]
 
 [dependencies]
 compiler = { path = "src/compiler" }

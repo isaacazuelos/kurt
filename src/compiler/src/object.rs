@@ -11,7 +11,7 @@ use crate::{
     prototype::Prototype,
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Object {
     pub(crate) constants: Vec<Constant>,
     pub(crate) prototypes: Vec<Prototype>,

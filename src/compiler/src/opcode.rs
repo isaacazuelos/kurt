@@ -15,9 +15,6 @@ pub enum Op {
     /// Stop the program.
     Halt,
 
-    /// Stop the program, but in a way that signals an intent to restart it.
-    Yield,
-
     /// Does nothing.
     Nop,
 

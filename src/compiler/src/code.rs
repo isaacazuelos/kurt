@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// A listing of opcodes for our VM in order.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Code {
     opcodes: Vec<Op>,
     spans: Vec<Span>,
@@ -23,10 +23,10 @@ impl Code {
 
     /// Push an [`Op`] to the of the code segment.
     pub fn emit(&mut self, op: Op, span: Span) -> Result<()> {
-        self.opcodes.push(op);
         if self.opcodes.len() == Self::MAX_OPS {
             Err(Error::TooManyOps)
         } else {
+            self.opcodes.push(op);
             self.spans.push(span);
             Ok(())
         }
@@ -48,6 +48,10 @@ impl Code {
 
     pub(crate) fn next_index(&self) -> Index<Op> {
         Index::new(self.opcodes.len() as u32)
+    }
+
+    pub(crate) fn last(&self) -> Option<Op> {
+        self.opcodes.last().cloned()
     }
 
     /// Patch an existing instruction with another given instruction, at a

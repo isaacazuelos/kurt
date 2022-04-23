@@ -1,7 +1,7 @@
 use diagnostic::Span;
 use syntax::{Identifier, Syntax};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Local {
     name: String,
     span: Span,

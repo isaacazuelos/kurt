@@ -31,7 +31,7 @@ pub use self::{
     block::Block,
     call::Call,
     conditional::{IfElse, IfOnly},
-    entry::{Module, TopLevel},
+    entry::Module,
     expression::Expression,
     function::{Function, Parameter},
     grouping::Grouping,

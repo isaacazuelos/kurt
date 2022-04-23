@@ -17,6 +17,10 @@ pub struct Module {
     pub(crate) prototypes: Vec<Prototype>,
 }
 
+impl Module {
+    pub const MAIN_INDEX: Index<Prototype> = Index::new(0);
+}
+
 impl Get<Prototype> for Module {
     fn get(&self, index: Index<Prototype>) -> Option<&Prototype> {
         self.prototypes.get(index.as_usize())

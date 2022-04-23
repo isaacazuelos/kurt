@@ -19,7 +19,7 @@ use crate::{
 /// A compiler turns source code into an [`Object`] the runtime can work with.
 ///
 /// It keeps track of all the state used when compiling.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Compiler {
     /// The constant pool of all constants seen by this compiler so far.
     constants: Pool,
@@ -32,19 +32,87 @@ pub struct Compiler {
     prototypes: Vec<Prototype>,
 }
 
+impl Default for Compiler {
+    fn default() -> Self {
+        let mut compiler = Self {
+            constants: Default::default(),
+            compiling: Default::default(),
+            prototypes: Default::default(),
+        };
+
+        compiler.prime();
+
+        compiler
+    }
+}
+
 impl Compiler {
+    const MAIN_INDEX: Index<Prototype> = Index::new(0);
+
+    /// Prime the compiler by defining a complete 'main' prototype at index zero
+    /// that just halts.
+    fn prime(&mut self) {
+        self.with_prototype(|compiler| {
+            compiler
+                .active_prototype_mut()
+                .set_name(Prototype::MAIN_NAME);
+
+            compiler.emit(Op::Halt, Span::default())
+        })
+        .unwrap();
+    }
+
     /// Convert the current compiler state into a new [`Object`] that can be
     /// loaded into the runtime.
     pub fn build(&self) -> Result<Object> {
-        // TODO: we could go back to top-level code being index 0 here.
-        let mut prototypes = self.prototypes.clone();
-        let main = self.compiling.last().unwrap().clone();
-        prototypes.push(main);
+        if !self.compiling.is_empty() {
+            return Err(Error::CannotBuildWhileCompiling);
+        }
 
         Ok(Object {
             constants: self.constants.as_vec(),
-            prototypes,
+            prototypes: self.prototypes.clone(),
         })
+    }
+
+    /// Push more top-level module code through the compiler.
+    pub fn push(&mut self, syntax: &syntax::Module) -> Result<()> {
+        if !self.compiling.is_empty() {
+            return Err(Error::CanOnlyReopenMain);
+        }
+
+        let mut main = self.prototypes[Self::MAIN_INDEX.as_usize()].clone();
+
+        main.reopen()?;
+        self.compiling.push(main);
+
+        let old_const_count = self.constants.len();
+        let old_proto_count = self.prototypes.len();
+
+        let result = self
+            .statement_sequence(syntax)
+            .and_then(|()| self.emit(Op::Halt, syntax.span()));
+
+        match result {
+            Err(e) => {
+                // we need to clean up. We can't recover anything that's
+                // partially compiled (yet), and we want to get rid of any
+                // now-dead-code prototypes and constants.
+                self.compiling.clear();
+                self.prototypes.truncate(old_proto_count);
+                self.constants.truncate(old_const_count);
+                Err(e)
+            }
+
+            Ok(()) => {
+                debug_assert_eq!(self.compiling.len(), 1, "the only thing compiling after successfully pushing should be the updated main.");
+
+                // we need to overwrite the old main with the new good one.
+                let new_main = self.compiling.pop().unwrap();
+                self.prototypes[Self::MAIN_INDEX.as_usize()] = new_main;
+                Ok(())
+            }
+        }
     }
 }
 
@@ -92,14 +160,21 @@ impl Compiler {
     where
         F: FnOnce(&mut Compiler) -> Result<()>,
     {
+        self.begin_prototype()?;
+        inner(self)?;
+        self.end_prototype()
+    }
+
+    fn begin_prototype(&mut self) -> Result<()> {
         if self.compiling.len() + self.prototypes.len() >= u32::MAX as usize {
             return Err(Error::TooManyPrototypes);
         }
 
         self.compiling.push(Prototype::new());
+        Ok(())
+    }
 
-        inner(self)?;
-
+    fn end_prototype(&mut self) -> Result<Index<Prototype>> {
         let prototype = self.compiling.pop().unwrap();
         self.prototypes.push(prototype);
 
