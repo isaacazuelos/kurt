@@ -58,6 +58,11 @@ impl Prototype {
         self.parameter_count = count;
     }
 
+    /// A view of the local bindings which represent the parameters.
+    pub(crate) fn parameters(&self) -> &[Local] {
+        &self.bindings[0..self.parameter_count as usize]
+    }
+
     /// The span which created a specific opcode.
     pub fn span_for_op(&self, index: Index<Op>) -> Option<Span> {
         self.code.get_span(index)

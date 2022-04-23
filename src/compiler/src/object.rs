@@ -64,7 +64,14 @@ impl Object {
         f: &mut Formatter,
     ) -> fmt::Result {
         let name = prototype.name().unwrap_or("anonymous");
-        writeln!(f, "{} ({}): ", name, prototype.parameter_count())?;
+        write!(f, "{} ( ", name)?;
+
+        for binding in prototype.parameters() {
+            write!(f, "{}, ", binding.as_str())?;
+        }
+
+        writeln!(f, "):")?;
+
         for (i, (op, span)) in prototype.code().iter().enumerate() {
             write!(
                 f,
