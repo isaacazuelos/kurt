@@ -9,4 +9,3 @@ gc_trace = []
 
 [dependencies]
 compiler = { path = "../compiler" }
-syntax = { path = "../syntax" }
