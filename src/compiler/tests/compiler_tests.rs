@@ -3,11 +3,14 @@
 //! They're not executed, and the results of compilation aren't verified. These
 //! are more just sanity tests.
 
+use syntax::{Module, Parse};
+
 macro_rules! test_compile {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            let result = compiler::compile($input);
+            let syntax = Module::parse($input).unwrap();
+            let result = compiler::compile(&syntax);
             assert!(result.is_ok(), "failed to compile with {:#?}", result)
         }
     };
@@ -17,7 +20,8 @@ macro_rules! test_no_compile {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            let result = compiler::compile($input);
+            let syntax = Module::parse($input).unwrap();
+            let result = compiler::compile(&syntax);
             assert!(
                 result.is_err(),
                 "should have failed, but compiled with {}",

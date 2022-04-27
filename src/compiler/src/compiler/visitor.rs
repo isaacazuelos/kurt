@@ -221,7 +221,10 @@ impl Compiler {
             {
                 let proto = compiler.active_prototype_mut();
                 proto.set_parameter_count(syntax.elements().len() as u32);
-                name.map(|n| proto.set_name(n));
+
+                if let Some(n) = name {
+                    proto.set_name(n)
+                }
             }
 
             for parameter in syntax.elements() {

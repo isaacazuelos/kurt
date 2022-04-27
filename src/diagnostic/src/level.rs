@@ -5,8 +5,6 @@ use std::fmt;
 #[derive(Debug, Clone, Copy)]
 pub enum Level {
     Error,
-    Help,
-    Info,
 }
 
 impl Level {
@@ -14,8 +12,6 @@ impl Level {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Level::Error => "error",
-            Level::Help => "help",
-            Level::Info => "info",
         }
     }
 }

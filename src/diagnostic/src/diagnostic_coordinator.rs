@@ -11,7 +11,7 @@ pub struct DiagnosticCoordinator {
 
 impl DiagnosticCoordinator {
     pub fn register(&mut self, issue: Diagnostic) {
-        self.diagnostics.push(issue.into());
+        self.diagnostics.push(issue);
     }
 
     pub fn emit(mut self, inputs: &InputCoordinator) {

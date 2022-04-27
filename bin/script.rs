@@ -3,6 +3,7 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
 use runtime::Runtime;
+use syntax::{Module, Parse};
 
 use crate::Args;
 
@@ -28,9 +29,14 @@ impl Script {
             std::process::exit(1);
         }
 
-        let main = match compiler::compile(&input) {
+        let syntax = match Module::parse(&input) {
             Ok(object) => object,
             Err(e) => return eprintln!("{e}"),
+        };
+
+        let main = match compiler::compile(&syntax) {
+            Ok(object) => object,
+            Err(d) => return eprintln!("{:?}", d),
         };
 
         if args.dump {

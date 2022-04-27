@@ -12,7 +12,7 @@ pub(crate) struct Message {
 
 impl Message {
     pub(crate) fn new(level: Level, text: String) -> Message {
-        let text = text.into();
+        let text = text;
         Message { level, text }
     }
 

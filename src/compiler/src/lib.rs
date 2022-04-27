@@ -14,7 +14,7 @@ pub mod prototype;
 
 pub use crate::{compiler::Compiler, error::Error, object::Object};
 
-use syntax::{Module, Parse};
+use diagnostic::Diagnostic;
 
 /// Compile in one go.
 ///
@@ -25,12 +25,14 @@ use syntax::{Module, Parse};
 ///
 /// ```
 /// # use compiler::compile;
-/// let object = compile(r#" "Hello, world!" "#).unwrap();
+/// # use syntax::{Module, Parse};
+/// let syntax = Module::parse(r#" "Hello, world!" "#).unwrap();
+/// let object = compile(&syntax).unwrap();
 /// // Do things with the object here.
 /// ```
-pub fn compile(input: &str) -> error::Result<Object> {
-    let syntax = Module::parse(input)?;
+pub fn compile(syntax: &syntax::Module) -> Result<Object, Diagnostic> {
     let mut compiler = Compiler::default();
-    compiler.push(&syntax)?;
-    compiler.build()
+    compiler.push(syntax)?;
+    let object = compiler.build()?;
+    Ok(object)
 }

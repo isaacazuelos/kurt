@@ -8,7 +8,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    Syntax(syntax::Error),
     ParseChar(std::char::ParseCharError),
     ParseInt(std::num::ParseIntError),
     ParseFloat(std::num::ParseFloatError),
@@ -34,7 +33,6 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
         match self {
-            Syntax(e) => write!(f, "{}", e),
             ParseChar(e) => write!(f, "cannot parse character literal: {}", e),
             ParseInt(e) => write!(f, "cannot parse integer literal: {}", e),
             ParseFloat(e) => write!(f, "cannot parse float literal: {}", e),
@@ -53,12 +51,6 @@ impl Error {
 
     fn text(&self) -> String {
         format!("{}", self)
-    }
-}
-
-impl From<syntax::Error> for Error {
-    fn from(e: syntax::Error) -> Error {
-        Error::Syntax(e)
     }
 }
 
