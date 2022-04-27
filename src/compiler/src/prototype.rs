@@ -4,7 +4,7 @@ use diagnostic::Span;
 
 use crate::{
     code::Code,
-    error::{Error, Result},
+    error::Result,
     index::{Get, Index},
     local::Local,
     opcode::Op,
@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prototype {
     name: Option<String>,
+    span: Span,
     parameter_count: u32,
     code: Code,
     bindings: Vec<Local>,
@@ -28,9 +29,10 @@ impl Prototype {
     ///
     /// If you're trying to create one for the top level code, use
     /// [`Prototype::new_main`] instead.
-    pub(crate) fn new() -> Prototype {
+    pub(crate) fn new(span: Span) -> Prototype {
         Prototype {
             name: None,
+            span,
             parameter_count: 0,
             code: Code::default(),
             bindings: Vec::default(),
@@ -133,17 +135,19 @@ impl Prototype {
     ///
     /// This is done to allow the compiler to push more code through. This can
     /// only be done if the prototype ends in `Halt`.
-    pub(crate) fn reopen(&mut self) -> Result<()> {
+    pub(crate) fn reopen(&mut self) {
         match self.code().last() {
             Some(Op::Halt) => {
                 let index = self.code().next_index().pred_saturating();
-                self.code_mut()
-                    .patch(index, Op::Nop)
-                    .ok_or(Error::CannotReopen)
-                    .map(|_| ())
+                self.code_mut().patch(index, Op::Nop).expect(
+                    "compiler could not patch Op::Halt with Op::Nop to reopen",
+                );
             }
-            None => Ok(()),
-            Some(_) => Err(Error::CannotReopen),
+            None => {}
+            Some(op) => panic!(
+                "compiler can only reopen module at Op::Halt but found {}",
+                op
+            ),
         }
     }
 }

@@ -8,36 +8,66 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    ParseChar(std::char::ParseCharError),
-    ParseInt(std::num::ParseIntError),
-    ParseFloat(std::num::ParseFloatError),
+    ParseChar(Span, std::char::ParseCharError),
+    ParseInt(Span, std::num::ParseIntError),
+    ParseFloat(Span, std::num::ParseFloatError),
 
-    MutationNotSupported,
-    UndefinedLocal,
-    UndefinedPrefix,
-    UndefinedInfix,
-    UndefinedPostfix,
+    MutationNotSupported(Span),
+    UndefinedLocal(Span),
+    UndefinedPrefix(Span),
+    UndefinedInfix(Span),
+    UndefinedPostfix(Span),
 
-    CannotBuildWhileCompiling,
-    CanOnlyReopenMain,
-    CannotReopen,
-
-    TooManyArguments,
-    TooManyConstants,
-    TooManyOps,
-    TooManyParameters,
-    TooManyPrototypes,
+    TooManyArguments(Span),
+    TooManyConstants(Span),
+    TooManyOps(Span),
+    TooManyParameters(Span),
+    TooManyPrototypes(Span),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Error::*;
-        match self {
-            ParseChar(e) => write!(f, "cannot parse character literal: {}", e),
-            ParseInt(e) => write!(f, "cannot parse integer literal: {}", e),
-            ParseFloat(e) => write!(f, "cannot parse float literal: {}", e),
 
-            e => write!(f, "{:?}", e),
+        match self {
+            ParseChar(_, _) => {
+                write!(f, "character literal doesn't make sense")
+            }
+
+            ParseInt(_, _) => write!(f, "number cannot be used"),
+
+            ParseFloat(_, _) => {
+                write!(f, "floating-point number cannot be used")
+            }
+
+            MutationNotSupported(_) => {
+                write!(f, "mutation isn't implemented yet")
+            }
+            UndefinedLocal(_) => write!(f, "no value with this name in scope"),
+
+            UndefinedPrefix(_) => {
+                write!(f, "this prefix operator is not defined")
+            }
+            UndefinedInfix(_) => {
+                write!(f, "this infix operator is not defined")
+            }
+            UndefinedPostfix(_) => {
+                write!(f, "this postfix operator is not defined")
+            }
+
+            TooManyArguments(_) => {
+                write!(f, "this function has too many arguments")
+            }
+            TooManyConstants(_) => {
+                write!(f, "there are too many constants in the module")
+            }
+            TooManyOps(_) => write!(f, "this module is too long"),
+            TooManyParameters(_) => {
+                write!(f, "this function has too many parameters")
+            }
+            TooManyPrototypes(_) => {
+                write!(f, "this module has too many functions")
+            }
         }
     }
 }
@@ -45,8 +75,22 @@ impl fmt::Display for Error {
 impl error::Error for Error {}
 
 impl Error {
-    fn span(&self) -> Option<Span> {
-        None
+    fn span(&self) -> Span {
+        match self {
+            Error::ParseChar(s, _) => *s,
+            Error::ParseInt(s, _) => *s,
+            Error::ParseFloat(s, _) => *s,
+            Error::MutationNotSupported(s) => *s,
+            Error::UndefinedLocal(s) => *s,
+            Error::UndefinedPrefix(s) => *s,
+            Error::UndefinedInfix(s) => *s,
+            Error::UndefinedPostfix(s) => *s,
+            Error::TooManyArguments(s) => *s,
+            Error::TooManyConstants(s) => *s,
+            Error::TooManyOps(s) => *s,
+            Error::TooManyParameters(s) => *s,
+            Error::TooManyPrototypes(s) => *s,
+        }
     }
 
     fn text(&self) -> String {
@@ -54,31 +98,11 @@ impl Error {
     }
 }
 
-impl From<std::char::ParseCharError> for Error {
-    fn from(e: std::char::ParseCharError) -> Error {
-        Error::ParseChar(e)
-    }
-}
-
-impl From<std::num::ParseIntError> for Error {
-    fn from(e: std::num::ParseIntError) -> Error {
-        Error::ParseInt(e)
-    }
-}
-
-impl From<std::num::ParseFloatError> for Error {
-    fn from(e: std::num::ParseFloatError) -> Error {
-        Error::ParseFloat(e)
-    }
-}
-
 impl From<Error> for Diagnostic {
     fn from(e: Error) -> Self {
         let mut d = Diagnostic::new(e.text());
 
-        if let Some(span) = e.span() {
-            d.set_location(span.start());
-        }
+        d.set_location(e.span().start());
 
         d
     }

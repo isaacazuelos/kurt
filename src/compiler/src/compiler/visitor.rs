@@ -51,7 +51,7 @@ impl Compiler {
     /// Compile a binding statement, something like `let a = b` or `var x = y`.
     fn binding(&mut self, syntax: &syntax::Binding) -> Result<()> {
         if syntax.is_var() {
-            return Err(Error::MutationNotSupported);
+            return Err(Error::MutationNotSupported(syntax.keyword().span()));
         }
 
         let name = syntax.name();
@@ -159,7 +159,7 @@ impl Compiler {
             "<" => Ok(Op::Lt),
             "<=" => Ok(Op::Le),
 
-            _ => Err(Error::UndefinedInfix),
+            _ => Err(Error::UndefinedInfix(syntax.operator_span())),
         }?;
 
         self.emit(op, syntax.operator_span())
@@ -180,11 +180,11 @@ impl Compiler {
                 "!" => self.emit(Op::Not, span),
                 "-" => self.emit(Op::Neg, span),
                 "+" => Ok(()),
-                _ => Err(Error::UndefinedPostfix),
+                _ => Err(Error::UndefinedPostfix(span)),
             }
         } else {
             // None defined, yet.
-            Err(Error::UndefinedPostfix)
+            Err(Error::UndefinedPostfix(span))
         }
     }
 
@@ -201,7 +201,8 @@ impl Compiler {
 
         let count = syntax.elements().len();
         if count >= u32::MAX as usize {
-            Err(Error::TooManyArguments)
+            let problem_arg = &syntax.elements()[u32::MAX as usize - 1];
+            Err(Error::TooManyArguments(problem_arg.span()))
         } else {
             self.emit(Op::Call(count as u32), syntax.open() + syntax.close())
         }
@@ -213,9 +214,10 @@ impl Compiler {
         syntax: &syntax::Function,
         name: Option<&str>,
     ) -> Result<()> {
-        let i = self.with_prototype(|compiler| {
+        let i = self.with_prototype(syntax.span(), |compiler| {
             if syntax.elements().len() > u32::MAX as usize {
-                return Err(Error::TooManyParameters);
+                let problem_element = &syntax.elements()[u32::MAX as usize];
+                return Err(Error::TooManyParameters(problem_element.span()));
             }
 
             {
@@ -255,7 +257,7 @@ impl Compiler {
         if let Some(index) = self.resolve_local(name) {
             self.emit(Op::LoadLocal(index), syntax.span())
         } else {
-            Err(Error::UndefinedLocal)
+            Err(Error::UndefinedLocal(syntax.span()))
         }
     }
 
@@ -315,8 +317,12 @@ impl Compiler {
 
     /// Compile an binary numeric literal
     fn binary_literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let n = Constant::parse_radix(syntax.body(), 2)?;
-        let index = self.constants.insert(n)?;
+        let n = Constant::parse_radix(syntax.body(), 2)
+            .map_err(|e| Error::ParseInt(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(n)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
@@ -333,48 +339,74 @@ impl Compiler {
 
     /// Compile a character literal.
     fn char(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let c = Constant::parse_char(syntax.body())?;
-        let index = self.constants.insert(c)?;
+        let c = Constant::parse_char(syntax.body())
+            .map_err(|e| Error::ParseChar(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(c)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a numeric literal
     fn decimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let n = Constant::parse_int(syntax.body())?;
-        let index = self.constants.insert(n)?;
+        let n = Constant::parse_int(syntax.body())
+            .map_err(|e| Error::ParseInt(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(n)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     fn float(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let f = Constant::parse_float(syntax.body())?;
-        let index = self.constants.insert(f)?;
+        let f = Constant::parse_float(syntax.body())
+            .map_err(|e| Error::ParseFloat(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(f)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile an octal numeric literal
     fn octal(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let n = Constant::parse_radix(syntax.body(), 8)?;
-        let index = self.constants.insert(n)?;
+        let n = Constant::parse_radix(syntax.body(), 8)
+            .map_err(|e| Error::ParseInt(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(n)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a keyword literal
     fn keyword(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let kw = Constant::parse_keyword(syntax.body())?;
-        let index = self.constants.insert(kw)?;
+        let kw = Constant::parse_keyword(syntax.body());
+        let index = self
+            .constants
+            .insert(kw)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     /// Compile a hexadecimal numeric literal
     fn hexadecimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let n = Constant::parse_radix(syntax.body(), 16)?;
-        let index = self.constants.insert(n)?;
+        let n = Constant::parse_radix(syntax.body(), 16)
+            .map_err(|e| Error::ParseInt(syntax.span(), e))?;
+        let index = self
+            .constants
+            .insert(n)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 
     fn string(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let s = Constant::parse_string(syntax.body())?;
-        let index = self.constants.insert(s)?;
+        let index = self
+            .constants
+            .insert(s)
+            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
 

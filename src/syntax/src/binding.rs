@@ -22,6 +22,11 @@ pub struct Binding<'a> {
 }
 
 impl Binding<'_> {
+    ///
+    pub fn keyword(&self) -> &Token {
+        &self.keyword
+    }
+
     /// Is this a `var` binding?
     pub fn is_var(&self) -> bool {
         self.keyword.kind() == Kind::Reserved(Reserved::Var)

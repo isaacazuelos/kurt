@@ -52,7 +52,7 @@ impl Compiler {
     /// Prime the compiler by defining a complete 'main' prototype at index zero
     /// that just halts.
     fn prime(&mut self) {
-        self.with_prototype(|compiler| {
+        self.with_prototype(Span::default(), |compiler| {
             compiler
                 .active_prototype_mut()
                 .set_name(Prototype::MAIN_NAME);
@@ -66,7 +66,7 @@ impl Compiler {
     /// loaded into the runtime.
     pub fn build(&self) -> Result<Object> {
         if !self.compiling.is_empty() {
-            return Err(Error::CannotBuildWhileCompiling);
+            panic!("compiler cannot build module unless at top level");
         }
 
         Ok(Object {
@@ -78,12 +78,13 @@ impl Compiler {
     /// Push more top-level module code through the compiler.
     pub fn push(&mut self, syntax: &syntax::Module) -> Result<()> {
         if !self.compiling.is_empty() {
-            return Err(Error::CanOnlyReopenMain);
+            panic!("compiler cannot push code unless at top level")
         }
 
         let mut main = self.prototypes[Self::MAIN_INDEX.as_usize()].clone();
 
-        main.reopen()?;
+        main.reopen();
+
         self.compiling.push(main);
 
         let old_const_count = self.constants.len();
@@ -155,22 +156,23 @@ impl Compiler {
 
     pub(crate) fn with_prototype<F>(
         &mut self,
+        span: Span,
         inner: F,
     ) -> Result<Index<Prototype>>
     where
         F: FnOnce(&mut Compiler) -> Result<()>,
     {
-        self.begin_prototype()?;
+        self.begin_prototype(span)?;
         inner(self)?;
         self.end_prototype()
     }
 
-    fn begin_prototype(&mut self) -> Result<()> {
+    fn begin_prototype(&mut self, span: Span) -> Result<()> {
         if self.compiling.len() + self.prototypes.len() >= u32::MAX as usize {
-            return Err(Error::TooManyPrototypes);
+            return Err(Error::TooManyPrototypes(span));
         }
 
-        self.compiling.push(Prototype::new());
+        self.compiling.push(Prototype::new(span));
         Ok(())
     }
 
