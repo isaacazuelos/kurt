@@ -1,7 +1,9 @@
 use crate::caret::Caret;
+use crate::highlight::Highlight;
 use crate::input_coordinator::InputId;
 use crate::level::Level;
 use crate::message::Message;
+use crate::Span;
 
 /// Diagnostic messages, with a lot of trimmings.
 ///
@@ -18,6 +20,9 @@ pub struct Diagnostic {
     /// Not all errors have a location, for instance "file not found" can't.
     location: Option<Caret>,
 
+    /// The highlighted regions relevant to this diagnostic.
+    highlights: Vec<Highlight>,
+
     /// This is the primary message of the diagnostic.
     message: Message,
 }
@@ -32,6 +37,7 @@ impl Diagnostic {
             input_id: None,
             location: None,
             message: Message::new(Level::default(), text),
+            highlights: Vec::new(),
         }
     }
 
@@ -64,5 +70,15 @@ impl Diagnostic {
     /// The primary message of this diagnostic.
     pub(crate) fn message(&self) -> &Message {
         &self.message
+    }
+
+    /// View the list of highlights.
+    pub(crate) fn highlights(&self) -> &[Highlight] {
+        &self.highlights
+    }
+
+    /// Add a highlight to this diagnostic message.
+    pub fn add_highlight(&mut self, span: Span, note: String) {
+        self.highlights.push(Highlight::new(span, note));
     }
 }

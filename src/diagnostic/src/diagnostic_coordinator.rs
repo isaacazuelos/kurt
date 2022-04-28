@@ -1,7 +1,7 @@
 //! Diagnostic Coordinator handles collecting any diagnostics produced, and
 //! emitting them at the right times, and in the right formats.
 
-use crate::emitter::{ASCIIPrinter, Emitter};
+use crate::emitter::{Emitter, FancyEmitter};
 use crate::{diagnostic::Diagnostic, InputCoordinator};
 
 pub struct DiagnosticCoordinator {
@@ -16,7 +16,7 @@ impl Default for DiagnosticCoordinator {
     fn default() -> Self {
         DiagnosticCoordinator {
             diagnostics: Vec::new(),
-            emitter: Box::new(ASCIIPrinter::default()),
+            emitter: Box::new(FancyEmitter::full()),
         }
     }
 }
@@ -31,7 +31,9 @@ impl DiagnosticCoordinator {
             .sort_by_cached_key(|d| (d.input_id(), d.location()));
 
         for d in &self.diagnostics {
-            self.emitter.emit(d, inputs);
+            self.emitter
+                .emit(d, inputs)
+                .expect("cannot write to emit diagnostics!");
         }
     }
 

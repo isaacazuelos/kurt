@@ -4,6 +4,7 @@ mod caret;
 mod diagnostic;
 mod diagnostic_coordinator;
 mod emitter;
+mod highlight;
 mod input_coordinator;
 mod level;
 mod message;

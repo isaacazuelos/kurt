@@ -104,6 +104,9 @@ impl From<Error> for Diagnostic {
 
         d.set_location(e.span().start());
 
+        // TODO: make this good.
+        d.add_highlight(e.span(), e.text());
+
         d
     }
 }

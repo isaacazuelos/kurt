@@ -8,15 +8,19 @@ use crate::input_coordinator::InputCoordinator;
 use crate::Diagnostic;
 
 #[derive(Default)]
-pub struct ASCIIPrinter;
+pub struct ASCIIEmitter;
 
-impl ASCIIPrinter {}
+impl ASCIIEmitter {}
 
-impl Emitter for ASCIIPrinter {
-    fn emit(&mut self, d: &Diagnostic, inputs: &InputCoordinator) {
+impl Emitter for ASCIIEmitter {
+    fn emit(
+        &mut self,
+        d: &Diagnostic,
+        inputs: &InputCoordinator,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         eprint!("{}", d.message().level());
 
-        let name = d.input_id().and_then(|id| inputs.get_input_name(id));
+        let name = d.input_id().map(|id| inputs.get_input_name(id));
 
         match (name, d.location()) {
             (None, None) => eprint!(": "),
@@ -25,6 +29,8 @@ impl Emitter for ASCIIPrinter {
             (Some(n), Some(l)) => eprint!(": {n}:{l} - "),
         }
 
-        eprintln!("{}", d.message().text())
+        eprintln!("{}", d.message().text());
+
+        Ok(())
     }
 }

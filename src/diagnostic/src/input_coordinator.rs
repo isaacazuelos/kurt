@@ -47,15 +47,12 @@ impl InputCoordinator {
         self.inputs[id.0].buffer.as_str()
     }
 
-    pub fn get_input_name(&self, id: InputId) -> Option<String> {
+    pub fn get_input_name(&self, id: InputId) -> String {
         match self.inputs[id.0].name() {
-            Name::File(path) => Some(format!("{}", path.display())),
-            Name::Repl => Some(format!("<repl {}>", id.0)),
-            Name::Eval => Some(if id.0 == 0 {
-                "<eval>".into()
-            } else {
-                format!("<eval-{}>", id.0)
-            }),
+            Name::File(path) => (format!("{}", path.display())),
+            Name::Repl => (format!("<repl {}>", id.0)),
+            Name::Eval if id.0 == 0 => "<eval>".into(),
+            Name::Eval => format!("<eval-{}>", id.0),
         }
     }
 }
