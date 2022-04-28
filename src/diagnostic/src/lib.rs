@@ -3,13 +3,16 @@
 mod caret;
 mod diagnostic;
 mod diagnostic_coordinator;
+mod emitter;
 mod input_coordinator;
 mod level;
 mod message;
 mod span;
 
 pub use self::{
-    caret::Caret, diagnostic::Diagnostic,
+    caret::Caret,
+    diagnostic::Diagnostic,
     diagnostic_coordinator::DiagnosticCoordinator,
-    input_coordinator::InputCoordinator, span::Span,
+    input_coordinator::{InputCoordinator, InputId},
+    span::Span,
 };

@@ -18,11 +18,10 @@ impl Evaluate {
     /// Run the subcommand, evaluating and printing it's results.
     pub(crate) fn run(&self, args: &Args) {
         let mut inputs = InputCoordinator::default();
-        let id = inputs.eval_input(self.input.clone());
-
         let mut diagnostics = DiagnosticCoordinator::default();
-
         let mut compiler = Compiler::default();
+
+        let id = inputs.eval_input(self.input.clone());
 
         let syntax = match Module::parse(&self.input) {
             Ok(m) => m,

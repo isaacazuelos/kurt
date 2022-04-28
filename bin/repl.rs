@@ -3,6 +3,9 @@
 use std::io::Write;
 
 use compiler::Compiler;
+use diagnostic::{
+    Diagnostic, DiagnosticCoordinator, InputCoordinator, InputId,
+};
 use runtime::Runtime;
 use rustyline::{error::ReadlineError, Editor};
 use syntax::{Module, Parse};
@@ -25,6 +28,8 @@ struct ReplState {
     editor: Editor<()>,
     runtime: Runtime,
     compiler: Compiler,
+    diagnostics: DiagnosticCoordinator,
+    inputs: InputCoordinator,
 }
 
 impl ReplState {
@@ -39,14 +44,13 @@ impl ReplState {
 
         // TODO: Read history here.
 
-        let runtime = Runtime::default();
-        let compiler = Compiler::default();
-
         ReplState {
             dump: args.dump,
             editor,
-            runtime,
-            compiler,
+            runtime: Runtime::default(),
+            compiler: Compiler::default(),
+            diagnostics: DiagnosticCoordinator::default(),
+            inputs: InputCoordinator::default(),
         }
     }
 
@@ -60,29 +64,62 @@ impl ReplState {
                     println!("{}", e);
                     println!("  (press control-d to exit)");
                 }
-                Err(other) => {
-                    println!("{}", other);
+                Err(ReplError::Step) => {
+                    self.diagnostics.emit(&self.inputs);
+                    self.diagnostics.clear();
                 }
             }
         }
     }
 
     fn step(&mut self) -> Result<(), ReplError> {
-        let input = self.read()?;
+        let id = self.read()?;
 
-        let syntax = Module::parse(&input)?;
+        let syntax = match Module::parse(self.inputs.get_input_buffer(id)) {
+            Ok(syntax) => syntax,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::new(format!("{error}"));
+                diagnostic.set_input_id(id);
+                self.diagnostics.register(diagnostic);
+                return Err(ReplError::Step);
+            }
+        };
 
-        self.compiler.push(&syntax)?;
+        if let Err(error) = self.compiler.push(&syntax) {
+            let mut diagnostic = Diagnostic::from(error);
+            diagnostic.set_input_id(id);
+            self.diagnostics.register(diagnostic);
+            return Err(ReplError::Step);
+        }
 
-        let new_main = self.compiler.build()?;
+        let new_main = match self.compiler.build() {
+            Ok(object) => object,
+            Err(error) => {
+                let mut diagnostic = Diagnostic::from(error);
+                diagnostic.set_input_id(id);
+                self.diagnostics.register(diagnostic);
+                return Err(ReplError::Step);
+            }
+        };
 
         if self.dump {
             println!("{new_main}");
         }
 
-        self.runtime.reload_main(new_main)?;
+        if let Err(error) = self.runtime.reload_main(new_main) {
+            let mut diagnostic = Diagnostic::new(format!("{error}"));
+            diagnostic.set_input_id(id);
+            self.diagnostics.register(diagnostic);
+            return Err(ReplError::Step);
+        }
 
-        self.runtime.resume()?;
+        if let Err(error) = self.runtime.resume() {
+            let mut diagnostic = Diagnostic::new(format!("{error}"));
+            diagnostic.set_input_id(id);
+            self.diagnostics.register(diagnostic);
+            return Err(ReplError::Step);
+        }
+
         println!(
             "{} {}",
             ReplState::RESULT_PROMPT,
@@ -94,13 +131,14 @@ impl ReplState {
         Ok(())
     }
 
-    fn read(&mut self) -> Result<String, ReplError> {
+    fn read(&mut self) -> Result<InputId, ReplError> {
         // TODO: We want to have a continuation prompt when the block of code on
         //       that line could continue.
 
         let line = self.editor.readline(ReplState::PROMPT);
         match line {
-            Ok(line) => Ok(line),
+            Ok(line) => Ok(self.inputs.repl_input(line)),
+
             Err(ReadlineError::Interrupted) => {
                 // User hit Control-C
                 Err(ReplError::Clear)
@@ -124,42 +162,7 @@ impl ReplState {
 enum ReplError {
     Clear,
     Exit,
+    Step,
 
     Readline(ReadlineError),
-    Syntax(syntax::Error),
-    CompileTime(compiler::Error),
-    Runtime(runtime::Error),
-}
-
-impl std::error::Error for ReplError {}
-
-impl std::fmt::Display for ReplError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReplError::Clear => write!(f, "^C"),
-            ReplError::Exit => write!(f, "^D"),
-            ReplError::Readline(e) => write!(f, "{}", e),
-            ReplError::Syntax(e) => write!(f, "{}", e),
-            ReplError::CompileTime(e) => write!(f, "{}", e),
-            ReplError::Runtime(e) => write!(f, "{}", e),
-        }
-    }
-}
-
-impl From<syntax::Error> for ReplError {
-    fn from(e: syntax::Error) -> Self {
-        ReplError::Syntax(e)
-    }
-}
-
-impl From<compiler::Error> for ReplError {
-    fn from(e: compiler::Error) -> Self {
-        ReplError::CompileTime(e)
-    }
-}
-
-impl From<runtime::Error> for ReplError {
-    fn from(e: runtime::Error) -> Self {
-        ReplError::Runtime(e)
-    }
 }

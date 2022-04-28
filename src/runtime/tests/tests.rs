@@ -4,9 +4,15 @@ macro_rules! test_eval {
     ($name: ident, $input: expr, $expected: expr) => {
         #[test]
         fn $name() {
+            use compiler::Compiler;
+
             use syntax::Parse;
             let syntax = syntax::Module::parse($input).unwrap();
-            let obj = compiler::compile(&syntax).unwrap();
+            let mut compiler = Compiler::default();
+
+            compiler.push(&syntax).unwrap();
+
+            let obj = compiler.build().unwrap();
             let mut rt = runtime::Runtime::new();
             assert!(rt.load(obj).is_ok());
             let exit = rt.start();
