@@ -35,7 +35,7 @@ impl Evaluate {
             Ok(()) => {}
             Err(e) => {
                 let mut d = Diagnostic::from(e);
-                d.set_input_id(id);
+                d.set_input(Some(id));
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;
@@ -46,7 +46,7 @@ impl Evaluate {
             Ok(o) => o,
             Err(e) => {
                 let mut d = Diagnostic::from(e);
-                d.set_input_id(id);
+                d.set_input(Some(id));
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;

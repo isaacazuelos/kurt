@@ -28,7 +28,7 @@ impl DiagnosticCoordinator {
 
     pub fn emit(&mut self, inputs: &InputCoordinator) {
         self.diagnostics
-            .sort_by_cached_key(|d| (d.input_id(), d.location()));
+            .sort_by_cached_key(|d| (d.get_input(), d.get_location()));
 
         for d in &self.diagnostics {
             self.emitter

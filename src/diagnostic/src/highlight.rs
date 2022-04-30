@@ -6,17 +6,16 @@
 use crate::Span;
 
 /// A section of the code in the window which will be for-certain be presented,
-/// and with some indication of it's importance, and a note to present alongside
-/// the highlighted region.
+/// and a note to present alongside the highlighted region.
 #[derive(Debug)]
-pub struct Highlight {
+pub(crate) struct Highlight {
     span: Span,
     note: Option<String>,
 }
 
 impl Highlight {
     /// Create a new highlighted span of source code.
-    pub fn new(span: Span, note: impl Into<String>) -> Highlight {
+    pub(crate) fn new(span: Span, note: String) -> Highlight {
         Highlight {
             span,
             note: Some(note.into()),
@@ -24,12 +23,12 @@ impl Highlight {
     }
 
     /// Get a the highlight's span.
-    pub fn span(&self) -> Span {
+    pub(crate) fn get_span(&self) -> Span {
         self.span
     }
 
     /// Get a the highlight's note.
-    pub fn note(&self) -> Option<&str> {
+    pub(crate) fn get_note(&self) -> Option<&str> {
         self.note.as_deref()
     }
 }

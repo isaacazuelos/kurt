@@ -84,7 +84,6 @@ impl Script {
             let d = Diagnostic::new(format!("{e}"));
             diagnostics.register(d);
             diagnostics.emit(&inputs);
-            return;
         }
     }
 }

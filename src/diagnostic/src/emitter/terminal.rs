@@ -206,14 +206,16 @@ impl Emitter for FancyEmitter {
         d: &Diagnostic,
         i: &InputCoordinator,
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-        self.emit_message(d.message())?;
+        self.emit_message(d.get_level(), d.get_text())?;
 
-        if !d.highlights().is_empty() && d.input_id().is_some() {
-            let input = i.get_input_buffer(d.input_id().unwrap());
-            let name = i.get_input_name(d.input_id().unwrap());
-            let mut window = CodeWindow::new(d.highlights(), input);
+        if let Some(id) = d.get_input() {
+            let input = i.get_input_buffer(id);
+            let name = i.get_input_name(id);
 
-            window.print(self, &name)?;
+            if let Some(mut window) = CodeWindow::new(d.get_highlights(), input)
+            {
+                window.emit_fancy(self, &name)?;
+            }
         }
 
         self.out().flush()?;
@@ -224,14 +226,14 @@ impl Emitter for FancyEmitter {
 
 // For emitter
 impl FancyEmitter {
-    fn emit_message(&mut self, msg: &Message) -> Result<()> {
+    fn emit_message(&mut self, level: Level, text: &str) -> Result<()> {
         // The coloured prefix also decides how much subsequent lines are
         // indented.
-        let prefix_length = self.emit_message_level(msg)?;
+        let prefix_length = self.emit_message_level(level)?;
         let wrap_width = self.width() - prefix_length;
 
         // Now for the body of the message
-        let lines = self.wrap(&msg.text(), wrap_width);
+        let lines = self.wrap(text, wrap_width);
 
         // First line doesn't have a prefix, since it comes after the level.
         writeln!(self.out(), "{}", lines[0])?;
@@ -247,11 +249,14 @@ impl FancyEmitter {
     }
 
     /// Emits the coloured prefix of the message, which is the level name with a
-    /// `": "` at the end for spacing. This will set and reset the colour too.
-    fn emit_message_level(&mut self, msg: &Message) -> Result<usize> {
-        self.set_level_spec(msg.level())?;
-        write!(self.out(), "{}: ", msg.level().name())?;
+    /// `": "` at the end for spacing. This will set the colour for the message,
+    /// and then set it back to what it was before.
+    ///
+    /// The `usize` returned is the width of what was printed.
+    fn emit_message_level(&mut self, level: Level) -> Result<usize> {
+        self.set_level_spec(level)?;
+        write!(self.out(), "{}: ", level.name())?;
         self.reset_spec()?;
-        Ok(msg.level().name().len() + ": ".len())
+        Ok(level.name().len() + ": ".len())
     }
 }

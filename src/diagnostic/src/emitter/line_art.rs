@@ -8,7 +8,7 @@ pub struct LineArt {
     pub(crate) horizontal: char,
     pub(crate) tee: char,
     pub(crate) up: char,
-    pub(crate) right: &'static str,
+    pub(crate) _right: &'static str,
     pub(crate) more: &'static str,
 }
 
@@ -19,7 +19,7 @@ impl LineArt {
         horizontal: '─',
         tee: '┬',
         up: '↑',
-        right: "→",
+        _right: "→",
         more: "…",
     };
 
@@ -29,7 +29,7 @@ impl LineArt {
         horizontal: '-',
         tee: '+',
         up: '^',
-        right: "->",
+        _right: "->",
         more: "...",
     };
 }

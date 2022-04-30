@@ -1,10 +1,15 @@
 //! Code windows are previews into the source code presented when displaying
 //! diagnostic messages to help the user locate problems.
 
+// TODO: A lot of this code is (badly) shoved into it's current from from an
+//       older project. This could use a lot of refactoring, it's basically just
+//       a method on FancyEmitter at this point.
+//
+//       If you're cleaning this up, we might want to add a [`Level`] to
+//       highlight.
+
 use crate::{
-    caret::Caret,
-    emitter::terminal::FancyEmitter,
-    highlight::{self, Highlight},
+    caret::Caret, emitter::terminal::FancyEmitter, highlight::Highlight,
     span::Span,
 };
 
@@ -14,115 +19,43 @@ use crate::{
 /// Note that the code window doesn't know the name of the source file, where
 /// the owning diagnostic begins, or other more general diagnostic information.
 #[derive(Debug)]
-pub(crate) struct CodeWindow<'i, 'd> {
+pub(super) struct CodeWindow<'i, 'd> {
     /// Any highlighted regions and margin notes to show along with the source
-    /// code.
+    /// code. This must not be empty.
     highlights: &'d [Highlight],
+
     /// The lines of input from `starting_line` and of length `lines`.
     lines: Vec<&'i str>,
 }
 
-// Builder pattern
 impl<'i, 'd> CodeWindow<'i, 'd> {
     /// Crate a new empty code window. It automatically knows what lines to save
     /// based on what's highlighted.
-    pub fn new(highlights: &'d [Highlight], input: &'i str) -> Self {
-        // Note that this constructor guarantees that at least one highlight
-        // exists. This is needed so that `starting_line`, `line_count`, etc.
-        // can not be `Option`s.
+    ///
+    /// Will return `None` in things don't make sense:
+    ///
+    /// - `highlights` must not be empty.
+    /// - The `input` doesn't contain the spans for each of the highlights.
+    pub fn new(highlights: &'d [Highlight], input: &'i str) -> Option<Self> {
+        if highlights.is_empty() {
+            return None;
+        }
+
         let mut window = CodeWindow {
             highlights,
             lines: Vec::new(),
         };
 
-        // TODO use offsets.
+        // TODO: This should probably be cleaned up. The design here is a little
+        //       weird. In an older version of this CodeWindows were made when
+        //       the diagnostic was, instead of created when emitting.
+        window.save_lines_offset(input, 0)?;
 
-        window.save_lines_offset(input, 0);
-
-        window
+        Some(window)
     }
 
-    /// Set the lines of input shown in the window. This is typically only done
-    /// right before printing by the presenter, as the source code files could
-    /// be quite large.
-    ///
-    /// The `offset` is for working with input which does not begin at line 0.
-    /// This would typically be needed for the REPL, between 'lines' of user
-    /// input.
-    pub fn save_lines_offset(&mut self, input: &'i str, offset: usize) {
-        self.lines = input
-            .lines()
-            .skip(self.starting_line() as usize - offset)
-            .take(self.line_count() as _)
-            .collect::<Vec<_>>();
-
-        debug_assert_eq!(self.lines.len(), self.line_count() as usize);
-    }
-}
-
-// Getters
-impl<'i, 'd> CodeWindow<'i, 'd> {
-    /// The line number the code window starts at.
-    pub fn starting_line(&self) -> u32 {
-        self.highlights().first().unwrap().span().start().line()
-    }
-
-    /// The line number the code windows ends at.
-    pub fn ending_line(&self) -> u32 {
-        self.highlights().last().unwrap().span().end().line()
-    }
-
-    /// How many lines are included in the code window. This is a max count,
-    /// some lines may be omitted during rendering if they're not the first of
-    /// last line and do not contain any highlighted sequences.
-    pub fn line_count(&self) -> u32 {
-        self.ending_line() - self.starting_line() + 1
-    }
-
-    /// Get a view into the highlighted regions. This array will always be
-    /// sorted by the start of the span of the highlights.
-    pub fn highlights(&self) -> &[Highlight] {
-        &self.highlights
-    }
-
-    /// Returns an iterator of all highlights (in order) which intersect a span,
-    /// If the intersection is the end of teh highlight, the highlight's note is
-    /// included if any.
-    ///
-    /// This is weird, but it's exactly what we need when deciding to show a
-    /// note for some highlighted span for line-wrapped source code.
-    pub(crate) fn highlights_intersecting(
-        &self,
-        span: Span,
-    ) -> impl Iterator<Item = (Span, Option<&str>)> {
-        self.highlights().iter().filter_map(move |h| {
-            h.span().intersection(span).map(|s| {
-                (
-                    s,
-                    if s.end() == h.span().end() {
-                        h.note()
-                    } else {
-                        None
-                    },
-                )
-            })
-        })
-    }
-
-    /// Return an iterator over the line number and lines in the code window.
-    pub fn lines(&self) -> impl Iterator<Item = (u32, &str)> {
-        let offset = self.starting_line();
-
-        self.lines
-            .iter()
-            .enumerate()
-            .map(move |(i, s)| (i as u32 + offset, *s))
-    }
-}
-
-/// emit code windows with fancy
-impl<'i, 'd> CodeWindow<'i, 'd> {
-    pub(crate) fn print(
+    /// Print the code window out using a fancy emitter.
+    pub fn emit_fancy(
         &self,
         e: &mut FancyEmitter,
         label: &str,
@@ -134,6 +67,94 @@ impl<'i, 'd> CodeWindow<'i, 'd> {
         }
 
         writeln!(e.out())
+    }
+}
+
+// so many helpers...
+impl<'i, 'd> CodeWindow<'i, 'd> {
+    /// Set the lines of input shown in the window. This is typically only done
+    /// right before printing by the presenter, as the source code files could
+    /// be quite large.
+    ///
+    /// The `offset` is for working with input which does not begin at line 0.
+    /// This would typically be needed for the REPL, between 'lines' of user
+    /// input.
+    ///
+    /// Will return `None` if the input doesn't contain a line for each line
+    /// covered by the spans in `self.highlights()`.
+    fn save_lines_offset(
+        &mut self,
+        input: &'i str,
+        offset: usize,
+    ) -> Option<()> {
+        self.lines = input
+            .lines()
+            .skip(self.starting_line() as usize - offset)
+            .take(self.line_count() as _)
+            .collect::<Vec<_>>();
+
+        if self.lines.len() == self.line_count() as usize {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    /// The line number the code window starts at.
+    fn starting_line(&self) -> u32 {
+        self.highlights().first().unwrap().get_span().start().line()
+    }
+
+    /// The line number the code windows ends at.
+    fn ending_line(&self) -> u32 {
+        self.highlights().last().unwrap().get_span().end().line()
+    }
+
+    /// How many lines are included in the code window. This is a max count,
+    /// some lines may be omitted during rendering if they're not the first of
+    /// last line and do not contain any highlighted sequences.
+    fn line_count(&self) -> u32 {
+        self.ending_line() - self.starting_line() + 1
+    }
+
+    /// Get a view into the highlighted regions. This array will always be
+    /// sorted by the start of the span of the highlights.
+    fn highlights(&self) -> &[Highlight] {
+        self.highlights
+    }
+
+    /// Returns an iterator of all highlights (in order) which intersect a span,
+    /// If the intersection is the end of the highlight, the highlight's note is
+    /// included if any.
+    ///
+    /// This is weird, but it's exactly what we need when deciding to show a
+    /// note for some highlighted span for line-wrapped source code.
+    fn highlights_intersecting(
+        &self,
+        span: Span,
+    ) -> impl Iterator<Item = (Span, Option<&str>)> {
+        self.highlights().iter().filter_map(move |h| {
+            h.get_span().intersection(span).map(|s| {
+                (
+                    s,
+                    if s.end() == h.get_span().end() {
+                        h.get_note()
+                    } else {
+                        None
+                    },
+                )
+            })
+        })
+    }
+
+    /// The line number and lines in the code window.
+    fn lines(&self) -> impl Iterator<Item = (u32, &str)> {
+        let offset = self.starting_line();
+
+        self.lines
+            .iter()
+            .enumerate()
+            .map(move |(i, s)| (i as u32 + offset, *s))
     }
 
     /// Print a code window header with the right line art, right aligning the
@@ -337,14 +358,14 @@ impl<'i, 'd> CodeWindow<'i, 'd> {
     }
 
     /// A helper for printing an empty gutter, used by highlight and note lines.
-    fn empty_gutter(&self, p: &mut FancyEmitter) -> std::io::Result<()> {
-        self.gutter(p, "")
+    fn empty_gutter(&self, e: &mut FancyEmitter) -> std::io::Result<()> {
+        self.gutter(e, "")
     }
 
     /// A helper, for an gutter which shows the line are `more` string. Used by
     /// for line wrapping code
-    fn more_gutter(&self, p: &mut FancyEmitter) -> std::io::Result<()> {
-        self.gutter(p, p.line_art().more)
+    fn more_gutter(&self, e: &mut FancyEmitter) -> std::io::Result<()> {
+        self.gutter(e, e.line_art().more)
     }
 
     /// The width of the left column in the gutter, not including the vertical

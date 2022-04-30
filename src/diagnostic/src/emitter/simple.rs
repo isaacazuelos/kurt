@@ -18,18 +18,18 @@ impl Emitter for ASCIIEmitter {
         d: &Diagnostic,
         inputs: &InputCoordinator,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        eprint!("{}", d.message().level());
+        eprint!("{}", d.get_level());
 
-        let name = d.input_id().map(|id| inputs.get_input_name(id));
+        let name = d.get_input().map(|id| inputs.get_input_name(id));
 
-        match (name, d.location()) {
+        match (name, d.get_location()) {
             (None, None) => eprint!(": "),
             (None, Some(l)) => eprint!(" {l}:"),
             (Some(n), None) => eprint!(": {n} - "),
             (Some(n), Some(l)) => eprint!(": {n}:{l} - "),
         }
 
-        eprintln!("{}", d.message().text());
+        eprintln!("{}", d.get_text());
 
         Ok(())
     }

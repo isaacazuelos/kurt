@@ -79,7 +79,7 @@ impl ReplState {
             Ok(syntax) => syntax,
             Err(error) => {
                 let mut diagnostic = Diagnostic::new(format!("{error}"));
-                diagnostic.set_input_id(id);
+                diagnostic.set_input(Some(id));
                 self.diagnostics.register(diagnostic);
                 return Err(ReplError::Step);
             }
@@ -87,7 +87,7 @@ impl ReplState {
 
         if let Err(error) = self.compiler.push(&syntax) {
             let mut diagnostic = Diagnostic::from(error);
-            diagnostic.set_input_id(id);
+            diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
@@ -96,7 +96,7 @@ impl ReplState {
             Ok(object) => object,
             Err(error) => {
                 let mut diagnostic = Diagnostic::from(error);
-                diagnostic.set_input_id(id);
+                diagnostic.set_input(Some(id));
                 self.diagnostics.register(diagnostic);
                 return Err(ReplError::Step);
             }
@@ -108,14 +108,14 @@ impl ReplState {
 
         if let Err(error) = self.runtime.reload_main(new_main) {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
-            diagnostic.set_input_id(id);
+            diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
         if let Err(error) = self.runtime.resume() {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
-            diagnostic.set_input_id(id);
+            diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }

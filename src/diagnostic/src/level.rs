@@ -1,10 +1,13 @@
-//! The severity of of some diagnostic.
+//! The severity or significance of some diagnostic information.
 
 use std::fmt;
 
+/// A level indicates the severity or relevance of some piece of information.
 #[derive(Debug, Clone, Copy)]
 pub enum Level {
     Error,
+    // If adding levels with non-ascii `name`s, you'll need to update how
+    // FancyEmitter prints them.
 }
 
 impl Level {
