@@ -1,3 +1,10 @@
+//! Diagnostic messages.
+//!
+//! These are honestly a really hard to write well. The [rustc] book as some
+//! useful tips.
+//!
+//! [rustc]: https://rustc-dev-guide.rust-lang.org/diagnostics.html
+
 use crate::caret::Caret;
 use crate::highlight::Highlight;
 use crate::input_coordinator::InputId;
@@ -28,11 +35,14 @@ pub struct Diagnostic {
     /// Not all errors have a location, for instance "file not found" can't.
     location: Option<Caret>,
 
+    /// This is the primary message of the diagnostic.
+    message: Message,
+
     /// The highlighted regions relevant to this diagnostic.
     highlights: Vec<Highlight>,
 
-    /// This is the primary message of the diagnostic.
-    message: Message,
+    /// A place to include extra information
+    footers: Vec<Message>,
 }
 
 impl Diagnostic {
@@ -48,6 +58,7 @@ impl Diagnostic {
             location: None,
             message: Message::new(Level::default(), text),
             highlights: Vec::new(),
+            footers: Vec::new(),
         }
     }
 
@@ -94,9 +105,32 @@ impl Diagnostic {
         self.location = location;
     }
 
+    /// Get the main diagnostic message.
+    pub fn get_text(&self) -> &str {
+        &self.message.get_text()
+    }
+
+    /// Set the main message of this diagnostic message.
+    ///
+    /// This doesn't have a corresponding builder-style method as it's required
+    /// by [`Diagnostic::new`].
+    pub fn set_text(&mut self, text: String) {
+        self.message.set_text(text);
+    }
+
+    /// The [`Level`] of this diagnostic.
+    pub fn get_level(&self) -> Level {
+        self.message.get_level()
+    }
+
+    /// Set the [`Level`] of this diagnostic.
+    pub fn set_level(&mut self, level: Level) {
+        self.message.set_level(level);
+    }
+
     /// Add a highlight to this diagnostic message.
-    pub fn highlight(mut self, span: Span, note: String) -> Self {
-        self.highlights.push(Highlight::new(span, note));
+    pub fn highlight(mut self, span: Span, note: impl Into<String>) -> Self {
+        self.highlights.push(Highlight::new(span, note.into()));
         self
     }
 
@@ -105,24 +139,20 @@ impl Diagnostic {
         &self.highlights
     }
 
-    /// Get the main diagnostic message.
-    pub fn get_text(&self) -> &str {
-        &self.message.get_text()
+    /// Add an info footer
+    pub fn info(mut self, text: impl Into<String>) -> Self {
+        self.footers.push(Message::new(Level::Info, text.into()));
+        self
     }
 
-    /// Set the main message of this diagnostic message.
-    ///
-    /// This doesn't have a corresponding builder-style method as it's a
-    /// required field and included in [`Diagnostic::new`].
-    pub fn set_text(&mut self, text: String) {
-        self.message.set_text(text);
+    /// Add an help footer
+    pub fn help(mut self, text: impl Into<String>) -> Self {
+        self.footers.push(Message::new(Level::Help, text.into()));
+        self
     }
 
-    pub fn get_level(&self) -> Level {
-        self.message.get_level()
-    }
-
-    pub fn set_level(&mut self, level: Level) {
-        self.message.set_level(level);
+    /// The footers belonging to this diagnostic.
+    pub(crate) fn get_footers(&self) -> &[Message] {
+        &self.footers
     }
 }

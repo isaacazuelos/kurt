@@ -4,13 +4,15 @@ use std::{error, fmt};
 
 use diagnostic::{Diagnostic, Span};
 
+use crate::{code::Code, constant::Pool, object::Object, prototype::Prototype};
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    ParseChar(Span, std::char::ParseCharError),
+    ParseChar(Span),
     ParseInt(Span, std::num::ParseIntError),
-    ParseFloat(Span, std::num::ParseFloatError),
+    ParseFloat(Span),
 
     MutationNotSupported(Span),
     UndefinedLocal(Span),
@@ -30,18 +32,18 @@ impl fmt::Display for Error {
         use Error::*;
 
         match self {
-            ParseChar(_, _) => {
-                write!(f, "character literal doesn't make sense")
+            ParseChar(_) => {
+                write!(f, "cannot parse this character")
             }
 
-            ParseInt(_, _) => write!(f, "number cannot be used"),
+            ParseInt(_, _) => write!(f, "cannot parse number"),
 
-            ParseFloat(_, _) => {
-                write!(f, "floating-point number cannot be used")
+            ParseFloat(_) => {
+                write!(f, "cannot parse floating-point number")
             }
 
             MutationNotSupported(_) => {
-                write!(f, "mutation isn't implemented yet")
+                write!(f, "mutation with `var` isn't implemented yet")
             }
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
 
@@ -59,7 +61,7 @@ impl fmt::Display for Error {
                 write!(f, "this function has too many arguments")
             }
             TooManyConstants(_) => {
-                write!(f, "there are too many constants in the module")
+                write!(f, "there are too many constant values")
             }
             TooManyOps(_) => write!(f, "this module is too long"),
             TooManyParameters(_) => {
@@ -77,9 +79,9 @@ impl error::Error for Error {}
 impl Error {
     fn span(&self) -> Span {
         match self {
-            Error::ParseChar(s, _) => *s,
+            Error::ParseChar(s) => *s,
             Error::ParseInt(s, _) => *s,
-            Error::ParseFloat(s, _) => *s,
+            Error::ParseFloat(s) => *s,
             Error::MutationNotSupported(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
@@ -92,16 +94,105 @@ impl Error {
             Error::TooManyPrototypes(s) => *s,
         }
     }
-
-    fn text(&self) -> String {
-        format!("{}", self)
-    }
 }
 
 impl From<Error> for Diagnostic {
     fn from(e: Error) -> Self {
-        Diagnostic::new(e.text())
-            .location(e.span().start())
-            .highlight(e.span(), e.text())
+        let text = format!("{}", e);
+        let location = e.span().start();
+
+        let d = Diagnostic::new(text).location(location);
+
+        match e {
+            Error::ParseChar(s) => d.highlight(s, "this character"),
+            Error::ParseInt(s, e) => Error::parse_int(d, s, e),
+            Error::ParseFloat(s) => d.highlight(s, "this number is the issue"),
+            Error::MutationNotSupported(s) => Error::no_mutation(s, d),
+
+            Error::UndefinedLocal(s)
+            | Error::UndefinedPrefix(s)
+            | Error::UndefinedInfix(s)
+            | Error::UndefinedPostfix(s) => {
+                d.highlight(s, "no value with this name")
+            }
+
+            Error::TooManyArguments(s) => Error::too_many_args(s, d),
+            Error::TooManyConstants(s) => Error::too_many_const(s, d),
+            Error::TooManyOps(s) => Error::too_many_ops(s, d),
+            Error::TooManyParameters(s) => Error::too_many_params(s, d),
+            Error::TooManyPrototypes(s) => Error::too_many_prototypes(s, d),
+        }
+    }
+}
+
+impl Error {
+    fn no_mutation(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this doesn't work")
+            .help("using `let` instead would declare an immutable variable")
+    }
+
+    fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {
+        let info_text = format!(
+            "modules and functions compile to a sequence of instructions. \
+            Each module or function must fit in {} instructions",
+            Code::MAX_OPS
+        );
+
+        let help_text = "you can avoid these limits by breaking this into \
+            multiple modules and using `import` statements";
+
+        d.highlight(s, "here is where the limit was crossed")
+            .info(info_text)
+            .help(help_text)
+    }
+
+    fn too_many_params(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this parameter is the culprit")
+            .info(format!(
+                "functions can have a maximum of {} parameters",
+                Prototype::MAX_PARAMETERS
+            ))
+    }
+
+    fn too_many_args(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this argument is the culprit").info(format!(
+            "function calls can have a maximum of {} arguments",
+            Prototype::MAX_ARGUMENTS
+        ))
+    }
+
+    fn too_many_const(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this constant is where the limit is exceeded")
+            .info(format!(
+                "each module can only have {} unique literal values",
+                Pool::MAX_CONSTANTS,
+            ))
+    }
+
+    fn too_many_prototypes(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this function is the culprit").info(format!(
+            "each module can only have {} function definitions",
+            Object::MAX_PROTOTYPES - 1,
+        ))
+    }
+
+    fn parse_int(
+        d: Diagnostic,
+        s: Span,
+        e: std::num::ParseIntError,
+    ) -> Diagnostic {
+        use std::num::IntErrorKind::*;
+        match e.kind() {
+            PosOverflow => d
+                .highlight(s, "this number is too large")
+                .info(
+                    "our numbers are 48-bits, which means the largest \
+                    supported value is 281,474,976,710,655",
+                )
+                .help(
+                    "floating-point numbers can store bigger numbers, but will \
+                    lose precision as the number becomes larger"),
+            _ => d.highlight(s, "this number is the issue"),
+        }
     }
 }

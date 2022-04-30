@@ -194,6 +194,8 @@ impl FancyEmitter {
         spec.set_bold(true);
         let color = match level {
             Level::Error => Color::Red,
+            Level::Info => Color::Blue,
+            Level::Help => Color::Green,
         };
         spec.set_fg(Some(color));
         self.out.set_color(&spec)
@@ -216,9 +218,13 @@ impl Emitter for FancyEmitter {
             {
                 window.emit_fancy(self, &name)?;
             }
+
+            for footer in d.get_footers() {
+                self.emit_message(footer.get_level(), footer.get_text());
+            }
         }
 
-        self.out().flush()?;
+        writeln!(self.out());
 
         Ok(())
     }

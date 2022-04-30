@@ -25,6 +25,12 @@ impl Prototype {
     /// for a module.
     pub const MAIN_NAME: &'static str = "main";
 
+    /// The maximum number of arguments allowed in a function call.
+    pub const MAX_ARGUMENTS: usize = u32::MAX as usize;
+
+    /// The maximum number of parameters allowed in a function.
+    pub const MAX_PARAMETERS: usize = u32::MAX as usize;
+
     /// Crate a prototype for a new closure.
     ///
     /// If you're trying to create one for the top level code, use

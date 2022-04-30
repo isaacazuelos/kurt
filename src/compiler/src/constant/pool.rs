@@ -14,6 +14,9 @@ pub struct Pool {
 }
 
 impl Pool {
+    /// The maximum number of constant values we can store in a pool.
+    pub const MAX_CONSTANTS: usize = u32::MAX as usize;
+
     /// Insert a constant into a this pool. If it's already present, the
     /// existing [`Index`] is returned, otherwise a new one is used.
     pub fn insert(
@@ -22,7 +25,7 @@ impl Pool {
     ) -> Option<Index<Constant>> {
         let len = self.constants.len();
 
-        if len > Index::<Constant>::MAX {
+        if len > Pool::MAX_CONSTANTS {
             None
         } else {
             Some(

@@ -18,7 +18,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{constant::Constant, opcode::Op};
+use crate::opcode::Op;
 
 /// An index which refers to a specific opcode.
 ///
@@ -51,11 +51,6 @@ impl Index<Op> {
     pub fn pred_saturating(self) -> Self {
         Index(self.0.saturating_sub(1), PhantomData)
     }
-}
-
-impl Index<Constant> {
-    /// The largest constant index.
-    pub const MAX: usize = u32::MAX as usize;
 }
 
 pub trait Get<In, Out = In> {

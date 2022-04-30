@@ -7,6 +7,7 @@ use crate::{
     constant::Constant,
     error::{Error, Result},
     opcode::Op,
+    prototype::Prototype,
     Compiler,
 };
 
@@ -200,7 +201,7 @@ impl Compiler {
         self.expression_sequence(syntax)?;
 
         let count = syntax.elements().len();
-        if count >= u32::MAX as usize {
+        if count >= Prototype::MAX_ARGUMENTS {
             let problem_arg = &syntax.elements()[u32::MAX as usize - 1];
             Err(Error::TooManyArguments(problem_arg.span()))
         } else {
@@ -215,7 +216,7 @@ impl Compiler {
         name: Option<&str>,
     ) -> Result<()> {
         let i = self.with_prototype(syntax.span(), |compiler| {
-            if syntax.elements().len() > u32::MAX as usize {
+            if syntax.elements().len() > Prototype::MAX_PARAMETERS {
                 let problem_element = &syntax.elements()[u32::MAX as usize];
                 return Err(Error::TooManyParameters(problem_element.span()));
             }
@@ -340,7 +341,7 @@ impl Compiler {
     /// Compile a character literal.
     fn char(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let c = Constant::parse_char(syntax.body())
-            .map_err(|e| Error::ParseChar(syntax.span(), e))?;
+            .map_err(|_| Error::ParseChar(syntax.span()))?;
         let index = self
             .constants
             .insert(c)
@@ -361,7 +362,7 @@ impl Compiler {
 
     fn float(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let f = Constant::parse_float(syntax.body())
-            .map_err(|e| Error::ParseFloat(syntax.span(), e))?;
+            .map_err(|_| Error::ParseFloat(syntax.span()))?;
         let index = self
             .constants
             .insert(f)

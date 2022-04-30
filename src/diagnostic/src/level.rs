@@ -6,6 +6,8 @@ use std::fmt;
 #[derive(Debug, Clone, Copy)]
 pub enum Level {
     Error,
+    Info,
+    Help,
     // If adding levels with non-ascii `name`s, you'll need to update how
     // FancyEmitter prints them.
 }
@@ -15,6 +17,8 @@ impl Level {
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Level::Error => "error",
+            Level::Info => "info",
+            Level::Help => "help",
         }
     }
 }
