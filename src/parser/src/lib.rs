@@ -32,8 +32,6 @@ pub use crate::{error::Error, parser::Parser};
 pub trait Parse<'a>: Sized {
     type SyntaxError;
 
-    /// Parse the input to produce the expected syntax type.
-
     fn parse(input: &'a str) -> Result<Self, Error<Self::SyntaxError>> {
         let mut parser = Parser::new(input)?;
         let syntax = parser.parse::<Self>()?;
@@ -41,7 +39,7 @@ pub trait Parse<'a>: Sized {
         if parser.is_empty() {
             Ok(syntax)
         } else {
-            todo!()
+            Err(Error::UnconsumedInput(parser.peek_span().unwrap()))
         }
     }
 

@@ -305,9 +305,140 @@ pub enum Error {
 }
 
 impl From<Error> for Diagnostic {
+    // Many of these really shouldn't appear as-is, and are more useful for
+    // creating better syntax-aware diagnostics.
+    #[rustfmt::skip]
     fn from(e: Error) -> Diagnostic {
-        Diagnostic::new("unfinished error")
-            .info(format!("raw error is {:#?}", e))
+        match e {
+            Error::EOF(span) => {
+                Diagnostic::new("input ended when expecting operator")
+                    .location(span.end())
+                    .highlight(span, "an operator was expected after this")
+            }
+
+            Error::UndefinedPrefix(span) => {
+                Diagnostic::new("a prefix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::UndefinedPostfix(span) => {
+                Diagnostic::new("a postfix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::UndefinedInfix(span) => {
+                Diagnostic::new("a infix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::MultipleNonAssociative(first, second) => {
+                Diagnostic::new("the order of operations is not clear")
+                    .location(first.start())
+                    .highlight(first, "should this happen first")
+                    .highlight(second, "or should this one happen first")
+                    .help("use parenthesis to make the ordering clear")
+                    .info(
+                        "this only happens when we have two non-associative \
+                        operators with the same precedence next to each other"
+                    )
+            }
+
+            Error::NotOperator(span) => {
+                Diagnostic::new("an operator was expected")
+                    .location(span.start())
+                    .highlight(span, "instead we saw this")
+            }
+
+            Error::PrefixSpaceAfter(span) => {
+                Diagnostic::new(
+                    "prefix operators shouldn't have spaces after them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "the whitespace after this should be removed"
+                    )
+                    .info("otherwise it's not clear if it's prefix or infix")
+            }
+
+            Error::PrefixNoSpaceBefore(span) => {
+                Diagnostic::new("prefix operators needs spaces before them")
+                    .location(span.start())
+                    .highlight(span, "some whitespace is needed before this")
+                    .info("otherwise it's not clear if it's prefix or infix")
+            }
+
+            Error::PrefixAtEnd(span) => {
+                Diagnostic::new(
+                    "prefix operators can't be at the end of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator has nothing to operate on")
+            }
+
+            Error::PostfixNoSpaceAfter(span) => {
+                Diagnostic::new(
+                    "prefix operators can't have whitespace after them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "the whitespace after this should be removed"
+                    )
+                    .info("otherwise it looks like an infix operator")
+            },
+
+            Error::PostfixSpaceBefore(span) => {
+                Diagnostic::new(
+                    "prefix operators must have whitespace before them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "whitespace is needed before this"
+                    )
+                    .info("otherwise it looks like an infix operator")
+            },
+
+            Error::PostfixAtStart(span) => {
+                Diagnostic::new(
+                    "postfix operators cannot be at the start of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator has nothing to operate on")
+            },
+
+            Error::InfixAtStartOrEnd(span) => {
+                Diagnostic::new(
+                    "infix operators can't be at the start or end of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator is missing an operand")
+            }
+
+            Error::InfixUnbalanced(span) => {
+                Diagnostic::new("infix operators need balanced whitespace")
+                    .location(span.start())
+                    .highlight(span, "this whitespace isn't balanced")
+                    .info(
+                        "infix operators either need whitespace on both sides \
+                        or neither, otherwise they look prefix or postfix"
+                    )
+            }
+
+            Error::InfixWrongPrecedence(span) => {
+                Diagnostic::new("an infix operator has the wrong precedence")
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "this infix operator doesn't have the precedence \
+                        needed by the parser"
+                    )
+            },
+        }
     }
 }
 

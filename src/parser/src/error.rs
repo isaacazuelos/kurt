@@ -13,11 +13,14 @@ pub use crate::{
 /// diagnostics, but this is pretty incomplete for now.
 #[derive(Debug, Clone, Copy)]
 pub enum Error<E> {
-    ParserDepthExceeded(Span),
-    EOF(Span),
     Syntax(E),
-    Operator(OperatorError),
+
+    EOF(Span),
+    ParserDepthExceeded(Span),
+    UnconsumedInput(Span),
+
     Lexer(LexerError),
+    Operator(OperatorError),
 }
 
 impl<T> From<LexerError> for Error<T> {
@@ -36,23 +39,34 @@ impl<E> From<Error<E>> for Diagnostic
 where
     E: Into<Diagnostic>,
 {
+    #[rustfmt::skip]
     fn from(e: Error<E>) -> Diagnostic {
         match e {
-            Error::ParserDepthExceeded(span) => Diagnostic::new(
-                "expression too complex to parse",
-            )
-            .location(span.start())
-            .highlight(span, "this is where things became too deeply nested")
-            .help("using `let` or functions to break things up might help"),
-
-            Error::EOF(span) => Diagnostic::new("input ended unexpectedly")
-                .highlight(span, "this was the end of the input"),
-
             Error::Syntax(e) => e.into(),
 
-            Error::Operator(o) => o.into(),
+            Error::EOF(span) => {
+                Diagnostic::new("input ended unexpectedly")
+                    .location(span.start())
+                    .highlight(span, "this was the end of the input")
+            }
+            Error::ParserDepthExceeded(span) => {
+                Diagnostic::new("expression too complex to parse")
+                    .location(span.start())
+                    .highlight(span, "this is where things became too deeply nested")
+                    .help("using `let` or functions to break things up might help")
+            },
+            Error::UnconsumedInput(span) => {
+                Diagnostic::new("parsing left unused input")
+                    .location(span.start())
+                    .highlight(span, "not sure what to do from here on")
+                    .info(
+                        "this error should usually be replaced by a better \
+                        one but wasn't here, please report it"
+                    )
+            }
 
             Error::Lexer(l) => l.into(),
+            Error::Operator(o) => o.into(),
         }
     }
 }
