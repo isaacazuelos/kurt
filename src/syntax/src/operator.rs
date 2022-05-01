@@ -66,8 +66,6 @@ impl<'a> Unary<'a> {
 }
 
 impl Syntax for Unary<'_> {
-    const NAME: &'static str = "a unary operator";
-
     fn span(&self) -> Span {
         self.token.span() + self.operand.span()
     }
@@ -118,8 +116,6 @@ impl<'a> Binary<'a> {
 }
 
 impl Syntax for Binary<'_> {
-    const NAME: &'static str = "a binary operator";
-
     fn span(&self) -> Span {
         self.left().span() + self.right().span()
     }

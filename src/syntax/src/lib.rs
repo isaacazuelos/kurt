@@ -16,6 +16,7 @@ mod block;
 mod call;
 mod conditional;
 mod entry;
+mod error;
 mod expression;
 mod function;
 mod grouping;
@@ -32,6 +33,7 @@ pub use self::{
     call::Call,
     conditional::{IfElse, IfOnly},
     entry::Module,
+    error::Error as SyntaxError,
     expression::Expression,
     function::{Function, Parameter},
     grouping::Grouping,
@@ -43,19 +45,9 @@ pub use self::{
     subscript::Subscript,
 };
 
-/// Convert a byte array into a string, but return one of our [`parser::Error`]s.
-pub fn verify_utf8(input: &[u8]) -> Result<&str, Error> {
-    std::str::from_utf8(input)
-        .map_err(|e| parser::Error::LexerError(lexer::Error::from(e)))
-}
+pub type SyntaxResult<S> = Result<S, parser::Error<SyntaxError>>;
 
 pub trait Syntax: std::fmt::Debug {
-    /// A user-facing name for this piece of syntax.
-    ///
-    /// These should singular, and include the 'a' or 'an' at the start -- like
-    /// 'an expression' or 'a statement'.
-    const NAME: &'static str;
-
     /// The [`Span`] in the original source code that this piece of syntax came
     /// from.
     fn span(&self) -> Span;

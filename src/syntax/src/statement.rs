@@ -27,8 +27,6 @@ pub enum Statement<'a> {
 }
 
 impl<'a> Syntax for Statement<'a> {
-    const NAME: &'static str = "a statement";
-
     fn span(&self) -> Span {
         match self {
             Statement::Binding(b) => b.span(),
@@ -40,7 +38,9 @@ impl<'a> Syntax for Statement<'a> {
 }
 
 impl<'a> Parse<'a> for Statement<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Statement<'a>, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Statement<'a>> {
         match parser.peek() {
             Some(TokenKind::Semicolon) => {
                 Ok(Statement::Empty(parser.peek_span().unwrap()))
@@ -63,7 +63,7 @@ impl<'a> Parse<'a> for Statement<'a> {
 
             Some(_) => Ok(Statement::Expression(parser.parse()?)),
 
-            None => Err(Error::EOFExpecting("a statement")),
+            None => Err(Error::EOF(parser.eof_span())),
         }
     }
 }

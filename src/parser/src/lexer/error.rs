@@ -2,31 +2,21 @@
 
 use std::{error, fmt};
 
-use diagnostic::Caret;
+use diagnostic::{Caret, Diagnostic, Span};
 
-/// Lexical errors with all the contextual information needed present it nicely.
-#[derive(Debug)]
+/// Lexical errors with the contextual information needed present it nicely.
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
-    EmptyRadixLiteral(Caret, u32),
+    EmptyRadixLiteral(Span, u32),
     InvalidEscape(Caret, char),
     InvalidFloatExponent(Caret),
     InvalidFloatFractional(Caret),
-    InvalidUnicode(Caret),
+    InvalidUnicodeEscape(Caret),
     NotStartOfToken(Caret, char),
-    NotUTF8(usize),
     Reserved(Caret, char),
     UnclosedCharacter(Caret),
     UnclosedString(Caret),
     UnexpectedEOF(Caret),
-
-    // TODO: Finish the cases that would produce this.
-    Unsupported(Caret, &'static str),
-}
-
-impl From<std::str::Utf8Error> for Error {
-    fn from(e: std::str::Utf8Error) -> Error {
-        Error::NotUTF8(e.valid_up_to())
-    }
 }
 
 // This [`Display`][fmt::display] implementation doesn't have access to enough
@@ -35,6 +25,15 @@ impl From<std::str::Utf8Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Error::EmptyRadixLiteral(_, 2) => {
+                write!(f, "binary literals can't be empty")
+            }
+            Error::EmptyRadixLiteral(_, 8) => {
+                write!(f, "octal literals can't be empty")
+            }
+            Error::EmptyRadixLiteral(_, 16) => {
+                write!(f, "hexadecimal literals can't be empty")
+            }
             Error::EmptyRadixLiteral(_, _) => {
                 write!(f, "special radix literals can't be empty")
             }
@@ -47,12 +46,9 @@ impl fmt::Display for Error {
             Error::InvalidFloatFractional(_) => {
                 write!(f, "not a valid floating point literal fractional part")
             }
-            Error::InvalidUnicode(_) => write!(f, "invalid unicode"),
+            Error::InvalidUnicodeEscape(_) => write!(f, "invalid unicode"),
             Error::NotStartOfToken(_, c) => {
                 write!(f, "no token can start with a '{}'", c)
-            }
-            Error::NotUTF8(index) => {
-                write!(f, "file is not valid unicode, at byte {}", index)
             }
             Error::Reserved(_, c) => {
                 write!(f, "the character '{}' is reserved for future use", c)
@@ -66,12 +62,58 @@ impl fmt::Display for Error {
             Error::UnexpectedEOF(_) => {
                 write!(f, "unexpected end of input")
             }
-
-            Error::Unsupported(_, name) => {
-                write!(f, "{} tokens are not yet supported", name)
-            }
         }
     }
 }
 
 impl error::Error for Error {}
+
+impl From<Error> for Diagnostic {
+    fn from(e: Error) -> Self {
+        let d = Diagnostic::new(format!("{e}")).location(e.location());
+
+        match e {
+            Error::EmptyRadixLiteral(s, n) => Error::empty_radix(e, s, n),
+            Error::NotStartOfToken(_, _) => d,
+            Error::InvalidEscape(_, _) => d,
+            Error::Reserved(_, _) => d,
+
+            Error::InvalidFloatExponent(_) => d,
+            Error::InvalidFloatFractional(_) => d,
+            Error::InvalidUnicodeEscape(_) => d,
+            Error::UnclosedCharacter(_) => d,
+            Error::UnclosedString(_) => d,
+            Error::UnexpectedEOF(_) => d,
+        }
+    }
+}
+
+impl Error {
+    fn location(&self) -> Caret {
+        match self {
+            Error::EmptyRadixLiteral(s, _) => s.start(),
+            Error::InvalidEscape(c, _) => *c,
+            Error::InvalidFloatExponent(c) => *c,
+            Error::InvalidFloatFractional(c) => *c,
+            Error::InvalidUnicodeEscape(c) => *c,
+            Error::NotStartOfToken(c, _) => *c,
+            Error::Reserved(c, _) => *c,
+            Error::UnclosedCharacter(c) => *c,
+            Error::UnclosedString(c) => *c,
+            Error::UnexpectedEOF(c) => *c,
+        }
+    }
+
+    fn empty_radix(e: Error, s: Span, n: u32) -> Diagnostic {
+        let d = Diagnostic::new(format!("{e}"))
+            .location(e.location())
+            .highlight(s, "this looks like the start of a number");
+
+        match n {
+            2 => d.info("only numbers can start with `0`, and binary numbers start with `0b`"),
+            8 => d.info("only numbers can start with `0`, and octal (base 8) numbers start with `0o`"),
+            16 => d.info("only numbers can start with `0`, and hexadecimal (base 16) numbers start with `0x`"),
+            _ => d,
+        }
+    }
+}

@@ -3,7 +3,9 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
 use compiler::Compiler;
-use diagnostic::{Diagnostic, DiagnosticCoordinator, InputCoordinator};
+use diagnostic::{
+    verify_utf8, Diagnostic, DiagnosticCoordinator, InputCoordinator,
+};
 use runtime::Runtime;
 use syntax::{Module, Parse};
 
@@ -22,10 +24,10 @@ impl Script {
         let mut diagnostics = DiagnosticCoordinator::default();
         let mut compiler = Compiler::default();
 
-        let mut input = String::new();
+        let mut bytes = Vec::new();
 
         if let Err(e) = File::open(&self.filename)
-            .and_then(|mut file| file.read_to_string(&mut input))
+            .and_then(|mut file| file.read_to_end(&mut bytes))
         {
             let d = Diagnostic::new(format!("{e}"));
             diagnostics.register(d);
@@ -33,10 +35,19 @@ impl Script {
             return;
         }
 
+        let input = match verify_utf8(&bytes) {
+            Ok(s) => s,
+            Err(d) => {
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
+        };
+
         let syntax = match Module::parse(&input) {
             Ok(object) => object,
-            Err(e) => {
-                let d = Diagnostic::new(format!("{e}"));
+            Err(error) => {
+                let d = Diagnostic::from(error);
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;

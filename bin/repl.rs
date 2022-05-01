@@ -78,7 +78,7 @@ impl ReplState {
         let syntax = match Module::parse(self.inputs.get_input_buffer(id)) {
             Ok(syntax) => syntax,
             Err(error) => {
-                let mut diagnostic = Diagnostic::new(format!("{error}"));
+                let mut diagnostic = Diagnostic::from(error);
                 diagnostic.set_input(Some(id));
                 self.diagnostics.register(diagnostic);
                 return Err(ReplError::Step);

@@ -53,18 +53,25 @@ impl<'a> Function<'a> {
 }
 
 impl<'a> Parse<'a> for Function<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
-            .consume(TokenKind::Open(Delimiter::Parenthesis), Self::NAME)?
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .ok_or(SyntaxError::FunctionNoOpen)?
             .span();
 
         let (parameters, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
-            .consume(TokenKind::Close(Delimiter::Parenthesis), Self::NAME)?
+            .consume(TokenKind::Close(Delimiter::Parenthesis))
+            .ok_or(SyntaxError::FunctionNoClose)?
             .span();
 
-        let arrow = parser.consume(TokenKind::DoubleArrow, Self::NAME)?.span();
+        let arrow = parser
+            .consume(TokenKind::DoubleArrow)
+            .ok_or(SyntaxError::FunctionNoArrow)?
+            .span();
 
         let body = Box::new(parser.parse()?);
 
@@ -80,8 +87,6 @@ impl<'a> Parse<'a> for Function<'a> {
 }
 
 impl<'a> Syntax for Function<'a> {
-    const NAME: &'static str = "a function";
-
     fn span(&self) -> Span {
         self.open + self.body.span()
     }
@@ -121,17 +126,14 @@ impl Parameter {
 }
 
 impl<'a> Parse<'a> for Parameter {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
-        parser
-            .parse()
-            .map(|name| Parameter { name })
-            .map_err(|e| e.set_wanted("function parameter name"))
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
+        parser.parse().map(|name| Parameter { name })
     }
 }
 
 impl<'a> Syntax for Parameter {
-    const NAME: &'static str = "a parameter";
-
     fn span(&self) -> Span {
         self.name.span()
     }

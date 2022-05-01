@@ -30,18 +30,18 @@ pub use crate::{error::Error, parser::Parser};
 /// syntax. The idea is to implement this for as many AST nodes as possible to
 /// allow the parser to start parsing at different places in the grammar.
 pub trait Parse<'a>: Sized {
+    type SyntaxError;
+
     /// Parse the input to produce the expected syntax type.
-    ///
-    /// This will return [`Error::UnusedInput`] if there is unused input after
-    /// parsing.
-    fn parse(input: &'a str) -> Result<Self, Error> {
+
+    fn parse(input: &'a str) -> Result<Self, Error<Self::SyntaxError>> {
         let mut parser = Parser::new(input)?;
-        let syntax = parser.parse()?;
+        let syntax = parser.parse::<Self>()?;
 
         if parser.is_empty() {
             Ok(syntax)
         } else {
-            Err(Error::UnusedInput)
+            todo!()
         }
     }
 
@@ -51,5 +51,7 @@ pub trait Parse<'a>: Sized {
     /// Typically, unless we're done parsing, parser will not be empty
     /// afterwards. Implementations must consume as much as possible before
     /// returning an error.
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error>;
+    fn parse_with(
+        parser: &mut Parser<'a>,
+    ) -> Result<Self, Error<Self::SyntaxError>>;
 }

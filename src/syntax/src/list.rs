@@ -34,15 +34,19 @@ impl<'a> List<'a> {
 }
 
 impl<'a> Parse<'a> for List<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
-            .consume(TokenKind::Open(Delimiter::Bracket), Self::NAME)?
+            .consume(TokenKind::Open(Delimiter::Bracket))
+            .ok_or(SyntaxError::ListNoOpen)?
             .span();
 
         let (elements, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
-            .consume(TokenKind::Close(Delimiter::Bracket), Self::NAME)?
+            .consume(TokenKind::Close(Delimiter::Bracket))
+            .ok_or(SyntaxError::ListNoClose)?
             .span();
 
         Ok(List {
@@ -69,8 +73,6 @@ impl<'a> Sequence for List<'a> {
 }
 
 impl<'a> Syntax for List<'a> {
-    const NAME: &'static str = "a list";
-
     fn span(&self) -> Span {
         self.open + self.close()
     }

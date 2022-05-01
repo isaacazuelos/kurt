@@ -52,11 +52,11 @@ impl Diagnostic {
     /// issue, when combined with the source name and location.
     ///
     /// The [`Level`]'s [`Default`] is used.
-    pub fn new(text: String) -> Self {
+    pub fn new(text: impl Into<String>) -> Self {
         Diagnostic {
             input_id: None,
             location: None,
-            message: Message::new(Level::default(), text),
+            message: Message::new(Level::default(), text.into()),
             highlights: Vec::new(),
             footers: Vec::new(),
         }

@@ -9,7 +9,7 @@ use diagnostic::Span;
 
 use crate::{
     error::Error,
-    lexer::{Lexer, Token, TokenKind},
+    lexer::{self, Lexer, Token, TokenKind},
     operator::DefinedOperators,
     Parse,
 };
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
     ///
     /// This will immediately return a lexical error if the input isn't
     /// lexically valid.
-    pub fn new(input: &'a str) -> Result<Parser<'a>, Error> {
+    pub fn new(input: &'a str) -> Result<Parser<'a>, lexer::Error> {
         let tokens = {
             let mut buf = Vec::new();
             let mut lexer = Lexer::new(input);
@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
     ///
     /// Some productions could be empty, so it's not unusual for calls to to
     /// return successfully but consume nothing.
-    pub fn parse<T: Parse<'a>>(&mut self) -> Result<T, Error> {
+    pub fn parse<T: Parse<'a>>(&mut self) -> Result<T, Error<T::SyntaxError>> {
         T::parse_with(self)
     }
 
@@ -79,17 +79,13 @@ impl<'a> Parser<'a> {
         self.cursor >= self.tokens.len()
     }
 
-    /// Consume the next token if it has the [`TokenKind`] we wanted.. If the
-    /// next token has the wrong kind, the error mentioned what we were looking
-    /// for using `name`.
+    /// Consume the next token if it has the [`TokenKind`] we wanted. If the
+    /// next token has the wrong kind or we're at the end of the input, `None`
+    /// is returned.
     ///
     /// See [`Parser::consume_if`] for more complicated matching.
-    pub fn consume(
-        &mut self,
-        wanted: TokenKind,
-        name: &'static str,
-    ) -> Result<Token<'a>, Error> {
-        self.consume_if(|t| t.kind() == wanted, name)
+    pub fn consume(&mut self, wanted: TokenKind) -> Option<Token<'a>> {
+        self.consume_if(|t| t.kind() == wanted)
     }
 
     /// Consume the next token if it's [`TokenKind`] satisfies the predicated
@@ -103,20 +99,15 @@ impl<'a> Parser<'a> {
     pub fn consume_if(
         &mut self,
         predicate: impl Fn(&Token) -> bool,
-        name: &'static str,
-    ) -> Result<Token<'a>, Error> {
-        match self.tokens.get(self.cursor) {
-            Some(found) if predicate(found) => {
-                let token = self.tokens[self.cursor];
+    ) -> Option<Token<'a>> {
+        if let Some(token) = self.tokens.get(self.cursor) {
+            if predicate(token) {
                 self.cursor += 1;
-                Ok(token)
+                return Some(*token);
             }
-            Some(found) => Err(Error::Unexpected {
-                wanted: name,
-                found: found.kind(),
-            }),
-            None => Err(Error::EOFExpecting(name)),
         }
+
+        None
     }
 
     /// Returns the `TokenKind` of the next token, without consuming it.
@@ -139,12 +130,19 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.cursor).map(Token::span)
     }
 
+    /// The span of the token right before the end of the input.
+    ///
+    /// If there's no input, the default span is used.
+    pub fn eof_span(&self) -> Span {
+        self.tokens.last().map(Token::span).unwrap_or_default()
+    }
+
     /// A `sep` separated list of some piece of syntax, with support for
     /// optional trailing separators.
     pub fn sep_by_trailing<S>(
         &mut self,
         sep: TokenKind,
-    ) -> Result<(Vec<S>, Vec<Span>), Error>
+    ) -> Result<(Vec<S>, Vec<Span>), crate::Error<S::SyntaxError>>
     where
         S: Parse<'a>,
     {
@@ -153,11 +151,8 @@ impl<'a> Parser<'a> {
 
         while !self.is_empty() {
             let before = self.cursor;
-            match self.parse() {
+            match self.parse::<S>() {
                 Ok(element) => elements.push(element),
-                Err(Error::ParserDepthExceeded) => {
-                    return Err(Error::ParserDepthExceeded)
-                }
                 Err(e) => {
                     // If the parser for S consumed some tokens before breaking,
                     // we need to pass that error along -- it means we had a
@@ -166,6 +161,11 @@ impl<'a> Parser<'a> {
                     // careful here.
                     if self.cursor != before {
                         return Err(e);
+                    } else if self.depth >= Parser::MAX_DEPTH {
+                        let span = self.peek_span().unwrap();
+                        return Err(Error::ParserDepthExceeded(span));
+                    } else {
+                        // if it didn't consume anything, we continue
                     }
                 }
             }
@@ -173,7 +173,7 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 // If we see a separator, save it and continue
                 Some(t) if t == sep => {
-                    let tok = self.consume(t, sep.name()).unwrap();
+                    let tok = self.consume(t).unwrap();
                     separators.push(tok.span());
                 }
 
@@ -209,33 +209,35 @@ impl<'a> Parser<'a> {
     ///
     /// Likewise, for expressions, it's only in 'primary' expressions which we
     /// need to worry about this.
-    pub fn depth_track<F, S>(&mut self, inner: F) -> Result<S, Error>
+    pub fn depth_track<F, S, E>(&mut self, inner: F) -> Result<S, Error<E>>
     where
-        F: FnOnce(&mut Self) -> Result<S, Error>,
+        F: FnOnce(&mut Self) -> Result<S, Error<E>>,
     {
         if self.depth >= Parser::MAX_DEPTH {
-            return Err(Error::ParserDepthExceeded);
+            let span = self.peek_span().unwrap_or_default();
+            return Err(Error::ParserDepthExceeded(span));
         } else {
             self.depth += 1;
         }
 
-        let result = inner(self);
-
-        // If this underflows, something else must have mutated self.depth.
-        self.depth -= 1;
-
-        result
+        match inner(self) {
+            Ok(s) => {
+                self.depth -= 1;
+                Ok(s)
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
 // Backtracking
 impl<'a> Parser<'a> {
-    /// Attempt to use the parser for `F`, but on error the parser is returned
+    /// Attempt to the inner parser action F but on error the parser is returned
     /// to the state it was in before failure.
     #[inline(always)]
-    pub fn with_backtracking<S, F>(&mut self, inner: F) -> Result<S, Error>
+    pub fn with_backtracking<S, F, E>(&mut self, inner: F) -> Result<S, E>
     where
-        F: FnOnce(&mut Self) -> Result<S, Error>,
+        F: FnOnce(&mut Self) -> Result<S, E>,
     {
         let old_depth = self.depth;
         let old_cursor = self.cursor;
@@ -262,10 +264,10 @@ mod parser_tests {
         let mut p = Parser::new("hi").unwrap();
 
         assert!(!p.is_empty());
-        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
-        assert!(p.consume(TokenKind::Identifier, "identifier").is_ok());
+        assert!(p.consume(TokenKind::DoubleArrow).is_none());
+        assert!(p.consume(TokenKind::Identifier).is_some());
         assert!(p.is_empty());
-        assert!(p.consume(TokenKind::DoubleArrow, "wrong").is_err());
+        assert!(p.consume(TokenKind::DoubleArrow).is_none());
     }
 
     #[test]
@@ -277,7 +279,7 @@ mod parser_tests {
         let mut p = Parser::new("hi").unwrap();
 
         assert!(!p.is_empty());
-        assert!(p.consume_if(pred, "test").is_ok());
+        assert!(p.consume_if(pred).is_some());
         assert!(p.is_empty());
     }
 
@@ -311,8 +313,8 @@ mod parser_tests {
         let mut parser = Parser::new("hi").unwrap();
         assert!(!parser.is_empty());
 
-        let tok = parser.consume(TokenKind::Identifier, "test");
-        assert!(tok.is_ok());
+        let tok = parser.consume(TokenKind::Identifier);
+        assert!(tok.is_some());
         assert!(parser.is_empty());
     }
 
@@ -320,20 +322,24 @@ mod parser_tests {
     fn backtracking() {
         // lets make sure no backtracking does what we expect.
         let mut parser = Parser::new("1 2").unwrap();
-        let result1 = parser.consume(TokenKind::Int, "1");
-        let result2 = parser.consume(TokenKind::Int, "2");
-        let result3 = parser.consume(TokenKind::Int, "3");
+        let result1 = parser.consume(TokenKind::Int);
+        let result2 = parser.consume(TokenKind::Int);
+        let result3 = parser.consume(TokenKind::Int);
 
-        assert!(result1.is_ok() && result2.is_ok() && result3.is_err());
+        assert!(result1.is_some());
+        assert!(result2.is_some());
+        assert!(result3.is_none());
         assert!(parser.is_empty());
 
         // Okay now we can try backtracking.
 
+        struct Error;
+
         let mut parser = Parser::new("1 2").unwrap();
         let result = parser.with_backtracking(|p| {
-            p.consume(TokenKind::Int, "1")?;
-            p.consume(TokenKind::Int, "2")?;
-            p.consume(TokenKind::Int, "missing 3")
+            p.consume(TokenKind::Int).ok_or(Error)?;
+            p.consume(TokenKind::Int).ok_or(Error)?;
+            p.consume(TokenKind::Int).ok_or(Error)
         });
 
         assert!(result.is_err());

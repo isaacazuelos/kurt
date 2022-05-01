@@ -35,8 +35,6 @@ impl<'a> Block<'a> {
 }
 
 impl<'a> Syntax for Block<'a> {
-    const NAME: &'static str = "a block";
-
     fn span(&self) -> Span {
         self.open + self.close
     }
@@ -57,22 +55,20 @@ impl<'a> Sequence for Block<'a> {
 }
 
 impl<'a> Parse<'a> for Block<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Block<'a>, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Block<'a>> {
         let open = parser
-            .consume(
-                TokenKind::Open(Delimiter::Brace),
-                "an opening brace for a block",
-            )?
+            .consume(TokenKind::Open(Delimiter::Brace))
+            .ok_or(SyntaxError::BlockNoOpen)?
             .span();
 
         let (statements, semicolons) =
             parser.sep_by_trailing(TokenKind::Semicolon)?;
 
         let close = parser
-            .consume(
-                TokenKind::Close(Delimiter::Brace),
-                "an closing brace for a block",
-            )?
+            .consume(TokenKind::Close(Delimiter::Brace))
+            .ok_or(SyntaxError::BlockNoClose)?
             .span();
 
         Ok(Block {
@@ -81,17 +77,6 @@ impl<'a> Parse<'a> for Block<'a> {
             semicolons,
             close,
         })
-    }
-
-    fn parse(input: &'a str) -> Result<Self, Error> {
-        let mut parser = Parser::new(input)?;
-        let syntax = parser.parse()?;
-
-        if parser.is_empty() {
-            Ok(syntax)
-        } else {
-            Err(Error::UnusedInput)
-        }
     }
 }
 

@@ -187,7 +187,7 @@ impl<'i, 'd> CodeWindow<'i, 'd> {
 
         // We print the gutter with the number out here, and print the '...'
         // ones inside.
-        self.gutter(p, number)?;
+        self.gutter(p, number + 1)?; // convert 0-indexed lines to user-facing 1-index
 
         for (n, line) in p
             .code_wrap(line, self.code_width(p.width()))

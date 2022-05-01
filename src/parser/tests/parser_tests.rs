@@ -24,24 +24,31 @@ enum S<'a> {
     P(Box<P<'a>>),
 }
 
+#[derive(Debug)]
+pub enum SyntaxError {
+    EOF,
+    Mismatch(String),
+}
+
 impl<'a> Parse<'a> for S<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<S<'a>, parser::Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(
+        parser: &mut Parser<'a>,
+    ) -> Result<S<'a>, Error<SyntaxError>> {
         parser.depth_track(|parser| match parser.peek() {
             Some(TokenKind::Identifier) => {
-                let token = parser
-                    .consume(TokenKind::Identifier, "identifier")
-                    .unwrap();
+                let token = parser.consume(TokenKind::Identifier).unwrap();
                 Ok(S::Identifier(token.body()))
             }
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                 P::parse_with(parser).map(|p| S::P(Box::new(p)))
             }
 
-            None => Err(Error::EOFExpecting("an identifier or a tuple")),
-            Some(found) => Err(Error::Unexpected {
-                wanted: "an identifier or a tuple",
-                found,
-            }),
+            None => Err(Error::Syntax(SyntaxError::EOF)),
+            Some(t) => Err(Error::Syntax(SyntaxError::Mismatch(
+                format!("S needed <id> or `(` but found {:?}", t).into(),
+            ))),
         })
     }
 }
@@ -54,22 +61,28 @@ struct P<'a> {
 }
 
 impl<'a> Parse<'a> for P<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<P<'a>, parser::Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(
+        parser: &mut Parser<'a>,
+    ) -> Result<P<'a>, Error<SyntaxError>> {
         Ok(P {
             _open: parser
-                .consume(
-                    TokenKind::Open(Delimiter::Parenthesis),
-                    "an open paren",
-                )?
+                .consume(TokenKind::Open(Delimiter::Parenthesis))
+                .ok_or(Error::Syntax(SyntaxError::Mismatch(format!(
+                    "P needed `(` but found {:?}",
+                    parser.peek()
+                ))))?
                 .span(),
 
             _before: parser.sep_by_trailing(TokenKind::Comma)?.0,
 
             _close: parser
-                .consume(
-                    TokenKind::Close(Delimiter::Parenthesis),
-                    "a close paren",
-                )?
+                .consume(TokenKind::Close(Delimiter::Parenthesis))
+                .ok_or(Error::Syntax(SyntaxError::Mismatch(format!(
+                    "P needed `)` but found {:?}",
+                    parser.peek()
+                ))))?
                 .span(),
         })
     }
@@ -147,7 +160,7 @@ fn over_depth_limit() {
     let over_limit = nested_parens(Parser::MAX_DEPTH);
     let over_limit = S::parse(&over_limit);
     assert!(
-        matches!(over_limit, Err(Error::ParserDepthExceeded)),
+        matches!(over_limit, Err(parser::Error::ParserDepthExceeded(_))),
         "should be ParserDepthExceeded limit, but got {:?}",
         over_limit
     );

@@ -26,7 +26,10 @@ impl Evaluate {
         let syntax = match Module::parse(&self.input) {
             Ok(m) => m,
             Err(e) => {
-                eprintln!("{e}");
+                let mut d = Diagnostic::from(e);
+                d.set_input(Some(id));
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
                 return;
             }
         };

@@ -216,15 +216,19 @@ impl Emitter for FancyEmitter {
 
             if let Some(mut window) = CodeWindow::new(d.get_highlights(), input)
             {
-                window.emit_fancy(self, &name)?;
-            }
-
-            for footer in d.get_footers() {
-                self.emit_message(footer.get_level(), footer.get_text());
+                let start = d.get_location().unwrap_or_else(|| {
+                    d.get_highlights().first().unwrap().get_span().start()
+                });
+                let label = format!("{}:{}", name, start);
+                window.emit_fancy(self, &label)?;
             }
         }
 
-        writeln!(self.out());
+        for footer in d.get_footers() {
+            self.emit_message(footer.get_level(), footer.get_text());
+        }
+
+        self.out().flush();
 
         Ok(())
     }
@@ -235,7 +239,7 @@ impl FancyEmitter {
     fn emit_message(&mut self, level: Level, text: &str) -> Result<()> {
         // The coloured prefix also decides how much subsequent lines are
         // indented.
-        let prefix_length = self.emit_message_level(level)?;
+        let prefix_length = self.emit_level(level)?;
         let wrap_width = self.width() - prefix_length;
 
         // Now for the body of the message
@@ -259,7 +263,7 @@ impl FancyEmitter {
     /// and then set it back to what it was before.
     ///
     /// The `usize` returned is the width of what was printed.
-    fn emit_message_level(&mut self, level: Level) -> Result<usize> {
+    fn emit_level(&mut self, level: Level) -> Result<usize> {
         self.set_level_spec(level)?;
         write!(self.out(), "{}: ", level.name())?;
         self.reset_spec()?;
