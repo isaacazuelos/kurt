@@ -107,7 +107,7 @@ impl Diagnostic {
 
     /// Get the main diagnostic message.
     pub fn get_text(&self) -> &str {
-        &self.message.get_text()
+        self.message.get_text()
     }
 
     /// Set the main message of this diagnostic message.

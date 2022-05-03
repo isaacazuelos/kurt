@@ -256,7 +256,7 @@ impl<'a> Parser<'a> {
         let (associativity, found) = self
             .operators
             .get_infix(token.body())
-            .ok_or(Error::UndefinedInfix(token.span()))?;
+            .ok_or_else(|| Error::UndefinedInfix(token.span()))?;
 
         // 4
         if found != wanted {

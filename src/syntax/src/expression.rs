@@ -222,7 +222,9 @@ impl<'a> Expression<'a> {
                 parser.parse().map(Expression::Literal)
             }
 
-            Some(_) => Err(Error::Syntax(SyntaxError::ExpressionInvalidStart)),
+            Some(_) => Err(Error::Syntax(SyntaxError::ExpressionInvalidStart(
+                parser.peek_span(),
+            ))),
 
             None => Err(Error::EOF(parser.eof_span())),
         }
@@ -250,15 +252,30 @@ impl<'a> Expression<'a> {
     fn open_parenthesis(
         parser: &mut Parser<'a>,
     ) -> SyntaxResult<Expression<'a>> {
-        if let Ok(f) = parser.with_backtracking(Function::parse_with) {
-            Ok(Expression::Function(f))
-        } else if parser.peek_nth(1)
-            == Some(TokenKind::Close(Delimiter::Parenthesis))
-        {
-            let unit = parser.parse()?;
-            Ok(Expression::Literal(unit))
-        } else {
-            Grouping::parse_with(parser).map(Expression::Grouping)
+        match parser.with_backtracking(Function::parse_with) {
+            Ok(f) => Ok(Expression::Function(f)),
+            Err(e1) => {
+                if parser.peek_nth(1)
+                    == Some(TokenKind::Close(Delimiter::Parenthesis))
+                {
+                    let unit = parser.parse()?;
+                    Ok(Expression::Literal(unit))
+                } else {
+                    match parser.parse() {
+                        Ok(g) => Ok(Expression::Grouping(g)),
+                        Err(e2) => match (e1, e2) {
+                            (Error::Syntax(se1), Error::Syntax(se2)) => {
+                                Err(Error::Syntax(if se1.end() >= se2.end() {
+                                    se1
+                                } else {
+                                    se2
+                                }))
+                            }
+                            (e1, _) => Err(e1),
+                        },
+                    }
+                }
+            }
         }
     }
 }

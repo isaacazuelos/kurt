@@ -70,13 +70,21 @@ impl<'a> Parse<'a> for Binding<'a> {
                     Kind::Reserved(Reserved::Let | Reserved::Var),
                 )
             })
-            .ok_or(SyntaxError::BindingNoReserved)?;
+            .ok_or_else(|| {
+                SyntaxError::BindingNoReserved(parser.peek_span())
+            })?;
 
         let name = parser.parse()?;
 
         let equals = parser
             .consume_if(|token| token.body() == "=")
-            .ok_or(SyntaxError::BindingNoEquals)?
+            .ok_or_else(|| {
+                SyntaxError::BindingNoEquals(
+                    keyword.span(),
+                    keyword.body() == "let",
+                    parser.peek_span(),
+                )
+            })?
             .span();
 
         let body = parser.parse()?;

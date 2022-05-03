@@ -43,7 +43,7 @@ impl<'a> Parse<'a> for Statement<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Statement<'a>> {
         match parser.peek() {
             Some(TokenKind::Semicolon) => {
-                Ok(Statement::Empty(parser.peek_span().unwrap()))
+                Ok(Statement::Empty(parser.peek_span()))
             }
 
             Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {

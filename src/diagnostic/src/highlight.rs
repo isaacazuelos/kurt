@@ -18,7 +18,7 @@ impl Highlight {
     pub(crate) fn new(span: Span, note: String) -> Highlight {
         Highlight {
             span,
-            note: Some(note.into()),
+            note: Some(note),
         }
     }
 

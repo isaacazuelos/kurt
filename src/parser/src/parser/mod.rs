@@ -126,8 +126,15 @@ impl<'a> Parser<'a> {
 
     /// The span of the next token. This is sometimes useful when parsing
     /// delimiters.
-    pub fn peek_span(&self) -> Option<Span> {
-        self.tokens.get(self.cursor).map(Token::span)
+    ///
+    /// If there's no next token, the previous span is used. If the input is
+    /// empty, the default span
+    pub fn peek_span(&self) -> Span {
+        if let Some(token) = self.tokens.get(self.cursor) {
+            token.span()
+        } else {
+            self.tokens.last().map(Token::span).unwrap_or_default()
+        }
     }
 
     /// The span of the token right before the end of the input.
@@ -139,10 +146,13 @@ impl<'a> Parser<'a> {
 
     /// A `sep` separated list of some piece of syntax, with support for
     /// optional trailing separators.
+    #[allow(clippy::type_complexity)]
+    // I really don't see how a one-off type alias makes this any less
+    // complicated.
     pub fn sep_by_trailing<S>(
         &mut self,
         sep: TokenKind,
-    ) -> Result<(Vec<S>, Vec<Span>), crate::Error<S::SyntaxError>>
+    ) -> Result<(Vec<S>, Vec<Span>), Error<S::SyntaxError>>
     where
         S: Parse<'a>,
     {
@@ -162,7 +172,7 @@ impl<'a> Parser<'a> {
                     if self.cursor != before {
                         return Err(e);
                     } else if self.depth >= Parser::MAX_DEPTH {
-                        let span = self.peek_span().unwrap();
+                        let span = self.peek_span();
                         return Err(Error::ParserDepthExceeded(span));
                     } else {
                         // if it didn't consume anything, we continue
@@ -214,7 +224,7 @@ impl<'a> Parser<'a> {
         F: FnOnce(&mut Self) -> Result<S, Error<E>>,
     {
         if self.depth >= Parser::MAX_DEPTH {
-            let span = self.peek_span().unwrap_or_default();
+            let span = self.peek_span();
             return Err(Error::ParserDepthExceeded(span));
         } else {
             self.depth += 1;
@@ -296,11 +306,11 @@ mod parser_tests {
     }
 
     #[test]
-    fn next_span() {
-        assert!(Parser::new("").unwrap().peek_span().is_none());
+    fn peek_span() {
+        assert_eq!(Parser::new("").unwrap().peek_span(), Span::default());
         assert_eq!(
             Parser::new("hi").unwrap().peek_span(),
-            Some(Span::new(Caret::new(0, 0), Caret::new(0, 2)))
+            Span::new(Caret::new(0, 0), Caret::new(0, 2))
         );
     }
 
@@ -344,7 +354,7 @@ mod parser_tests {
 
         assert!(result.is_err());
         assert!(!parser.is_empty());
-        assert_eq!(parser.peek_span().map(|s| s.start().column()), Some(0));
+        assert_eq!(parser.peek_span().start().column(), 0);
     }
 
     // A few things are tested elsewhere since testing makes more sense with a

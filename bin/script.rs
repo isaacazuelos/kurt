@@ -44,7 +44,7 @@ impl Script {
             }
         };
 
-        let syntax = match Module::parse(&input) {
+        let syntax = match Module::parse(input) {
             Ok(object) => object,
             Err(error) => {
                 let d = Diagnostic::from(error);

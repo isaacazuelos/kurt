@@ -39,7 +39,7 @@ pub trait Parse<'a>: Sized {
         if parser.is_empty() {
             Ok(syntax)
         } else {
-            Err(Error::UnconsumedInput(parser.peek_span().unwrap()))
+            Err(Error::UnconsumedInput(parser.peek_span()))
         }
     }
 

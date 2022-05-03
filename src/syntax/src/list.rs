@@ -39,14 +39,14 @@ impl<'a> Parse<'a> for List<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Bracket))
-            .ok_or(SyntaxError::ListNoOpen)?
+            .ok_or_else(|| SyntaxError::ListNoOpen(parser.peek_span()))?
             .span();
 
         let (elements, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Bracket))
-            .ok_or(SyntaxError::ListNoClose)?
+            .ok_or_else(|| SyntaxError::ListNoClose(open, parser.peek_span()))?
             .span();
 
         Ok(List {

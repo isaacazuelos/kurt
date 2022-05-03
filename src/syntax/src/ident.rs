@@ -49,9 +49,9 @@ impl<'a> Parse<'a> for Identifier {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Identifier> {
-        let id = parser
-            .consume(TokenKind::Identifier)
-            .ok_or(SyntaxError::IdentifierMissing)?;
+        let id = parser.consume(TokenKind::Identifier).ok_or_else(|| {
+            SyntaxError::IdentifierMissing(parser.peek_span())
+        })?;
 
         Ok(Identifier::new(id))
     }

@@ -78,14 +78,16 @@ impl<'a> Call<'a> {
     ) -> SyntaxResult<Self> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
-            .ok_or(SyntaxError::CallNoOpen)?
+            .ok_or_else(|| {
+                SyntaxError::CallNoOpen(target.span(), parser.peek_span())
+            })?
             .span();
 
         let (arguments, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis))
-            .ok_or(SyntaxError::CallNoClose)?
+            .ok_or_else(|| SyntaxError::CallNoClose(open, parser.peek_span()))?
             .span();
 
         Ok(Call {
