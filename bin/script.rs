@@ -20,7 +20,7 @@ pub struct Script {
 impl Script {
     /// Run the file `filename` as a script.
     pub(crate) fn run(&self, args: &Args) {
-        let inputs = InputCoordinator::default();
+        let mut inputs = InputCoordinator::default();
         let mut diagnostics = DiagnosticCoordinator::default();
         let mut compiler = Compiler::default();
 
@@ -44,10 +44,12 @@ impl Script {
             }
         };
 
+        let id = inputs.file_input(input.into(), self.filename.clone());
+
         let syntax = match Module::parse(input) {
             Ok(object) => object,
             Err(error) => {
-                let d = Diagnostic::from(error);
+                let d = Diagnostic::from(error).input(id);
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;
@@ -57,7 +59,7 @@ impl Script {
         match compiler.push(&syntax) {
             Ok(()) => {}
             Err(e) => {
-                let d = e.into();
+                let d = Diagnostic::from(e).input(id);
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;
@@ -67,7 +69,7 @@ impl Script {
         let main = match compiler.build() {
             Ok(object) => object,
             Err(e) => {
-                let d = e.into();
+                let d = Diagnostic::from(e).input(id);
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
                 return;

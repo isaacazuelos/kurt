@@ -59,7 +59,9 @@ impl Lexer<'_> {
             '\"' => self.string(),
 
             // Reserved
-            '~' | '`' | '#' | '\\' => Err(Error::Reserved(self.location, next)),
+            c @ ('~' | '`' | '#' | '\\') => {
+                Err(Error::Reserved(self.peek_span(), c))
+            }
 
             // Comments
             // The single case is covered by operators below.
@@ -70,7 +72,7 @@ impl Lexer<'_> {
             c if is_identifier_start(c) => Ok(self.word()),
             c if is_operator(c) => self.operator(),
 
-            c => Err(Error::NotStartOfToken(self.location, c)),
+            c => Err(Error::NotStartOfToken(self.peek_span(), c)),
         }
     }
 

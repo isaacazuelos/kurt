@@ -79,9 +79,7 @@ impl<'i> Lexer<'i> {
     pub fn is_empty(&self) -> bool {
         self.offset == self.input.len()
     }
-}
 
-impl<'i> Lexer<'i> {
     /// Produce the token (or [`Error`]), advancing the lexer.
     ///
     /// If the lexer is empty this will return [`Error::UnexpectedEOF`] since
@@ -128,5 +126,17 @@ impl<'i> Lexer<'i> {
     /// ```
     pub fn remaining_input(&self) -> &str {
         &self.input[self.offset..]
+    }
+
+    /// The [`Span`] of the next [`char`]. If at the end of the input, the span
+    /// from is zero-width at the end.
+    pub(crate) fn peek_span(&self) -> Span {
+        if let Some(next) = self.peek() {
+            let mut end = self.location;
+            end.increment(next);
+            Span::new(self.location, end)
+        } else {
+            Span::new(self.location, self.location)
+        }
     }
 }
