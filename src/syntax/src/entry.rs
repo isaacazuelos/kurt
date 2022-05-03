@@ -38,7 +38,9 @@ impl<'a> Module<'a> {
 }
 
 impl<'a> Parse<'a> for Module<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Module<'a>, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Module<'a>> {
         let (statements, semicolons) =
             parser.sep_by_trailing(TokenKind::Semicolon)?;
 
@@ -50,8 +52,6 @@ impl<'a> Parse<'a> for Module<'a> {
 }
 
 impl<'a> Syntax for Module<'a> {
-    const NAME: &'static str = "module";
-
     fn span(&self) -> Span {
         if let Some(first) = self.statements.first() {
             first.span() + self.statements.last().unwrap().span()

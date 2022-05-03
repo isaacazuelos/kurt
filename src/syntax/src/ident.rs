@@ -5,10 +5,10 @@ use unicode_normalization::UnicodeNormalization;
 
 use parser::{
     lexer::{Token, TokenKind},
-    Error, Parse, Parser,
+    Parse, Parser,
 };
 
-use crate::Syntax;
+use crate::*;
 
 /// Identifiers
 ///
@@ -40,18 +40,20 @@ impl Identifier {
 }
 
 impl<'a> Syntax for Identifier {
-    const NAME: &'static str = "an identifier";
-
     fn span(&self) -> Span {
         self.span
     }
 }
 
 impl<'a> Parse<'a> for Identifier {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Identifier, Error> {
-        parser
-            .consume(TokenKind::Identifier, Self::NAME)
-            .map(Identifier::new)
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Identifier> {
+        let id = parser.consume(TokenKind::Identifier).ok_or_else(|| {
+            SyntaxError::IdentifierMissing(parser.peek_span())
+        })?;
+
+        Ok(Identifier::new(id))
     }
 }
 

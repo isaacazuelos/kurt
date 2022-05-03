@@ -46,8 +46,6 @@ impl<'a> Subscript<'a> {
 }
 
 impl<'a> Syntax for Subscript<'a> {
-    const NAME: &'static str = "a subscript";
-
     fn span(&self) -> Span {
         self.target.span() + self.close
     }
@@ -59,21 +57,19 @@ impl<'a> Subscript<'a> {
     pub(crate) fn parse_from(
         target: Expression<'a>,
         parser: &mut Parser<'a>,
-    ) -> Result<Self, Error> {
+    ) -> SyntaxResult<Self> {
         let open = parser
-            .consume(
-                TokenKind::Open(Delimiter::Bracket),
-                "a subscripts's open bracket",
-            )?
+            .consume(TokenKind::Open(Delimiter::Bracket))
+            .ok_or_else(|| SyntaxError::SubscriptNoOpen(parser.peek_span()))?
             .span();
 
         let index = Box::new(parser.parse()?);
 
         let close = parser
-            .consume(
-                TokenKind::Close(Delimiter::Bracket),
-                "a subscripts's close parenthesis",
-            )?
+            .consume(TokenKind::Close(Delimiter::Bracket))
+            .ok_or_else(|| {
+                SyntaxError::SubscriptNoClose(open, parser.peek_span())
+            })?
             .span();
 
         Ok(Subscript {

@@ -9,3 +9,6 @@ gc_trace = []
 
 [dependencies]
 compiler = { path = "../compiler" }
+
+[dev-dependencies]
+syntax = { path = "../syntax" }

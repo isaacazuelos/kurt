@@ -54,18 +54,15 @@ impl<'a> IfElse<'a> {
 }
 
 impl<'a> Syntax for IfElse<'a> {
-    const NAME: &'static str = "an `if` expression with an `else`";
-
     fn span(&self) -> Span {
         self.if_keyword + self.false_block.close()
     }
 }
 
 impl<'a> Parse<'a> for IfElse<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
-        IfOnly::parse_with(parser)
-            .map_err(|e| e.set_wanted(Self::NAME))?
-            .expand_with_else(parser)
+    type SyntaxError = SyntaxError;
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
+        IfOnly::parse_with(parser)?.expand_with_else(parser)
     }
 }
 
@@ -104,7 +101,7 @@ impl<'a> IfOnly<'a> {
     pub fn expand_with_else(
         self,
         parser: &mut Parser<'a>,
-    ) -> Result<IfElse<'a>, Error> {
+    ) -> SyntaxResult<IfElse<'a>> {
         let IfOnly {
             if_keyword,
             condition,
@@ -112,7 +109,10 @@ impl<'a> IfOnly<'a> {
         } = self;
 
         let else_keyword = parser
-            .consume(Kind::Reserved(Reserved::Else), "an `else`")?
+            .consume(Kind::Reserved(Reserved::Else))
+            .ok_or_else(|| {
+                SyntaxError::IfNoElse(if_keyword, parser.peek_span())
+            })?
             .span();
 
         let false_block = parser.parse()?;
@@ -128,17 +128,18 @@ impl<'a> IfOnly<'a> {
 }
 
 impl<'a> Syntax for IfOnly<'a> {
-    const NAME: &'static str = "an `if` statement";
-
     fn span(&self) -> Span {
         self.if_keyword + self.block.close()
     }
 }
 
 impl<'a> Parse<'a> for IfOnly<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let if_keyword = parser
-            .consume(Kind::Reserved(Reserved::If), Self::NAME)?
+            .consume(Kind::Reserved(Reserved::If))
+            .ok_or_else(|| SyntaxError::IfNoReserved(parser.peek_span()))?
             .span();
 
         let condition = Box::new(parser.parse()?);

@@ -50,8 +50,6 @@ impl<'a> Call<'a> {
 }
 
 impl<'a> Syntax for Call<'a> {
-    const NAME: &'static str = "a function call";
-
     fn span(&self) -> Span {
         self.target.span() + self.close
     }
@@ -77,23 +75,19 @@ impl<'a> Call<'a> {
     pub(crate) fn parse_from(
         target: Expression<'a>,
         parser: &mut Parser<'a>,
-    ) -> Result<Self, Error> {
+    ) -> SyntaxResult<Self> {
         let open = parser
-            .consume(
-                TokenKind::Open(Delimiter::Parenthesis),
-                "a function call's open parenthesis",
-            )?
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .ok_or_else(|| {
+                SyntaxError::CallNoOpen(target.span(), parser.peek_span())
+            })?
             .span();
 
-        let (arguments, commas) = parser
-            .sep_by_trailing(TokenKind::Comma)
-            .map_err(|e| e.set_wanted("argument"))?;
+        let (arguments, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
 
         let close = parser
-            .consume(
-                TokenKind::Close(Delimiter::Parenthesis),
-                "a function call's close parenthesis",
-            )?
+            .consume(TokenKind::Close(Delimiter::Parenthesis))
+            .ok_or_else(|| SyntaxError::CallNoClose(open, parser.peek_span()))?
             .span();
 
         Ok(Call {

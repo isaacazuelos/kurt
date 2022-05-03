@@ -1,9 +1,13 @@
 //! Constants are thing like numbers, strings, and other static non-compound
 //! values.
 
-use std::fmt::{self, Display, Formatter};
+use std::{
+    char::ParseCharError,
+    fmt::{self, Display, Formatter},
+    num::{ParseFloatError, ParseIntError},
+};
 
-use crate::error::Result;
+use crate::error::Error;
 
 mod pool;
 
@@ -51,7 +55,7 @@ impl Constant {
     /// Parse the value out of a character literal.
     ///
     /// The input string is expected to include the `'`s that act as delimiters.
-    pub fn parse_char(input: &str) -> Result<char> {
+    pub fn parse_char(input: &str) -> Result<char, ParseCharError> {
         match input {
             r"'\n'" => Ok('\n'),
             r"'\r'" => Ok('\r'),
@@ -79,7 +83,7 @@ impl Constant {
     ///
     /// This is weird, but it means the runtime can support different precisions
     /// for numbers or have multiple representations for other constants.
-    pub fn parse_int(input: &str) -> Result<u64> {
+    pub fn parse_int(input: &str) -> Result<u64, ParseIntError> {
         let digits: String = input.chars().filter(|c| *c != '_').collect();
 
         let n = digits.parse()?;
@@ -90,7 +94,7 @@ impl Constant {
     ///
     /// See the note on [`parse_int`][Constant::parse_int] for why we use
     /// [`u64`] as the return type.
-    pub fn parse_radix(input: &str, radix: u32) -> Result<u64> {
+    pub fn parse_radix(input: &str, radix: u32) -> Result<u64, ParseIntError> {
         // slice off the 0 and radix letter.
         let digits: String = input[2..].chars().filter(|c| *c != '_').collect();
         let n = u64::from_str_radix(&digits, radix)?;
@@ -100,7 +104,7 @@ impl Constant {
     /// Parse a floating point number into an [`f64`].
     ///
     /// See the note on [`Constant::parse_int`] about negative values.
-    pub fn parse_float(input: &str) -> Result<f64> {
+    pub fn parse_float(input: &str) -> Result<f64, ParseFloatError> {
         let f = input.parse()?;
         Ok(f)
     }
@@ -108,7 +112,7 @@ impl Constant {
     /// Parse a string literal.
     ///
     /// For now, escape codes aren't implemented and panic.
-    pub fn parse_string(input: &str) -> Result<String> {
+    pub fn parse_string(input: &str) -> Result<String, Error> {
         let mut buf = String::new();
 
         for c in input.chars() {
@@ -126,9 +130,8 @@ impl Constant {
     /// Parse a keyword literal.
     ///
     /// For now this is just the body text.
-    pub fn parse_keyword(input: &str) -> Result<Self> {
-        // TODO: Unicode normalization.
-        Ok(Constant::Keyword(input.to_owned()))
+    pub fn parse_keyword(input: &str) -> Self {
+        Constant::Keyword(input.to_owned())
     }
 }
 

@@ -1,6 +1,7 @@
 //! Expressions
 
 use parser::{
+    error::OperatorError,
     lexer::{Delimiter, Reserved, TokenKind},
     operator::Precedence,
     Parse,
@@ -35,8 +36,6 @@ pub enum Expression<'a> {
 }
 
 impl<'a> Syntax for Expression<'a> {
-    const NAME: &'static str = "an expression";
-
     fn span(&self) -> Span {
         match self {
             Expression::Binary(b) => b.span(),
@@ -55,7 +54,9 @@ impl<'a> Syntax for Expression<'a> {
 }
 
 impl<'a> Parse<'a> for Expression<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
         // TODO: When we have operators, here's where we'll being precedence
         //       climbing, ending with `base`.
         parser.depth_track(|parser| Expression::infix(parser, Precedence::MIN))
@@ -84,13 +85,13 @@ impl<'a> Expression<'a> {
     pub fn infix(
         parser: &mut Parser<'a>,
         precedence: Precedence,
-    ) -> Result<Expression<'a>, Error> {
+    ) -> SyntaxResult<Expression<'a>> {
         if precedence == Precedence::MAX {
             return Expression::prefix(parser);
         }
 
         let mut lhs = Expression::infix(parser, precedence.next())?;
-        let mut non_associative_operator_seen = false;
+        let mut non_associative_operator_seen = None;
 
         while let Ok((token, associativity)) = parser.consume_infix(precedence)
         {
@@ -102,10 +103,15 @@ impl<'a> Expression<'a> {
                     Expression::infix(parser, precedence)
                 }
                 parser::operator::Associativity::Disallow => {
-                    if non_associative_operator_seen {
-                        return Err(Error::MultipleNonAssociativeOperators);
+                    if let Some(first) = non_associative_operator_seen {
+                        return Err(Error::Operator(
+                            OperatorError::MultipleNonAssociative(
+                                first,
+                                token.span(),
+                            ),
+                        ));
                     } else {
-                        non_associative_operator_seen = true;
+                        non_associative_operator_seen = Some(token.span());
                         Expression::infix(parser, precedence.next())
                     }
                 }
@@ -127,7 +133,7 @@ impl<'a> Expression<'a> {
     /// [0]: Expression::prefix
     /// [1]: Parser::consume_prefix
     /// [2]: Expression::postfix
-    pub fn prefix(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    pub fn prefix(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
         parser.depth_track(|parser| {
             if let Ok(token) = parser.consume_prefix() {
                 let expression = Expression::prefix(parser)?;
@@ -148,7 +154,7 @@ impl<'a> Expression<'a> {
     /// [0]: Expression::postfix
     /// [2]: Expression::primary
     /// [1]: Parser::consume_postfix
-    pub fn postfix(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    pub fn postfix(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
         let mut expression = Expression::primary(parser)?;
 
         loop {
@@ -188,7 +194,7 @@ impl<'a> Expression<'a> {
     ///                   | [`IfElse`]
     ///
     /// [p]: Expression::primary
-    pub fn primary(parser: &mut Parser<'a>) -> Result<Expression<'a>, Error> {
+    pub fn primary(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
         match parser.peek() {
             Some(TokenKind::Reserved(Reserved::If)) => {
                 parser.parse().map(Expression::If)
@@ -216,9 +222,11 @@ impl<'a> Expression<'a> {
                 parser.parse().map(Expression::Literal)
             }
 
-            Some(_) => Err(Error::NotStartOf(Self::NAME)),
+            Some(_) => Err(Error::Syntax(SyntaxError::ExpressionInvalidStart(
+                parser.peek_span(),
+            ))),
 
-            None => Err(Error::EOFExpecting(Self::NAME)),
+            None => Err(Error::EOF(parser.eof_span())),
         }
     }
 
@@ -243,20 +251,31 @@ impl<'a> Expression<'a> {
     /// [0]: Expression::open_parenthesis
     fn open_parenthesis(
         parser: &mut Parser<'a>,
-    ) -> Result<Expression<'a>, Error> {
-        if let Ok(f) = parser.with_backtracking(Function::parse_with) {
-            Ok(Expression::Function(f))
-        } else if parser.peek_nth(1)
-            == Some(TokenKind::Close(Delimiter::Parenthesis))
-        {
-            let unit = parser.parse()?;
-            Ok(Expression::Literal(unit))
-        } else {
-            Grouping::parse_with(parser)
-                .map(Expression::Grouping)
-                .map_err(|_| {
-                    Error::NotStartOf("a function or grouping expressions")
-                })
+    ) -> SyntaxResult<Expression<'a>> {
+        match parser.with_backtracking(Function::parse_with) {
+            Ok(f) => Ok(Expression::Function(f)),
+            Err(e1) => {
+                if parser.peek_nth(1)
+                    == Some(TokenKind::Close(Delimiter::Parenthesis))
+                {
+                    let unit = parser.parse()?;
+                    Ok(Expression::Literal(unit))
+                } else {
+                    match parser.parse() {
+                        Ok(g) => Ok(Expression::Grouping(g)),
+                        Err(e2) => match (e1, e2) {
+                            (Error::Syntax(se1), Error::Syntax(se2)) => {
+                                Err(Error::Syntax(if se1.end() >= se2.end() {
+                                    se1
+                                } else {
+                                    se2
+                                }))
+                            }
+                            (e1, _) => Err(e1),
+                        },
+                    }
+                }
+            }
         }
     }
 }

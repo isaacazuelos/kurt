@@ -2,7 +2,12 @@
 
 use std::{fs::File, io::Read, path::PathBuf};
 
+use compiler::Compiler;
+use diagnostic::{
+    verify_utf8, Diagnostic, DiagnosticCoordinator, InputCoordinator,
+};
 use runtime::Runtime;
+use syntax::{Module, Parse};
 
 use crate::Args;
 
@@ -15,22 +20,60 @@ pub struct Script {
 impl Script {
     /// Run the file `filename` as a script.
     pub(crate) fn run(&self, args: &Args) {
-        let mut input = String::new();
+        let mut inputs = InputCoordinator::default();
+        let mut diagnostics = DiagnosticCoordinator::default();
+        let mut compiler = Compiler::default();
+
+        let mut bytes = Vec::new();
 
         if let Err(e) = File::open(&self.filename)
-            .and_then(|mut file| file.read_to_string(&mut input))
+            .and_then(|mut file| file.read_to_end(&mut bytes))
         {
-            eprintln!(
-                "Error: cannot read '{}': {}",
-                &self.filename.display(),
-                e
-            );
-            std::process::exit(1);
+            let d = Diagnostic::new(format!("{e}"));
+            diagnostics.register(d);
+            diagnostics.emit(&inputs);
+            return;
         }
 
-        let main = match compiler::compile(&input) {
+        let input = match verify_utf8(&bytes) {
+            Ok(s) => s,
+            Err(d) => {
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
+        };
+
+        let id = inputs.file_input(input.into(), self.filename.clone());
+
+        let syntax = match Module::parse(input) {
             Ok(object) => object,
-            Err(e) => return eprintln!("{e}"),
+            Err(error) => {
+                let d = Diagnostic::from(error).input(id);
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
+        };
+
+        match compiler.push(&syntax) {
+            Ok(()) => {}
+            Err(e) => {
+                let d = Diagnostic::from(e).input(id);
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
+        }
+
+        let main = match compiler.build() {
+            Ok(object) => object,
+            Err(e) => {
+                let d = Diagnostic::from(e).input(id);
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
         };
 
         if args.dump {
@@ -41,12 +84,19 @@ impl Script {
         let mut runtime = Runtime::new();
 
         match runtime.load(main) {
-            Ok(rt) => rt,
-            Err(e) => return eprintln!("{e}"),
+            Ok(object) => object,
+            Err(e) => {
+                let d = Diagnostic::new(format!("{e}"));
+                diagnostics.register(d);
+                diagnostics.emit(&inputs);
+                return;
+            }
         };
 
         if let Err(e) = runtime.start() {
-            eprintln!("{}", e);
+            let d = Diagnostic::new(format!("{e}"));
+            diagnostics.register(d);
+            diagnostics.emit(&inputs);
         }
     }
 }

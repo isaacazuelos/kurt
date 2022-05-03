@@ -37,8 +37,9 @@
 //! [swift-lex]: https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html#ID418
 //! [c-lex]: https://en.wikipedia.org/wiki/Lexer_hack
 
+use diagnostic::{Diagnostic, Span};
+
 use crate::{
-    error::Error,
     lexer::{Delimiter, Token, TokenKind},
     operator::{Associativity, DefinedOperators, Precedence},
     parser::Parser,
@@ -94,39 +95,37 @@ impl<'a> Parser<'a> {
     ///
     /// The next token is a prefix operator when:
     ///
-    /// 1. There's another token after it. The input cannot end with a prefix
-    ///    operator, since it needs to bind to something.
+    /// 1. The next token is an [`Operator`][TokenKind::Operator].
     ///
-    /// 2. The next token is an [`Operator`][TokenKind::Operator].
+    /// 2. The operator is defined for use as prefix. See [`DefinedOperators`].
     ///
-    /// 3. The operator is defined for use as prefix. See [`DefinedOperators`].
+    /// 3. There's at least one token after the operator.
     ///
     /// 4. No whitespace occurs on the right of the operator.
     ///
     /// 5. If there's a token before the operator, there's either whitespace
     ///    between them, or the token is in [`Parser::ALLOWED_BEFORE_PREFIX`].
     pub fn consume_prefix(&mut self) -> Result<Token<'a>, Error> {
-        const WANTED: &str = "a prefix operator";
-
         // 1
-        if self.cursor + 1 >= self.tokens.len() {
-            return Err(Error::EOFExpecting(
-                "something following a prefix operator",
-            ));
+        if self.is_empty() {
+            let last_span =
+                self.tokens.last().map(Token::span).unwrap_or_default();
+            return Err(Error::EOF(last_span));
+        }
+
+        let token = self.tokens[self.cursor];
+        if token.kind() != TokenKind::Operator {
+            return Err(Error::NotOperator(token.span()));
         }
 
         // 2
-        let token = self.tokens[self.cursor];
-        if token.kind() != TokenKind::Operator {
-            return Err(Error::Unexpected {
-                wanted: WANTED,
-                found: token.kind(),
-            });
+        if !self.operators.is_prefix(token.body()) {
+            return Err(Error::UndefinedPrefix(token.span()));
         }
 
         // 3
-        if !self.operators.is_prefix(token.body()) {
-            return Err(Error::OperatorNotDefinedAsPrefix);
+        if self.cursor + 1 >= self.tokens.len() {
+            return Err(Error::PrefixAtEnd(token.span()));
         }
 
         // 4
@@ -134,7 +133,7 @@ impl<'a> Parser<'a> {
         let space_after = token.span().end() != after_tok.span().start();
 
         if space_after {
-            return Err(Error::PrefixSpaceAfter);
+            return Err(Error::PrefixSpaceAfter(token.span()));
         }
 
         // 5
@@ -146,20 +145,21 @@ impl<'a> Parser<'a> {
                 Parser::ALLOWED_BEFORE_PREFIX.contains(&before_token.kind());
 
             if !(space_before || is_allowed) {
-                return Err(Error::PrefixNoSpaceBefore);
+                return Err(Error::PrefixNoSpaceBefore(token.span()));
             }
         }
 
-        self.consume(token.kind(), "a prefix operator")
+        self.cursor += 1;
+        Ok(token)
     }
 
     /// Consume the next token if it's a postfix operator.
     ///
     /// It's a postfix operator when:
     ///
-    /// 1. There's at least one token before it. It can't bind to nothing
+    /// 1. The next token is an [`Operator`][TokenKind::Operator].
     ///
-    /// 2. The next token is an [`Operator`][TokenKind::Operator].
+    /// 2. There's at least one token before it. It can't bind to nothing
     ///
     /// 3. The operator is defined for postfix use. See [`DefinedOperators`].
     ///
@@ -168,32 +168,33 @@ impl<'a> Parser<'a> {
     /// 5. If there's a token after, there must be whitespace between them, or
     ///    the token must be in [`Parser::ALLOWED_AFTER_POSTFIX`].
     pub fn consume_postfix(&mut self) -> Result<Token<'a>, Error> {
-        const WANTED: &str = "a postfix operator";
-
         // 1
-        if self.cursor == 0 {
-            return Err(Error::PostfixOperatorAtStartOfInput);
+        if self.is_empty() {
+            let last_span =
+                self.tokens.last().map(Token::span).unwrap_or_default();
+            return Err(Error::EOF(last_span));
+        }
+
+        let token = self.tokens[self.cursor];
+        if token.kind() != TokenKind::Operator {
+            return Err(Error::NotOperator(token.span()));
         }
 
         // 2
-        let token = self.tokens[self.cursor];
-        if token.kind() != TokenKind::Operator {
-            return Err(Error::Unexpected {
-                wanted: WANTED,
-                found: token.kind(),
-            });
+        if self.cursor == 0 {
+            return Err(Error::PostfixAtStart(token.span()));
         }
 
         // 3
         if !self.operators.is_postfix(token.body()) {
-            return Err(Error::OperatorNotDefinedAsPostfix);
+            return Err(Error::UndefinedPostfix(token.span()));
         }
 
         // 4
         let before_token = self.tokens[self.cursor - 1];
         let space_before = before_token.span().end() != token.span().start();
         if space_before {
-            return Err(Error::PostfixSpaceBefore);
+            return Err(Error::PostfixSpaceBefore(token.span()));
         }
 
         // 5
@@ -204,20 +205,21 @@ impl<'a> Parser<'a> {
                 Parser::ALLOWED_AFTER_POSTFIX.contains(&after_token.kind());
 
             if !(space_after || is_allowed) {
-                return Err(Error::PostfixNoSpaceAfter);
+                return Err(Error::PostfixNoSpaceAfter(token.span()));
             }
         }
 
-        self.consume(token.kind(), WANTED)
+        self.cursor += 1;
+        Ok(token)
     }
 
     /// Consume the next token iff it looks to be an infix operator, i.e. if the
     /// following conditions are met:
     ///
-    /// 1. We need at least 1 token before for the lhs, and 2 after for the
-    ///    operator we'll return and the rhs.
+    /// 1. The next token is an `Kind::Operator`.
     ///
-    /// 2. The next token is an `Kind::Operator`.
+    /// 2. We need at least 1 token before for the lhs, and 2 after for the
+    ///    operator we'll return and the rhs.
     ///
     /// 3. The operator is defined for use as an infix operator. This step is
     ///    needed to determine precedence.
@@ -233,32 +235,32 @@ impl<'a> Parser<'a> {
         &mut self,
         wanted: Precedence,
     ) -> Result<(Token<'a>, Associativity), Error> {
-        const WANTED: &str = "a prefix operator";
-
         // 1
-        // if self.cursor == 0 || (self.cursor + 2 >= self.tokens.len()) {
-        if !(self.cursor >= 1 && self.cursor + 2 <= self.tokens.len()) {
-            return Err(Error::InfixAtStartOrEnd);
+        if self.is_empty() {
+            let last_span =
+                self.tokens.last().map(Token::span).unwrap_or_default();
+            return Err(Error::EOF(last_span));
+        }
+
+        let token = self.tokens[self.cursor];
+        if token.kind() != TokenKind::Operator {
+            return Err(Error::NotOperator(token.span()));
         }
 
         // 2
-        let token = self.tokens[self.cursor];
-        if token.kind() != TokenKind::Operator {
-            return Err(Error::Unexpected {
-                wanted: WANTED,
-                found: token.kind(),
-            });
+        if !(self.cursor >= 1 && self.cursor + 2 <= self.tokens.len()) {
+            return Err(Error::InfixAtStartOrEnd(token.span()));
         }
 
         // 3
         let (associativity, found) = self
             .operators
             .get_infix(token.body())
-            .ok_or(Error::OperatorNotDefinedAsInfix)?;
+            .ok_or_else(|| Error::UndefinedInfix(token.span()))?;
 
         // 4
         if found != wanted {
-            return Err(Error::InfixWrongPrecedence);
+            return Err(Error::InfixWrongPrecedence(token.span()));
         }
 
         // 5
@@ -269,11 +271,174 @@ impl<'a> Parser<'a> {
         let space_after = token.span().end() != after_tok.span().start();
 
         if space_before != space_after {
-            return Err(Error::InfixUnbalancedWhitespace);
+            return Err(Error::InfixUnbalanced(token.span()));
         }
 
-        self.consume(token.kind(), WANTED)
-            .map(|t| (t, associativity))
+        self.cursor += 1;
+        Ok((token, associativity))
+    }
+}
+
+/// These are the errors which can come up when trying to work with operators.
+#[derive(Debug, Clone, Copy)]
+pub enum Error {
+    EOF(Span),
+
+    UndefinedPrefix(Span),
+    UndefinedPostfix(Span),
+    UndefinedInfix(Span),
+    MultipleNonAssociative(Span, Span),
+
+    NotOperator(Span),
+
+    PrefixSpaceAfter(Span),
+    PrefixNoSpaceBefore(Span),
+    PrefixAtEnd(Span),
+
+    PostfixNoSpaceAfter(Span),
+    PostfixSpaceBefore(Span),
+    PostfixAtStart(Span),
+
+    InfixAtStartOrEnd(Span),
+    InfixUnbalanced(Span),
+    InfixWrongPrecedence(Span),
+}
+
+impl From<Error> for Diagnostic {
+    // Many of these really shouldn't appear as-is, and are more useful for
+    // creating better syntax-aware diagnostics.
+    #[rustfmt::skip]
+    fn from(e: Error) -> Diagnostic {
+        match e {
+            Error::EOF(span) => {
+                Diagnostic::new("input ended when expecting operator")
+                    .location(span.end())
+                    .highlight(span, "an operator was expected after this")
+            }
+
+            Error::UndefinedPrefix(span) => {
+                Diagnostic::new("a prefix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::UndefinedPostfix(span) => {
+                Diagnostic::new("a postfix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::UndefinedInfix(span) => {
+                Diagnostic::new("a infix operator not defined")
+                    .location(span.start())
+                    .highlight(span, "not defined")
+            }
+
+            Error::MultipleNonAssociative(first, second) => {
+                Diagnostic::new("the order of operations is not clear")
+                    .location(first.start())
+                    .highlight(first, "should this happen first")
+                    .highlight(second, "or should this one happen first")
+                    .help("use parenthesis to make the ordering clear")
+                    .info(
+                        "this only happens when we have two non-associative \
+                        operators with the same precedence next to each other"
+                    )
+            }
+
+            Error::NotOperator(span) => {
+                Diagnostic::new("an operator was expected")
+                    .location(span.start())
+                    .highlight(span, "instead we saw this")
+            }
+
+            Error::PrefixSpaceAfter(span) => {
+                Diagnostic::new(
+                    "prefix operators shouldn't have spaces after them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "the whitespace after this should be removed"
+                    )
+                    .info("otherwise it's not clear if it's prefix or infix")
+            }
+
+            Error::PrefixNoSpaceBefore(span) => {
+                Diagnostic::new("prefix operators needs spaces before them")
+                    .location(span.start())
+                    .highlight(span, "some whitespace is needed before this")
+                    .info("otherwise it's not clear if it's prefix or infix")
+            }
+
+            Error::PrefixAtEnd(span) => {
+                Diagnostic::new(
+                    "prefix operators can't be at the end of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator has nothing to operate on")
+            }
+
+            Error::PostfixNoSpaceAfter(span) => {
+                Diagnostic::new(
+                    "prefix operators can't have whitespace after them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "the whitespace after this should be removed"
+                    )
+                    .info("otherwise it looks like an infix operator")
+            },
+
+            Error::PostfixSpaceBefore(span) => {
+                Diagnostic::new(
+                    "prefix operators must have whitespace before them"
+                )
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "whitespace is needed before this"
+                    )
+                    .info("otherwise it looks like an infix operator")
+            },
+
+            Error::PostfixAtStart(span) => {
+                Diagnostic::new(
+                    "postfix operators cannot be at the start of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator has nothing to operate on")
+            },
+
+            Error::InfixAtStartOrEnd(span) => {
+                Diagnostic::new(
+                    "infix operators can't be at the start or end of the input"
+                )
+                    .location(span.start())
+                    .highlight(span, "this operator is missing an operand")
+            }
+
+            Error::InfixUnbalanced(span) => {
+                Diagnostic::new("infix operators need balanced whitespace")
+                    .location(span.start())
+                    .highlight(span, "this whitespace isn't balanced")
+                    .info(
+                        "infix operators either need whitespace on both sides \
+                        or neither, otherwise they look prefix or postfix"
+                    )
+            }
+
+            Error::InfixWrongPrecedence(span) => {
+                Diagnostic::new("an infix operator has the wrong precedence")
+                    .location(span.start())
+                    .highlight(
+                        span, 
+                        "this infix operator doesn't have the precedence \
+                        needed by the parser"
+                    )
+            },
+        }
     }
 }
 
@@ -310,21 +475,21 @@ mod tests {
     }
 
     #[test]
-    fn prefix_1_at_eof() {
-        let mut parser = Parser::new("-").unwrap();
-        assert!(parser.consume_prefix().is_err());
-    }
-
-    #[test]
-    fn prefix_2_non_operator() {
+    fn prefix_1_non_operator() {
         let mut parser = Parser::new("= a").unwrap();
         assert!(parser.consume_prefix().is_err());
     }
 
     #[test]
-    fn prefix_3_undefined() {
+    fn prefix_2_undefined() {
         let mut parser = Parser::new("<$> a").unwrap();
         assert!(!parser.operators.is_prefix("<$>"));
+        assert!(parser.consume_prefix().is_err());
+    }
+
+    #[test]
+    fn prefix_3_at_eof() {
+        let mut parser = Parser::new("-").unwrap();
         assert!(parser.consume_prefix().is_err());
     }
 
@@ -337,7 +502,7 @@ mod tests {
     #[test]
     fn prefix_5_missing_space_and_disallowed() {
         let mut parser = Parser::new("a-a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier,).is_some());
         assert!(parser.consume_prefix().is_err());
     }
 
@@ -345,15 +510,15 @@ mod tests {
     fn prefix_5_missing_space_but_allowed() {
         let mut parser = Parser::new("(-a)").unwrap();
         assert!(parser
-            .consume(TokenKind::Open(Delimiter::Parenthesis), "(")
-            .is_ok());
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .is_some());
         assert!(parser.consume_prefix().is_ok());
     }
 
     #[test]
     fn prefix_5_disallowed_but_space() {
         let mut parser = Parser::new("a -a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_prefix().is_ok());
     }
 
@@ -361,28 +526,28 @@ mod tests {
     fn prefix_5_allowed_and_space() {
         let mut parser = Parser::new("( -a)").unwrap();
         assert!(parser
-            .consume(TokenKind::Open(Delimiter::Parenthesis), "(")
-            .is_ok());
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .is_some());
         assert!(parser.consume_prefix().is_ok());
     }
 
     #[test]
     fn postfix() {
         let mut parser = Parser::new("a?").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_ok());
     }
 
     #[test]
-    fn postfix_1_at_start() {
-        let mut parser = Parser::new("?a").unwrap();
+    fn postfix_1_need_operator() {
+        let mut parser = Parser::new("a a").unwrap();
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
-    fn postfix_2_need_operator() {
-        let mut parser = Parser::new("a a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+    fn postfix_2_at_start() {
+        let mut parser = Parser::new("?a").unwrap();
         assert!(parser.consume_postfix().is_err());
     }
 
@@ -390,28 +555,28 @@ mod tests {
     fn postfix_3_undefined() {
         let mut parser = Parser::new("a-").unwrap();
         assert!(!parser.operators.is_postfix("-"));
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
     fn postfix_4_no_left_whitespace() {
         let mut parser = Parser::new("a ?").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
     fn postfix_5_no_right_whitespace_and_disallowed() {
         let mut parser = Parser::new("a?a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_err());
     }
 
     #[test]
     fn postfix_5_no_right_whitespace_but_allowed() {
         let mut parser = Parser::new("a?[").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         let result = parser.consume_postfix();
         assert!(result.is_ok(), "got {:?}", result);
     }
@@ -419,23 +584,23 @@ mod tests {
     #[test]
     fn postfix_5_whitespace_after() {
         let mut parser = Parser::new("a? a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_postfix().is_ok());
     }
 
     #[test]
     fn postfix_with_dot() {
         let mut parser = Parser::new("a?.b").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         let result = parser.consume_postfix();
         assert!(result.is_ok(), "got {:?}", result);
-        assert!(parser.consume(TokenKind::Dot, ".").is_ok());
+        assert!(parser.consume(TokenKind::Dot).is_some());
     }
 
     #[test]
     fn postfix_with_other() {
         let mut parser = Parser::new("a?[b]").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         let result = parser.consume_postfix();
         assert!(result.is_ok(), "got {:?}", result);
     }
@@ -443,35 +608,35 @@ mod tests {
     #[test]
     fn infix() {
         let mut parser = Parser::new("a + a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_infix(prec_of("+")).is_ok());
     }
 
     #[test]
     fn infix_wrong_precedence() {
         let mut parser = Parser::new("a + a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_infix(prec_of("*")).is_err());
     }
 
     #[test]
     fn infix_no_spaces() {
         let mut parser = Parser::new("a+a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_infix(prec_of("+")).is_ok());
     }
 
     #[test]
     fn infix_unbalanced_left() {
         let mut parser = Parser::new("a+ a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_infix(prec_of("+")).is_err());
     }
 
     #[test]
     fn infix_unbalanced_right() {
         let mut parser = Parser::new("a +a").unwrap();
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.consume_infix(prec_of("+")).is_err());
     }
 
@@ -490,7 +655,7 @@ mod tests {
             dot_prec,
         );
 
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
 
         assert!(parser.consume_prefix().is_err());
         assert!(parser.consume_infix(wrong_prec).is_err());
@@ -507,7 +672,7 @@ mod tests {
         assert!(parser.consume_infix(dot_prec).is_err());
         assert!(parser.consume_prefix().is_ok());
 
-        assert!(parser.consume(TokenKind::Identifier, "a").is_ok());
+        assert!(parser.consume(TokenKind::Identifier).is_some());
         assert!(parser.is_empty());
     }
 }

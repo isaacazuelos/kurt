@@ -3,11 +3,22 @@
 //! They're not executed, and the results of compilation aren't verified. These
 //! are more just sanity tests.
 
+use compiler::{Compiler, Error, Object};
+use syntax::{Module, Parse};
+
+pub fn compile(syntax: &syntax::Module) -> Result<Object, Error> {
+    let mut compiler = Compiler::default();
+    compiler.push(syntax)?;
+    let object = compiler.build()?;
+    Ok(object)
+}
+
 macro_rules! test_compile {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            let result = compiler::compile($input);
+            let syntax = Module::parse($input).unwrap();
+            let result = compile(&syntax);
             assert!(result.is_ok(), "failed to compile with {:#?}", result)
         }
     };
@@ -17,7 +28,8 @@ macro_rules! test_no_compile {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            let result = compiler::compile($input);
+            let syntax = Module::parse($input).unwrap();
+            let result = compile(&syntax);
             assert!(
                 result.is_err(),
                 "should have failed, but compiled with {}",

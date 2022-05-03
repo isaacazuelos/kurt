@@ -26,7 +26,7 @@ use crate::lexer::{Error, Lexer, TokenKind};
 impl Lexer<'_> {
     /// A placeholder for string literals.
     pub(crate) fn string(&mut self) -> Result<TokenKind, Error> {
-        let start = self.location;
+        let open = self.peek_span();
         self.char('"').expect("Lexer::string expected a `\"`.");
 
         loop {
@@ -43,14 +43,15 @@ impl Lexer<'_> {
             }
         }
 
-        self.char('"').ok_or(Error::UnclosedString(start))?;
+        self.char('"')
+            .ok_or_else(|| Error::UnclosedString(open, self.peek_span()))?;
 
         Ok(TokenKind::String)
     }
 
     /// A placeholder for character literals.
     pub(crate) fn character(&mut self) -> Result<TokenKind, Error> {
-        let start = self.location;
+        let open = self.peek_span();
         self.char('\'').expect("Lexer::character expected a `'`.");
 
         match self.advance() {
@@ -59,7 +60,9 @@ impl Lexer<'_> {
             Some(_) => {}
         };
 
-        self.char('\'').ok_or(Error::UnclosedCharacter(start))?;
+        let close = self.peek_span();
+        self.char('\'')
+            .ok_or_else(|| Error::UnclosedCharacter(open, close))?;
         Ok(TokenKind::Char)
     }
 
@@ -70,7 +73,7 @@ impl Lexer<'_> {
                 self.advance();
                 Ok(())
             }
-            Some(c) => Err(Error::InvalidEscape(self.location, c)),
+            Some(c) => Err(Error::InvalidEscape(self.peek_span(), c)),
         }
     }
 }

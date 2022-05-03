@@ -3,11 +3,7 @@
 
 use std::{collections::HashMap, marker::PhantomData};
 
-use crate::{
-    constant::Constant,
-    error::{Error, Result},
-    index::Index,
-};
+use crate::{constant::Constant, index::Index};
 
 /// A pool of constants, indexable by an [`Index`]. Inserting a constant returns
 /// the index, and if the constant is already in the pool its existing index is
@@ -18,21 +14,26 @@ pub struct Pool {
 }
 
 impl Pool {
+    /// The maximum number of constant values we can store in a pool.
+    pub const MAX_CONSTANTS: usize = u32::MAX as usize;
+
     /// Insert a constant into a this pool. If it's already present, the
     /// existing [`Index`] is returned, otherwise a new one is used.
     pub fn insert(
         &mut self,
         constant: impl Into<Constant>,
-    ) -> Result<Index<Constant>> {
+    ) -> Option<Index<Constant>> {
         let len = self.constants.len();
 
-        if len > Index::<Constant>::MAX {
-            Err(Error::TooManyConstants)
+        if len > Pool::MAX_CONSTANTS {
+            None
         } else {
-            Ok(*self
-                .constants
-                .entry(constant.into())
-                .or_insert_with(|| Index(len as u32, PhantomData)))
+            Some(
+                *self
+                    .constants
+                    .entry(constant.into())
+                    .or_insert_with(|| Index(len as u32, PhantomData)),
+            )
         }
     }
 

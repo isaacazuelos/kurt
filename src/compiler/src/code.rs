@@ -19,12 +19,12 @@ pub(crate) struct Code {
 
 impl Code {
     /// The maximum number of opcodes that can be in a single code block.
-    const MAX_OPS: usize = (u32::MAX) as usize;
+    pub const MAX_OPS: usize = (u32::MAX) as usize;
 
     /// Push an [`Op`] to the of the code segment.
     pub fn emit(&mut self, op: Op, span: Span) -> Result<()> {
         if self.opcodes.len() == Self::MAX_OPS {
-            Err(Error::TooManyOps)
+            Err(Error::TooManyOps(span))
         } else {
             self.opcodes.push(op);
             self.spans.push(span);

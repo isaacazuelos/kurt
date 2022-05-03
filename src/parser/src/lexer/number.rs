@@ -41,6 +41,8 @@
 //       I think it's wiser to wait until we have a better idea of what the type
 //       names will be.
 
+use diagnostic::Span;
+
 use crate::lexer::{Error, Lexer, TokenKind};
 
 #[derive(Clone, Copy)]
@@ -106,19 +108,28 @@ impl Lexer<'_> {
     /// This assumes the caller has already consumed the whole part of the
     /// floating point value.
     fn float(&mut self) -> Result<TokenKind, Error> {
+        let dot_span = self.peek_span();
         if let Some('.') = self.char('.') {
-            let location = self.location;
             self.consume_digits(10)
-                .ok_or(Error::InvalidFloatFractional(location))?;
+                // I'm not sure this can actually be triggered by
+                // `float_or_integer` right now.
+                .ok_or_else(|| Error::EmptyFloatFractional(dot_span))?;
         }
 
-        if self.one_of("eE").is_some() {
+        let start = self.location;
+        if let Some(e) = self.one_of("eE") {
             // if this returns `None`, it's fine as the sign is optional.
             self.one_of("+-");
 
-            let location = self.location;
-            self.consume_digits(10)
-                .ok_or(Error::InvalidFloatExponent(location))?;
+            match self.consume_digits(10) {
+                Some(s) => s,
+                None => {
+                    return Err(Error::EmptyFloatExponent(
+                        Span::new(start, self.location),
+                        e,
+                    ))
+                }
+            };
         }
 
         Ok(TokenKind::Float)
@@ -137,6 +148,8 @@ impl Lexer<'_> {
     /// one of the characters in `letters`. It is the caller's responsibility to
     /// check for this.
     fn radix_literal(&mut self, radix: Radix) -> Result<TokenKind, Error> {
+        let start = self.location;
+
         self.char('0')
             .expect("Lexer::radix_literal expected a leading 0");
 
@@ -151,7 +164,10 @@ impl Lexer<'_> {
 
         match self.consume_digits(radix as _) {
             Some(_) => Ok(kind),
-            None => Err(Error::EmptyRadixLiteral(self.location, radix as _)),
+            None => Err(Error::EmptyRadixLiteral(
+                Span::new(start, self.location),
+                radix as _,
+            )),
         }
     }
 

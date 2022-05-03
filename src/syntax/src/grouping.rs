@@ -34,23 +34,27 @@ impl<'a> Grouping<'a> {
 }
 
 impl<'a> Syntax for Grouping<'a> {
-    const NAME: &'static str = "parenthesis around an expression";
-
     fn span(&self) -> Span {
         self.open + self.close
     }
 }
 
 impl<'a> Parse<'a> for Grouping<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Self, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
-            .consume(TokenKind::Open(Delimiter::Parenthesis), Self::NAME)?
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .ok_or_else(|| SyntaxError::GroupingNoOpen(parser.peek_span()))?
             .span();
 
         let body = parser.parse()?;
 
         let close = parser
-            .consume(TokenKind::Close(Delimiter::Parenthesis), Self::NAME)?
+            .consume(TokenKind::Close(Delimiter::Parenthesis))
+            .ok_or_else(|| {
+                SyntaxError::GroupingNoClose(open, parser.peek_span())
+            })?
             .span();
 
         Ok(Grouping {

@@ -7,7 +7,7 @@ use parser::{
     Error, Parse, Parser,
 };
 
-use crate::Syntax;
+use crate::*;
 
 /// The different kinds of literal values that can appear in source code.
 ///
@@ -57,15 +57,15 @@ impl<'a> Literal<'a> {
 }
 
 impl<'a> Syntax for Literal<'a> {
-    const NAME: &'static str = "a value literal";
-
     fn span(&self) -> Span {
         self.span
     }
 }
 
 impl<'a> Parse<'a> for Literal<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
         match parser.peek() {
             Some(TokenKind::Colon) => Literal::parse_keyword_with(parser),
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
@@ -77,30 +77,36 @@ impl<'a> Parse<'a> for Literal<'a> {
 }
 
 impl<'a> Literal<'a> {
-    fn parse_unit(parser: &mut Parser<'a>) -> Result<Literal<'a>, Error> {
-        let open = parser.consume(
-            TokenKind::Open(Delimiter::Parenthesis),
-            "open parenthesis for unit",
-        )?;
+    fn parse_unit(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
+        let open = parser
+            .consume(TokenKind::Open(Delimiter::Parenthesis))
+            .ok_or_else(|| SyntaxError::UnitNoOpen(parser.peek_span()))?;
 
-        let close = parser.consume(
-            TokenKind::Close(Delimiter::Parenthesis),
-            "close parenthesis for unit",
-        )?;
+        let close = parser
+            .consume(TokenKind::Close(Delimiter::Parenthesis))
+            .ok_or_else(|| {
+                SyntaxError::UnitNoClose(open.span(), parser.peek_span())
+            })?;
 
         Ok(Literal::new(Kind::Unit, "", open.span() + close.span()))
     }
 
     fn parse_keyword_with(
         parser: &mut Parser<'a>,
-    ) -> Result<Literal<'a>, Error> {
-        let colon = parser.consume(TokenKind::Colon, "a keyword literal")?;
-        let name = parser
-            .consume(TokenKind::Identifier, "a keyword literal's body")?;
+    ) -> SyntaxResult<Literal<'a>> {
+        let colon = parser
+            .consume(TokenKind::Colon)
+            .ok_or_else(|| SyntaxError::KeywordNoColon(parser.peek_span()))?;
+
+        let name = parser.consume(TokenKind::Identifier).ok_or_else(|| {
+            SyntaxError::KeywordNoName(colon.span(), parser.peek_span())
+        })?;
 
         // Check to rule out keyword like `: foo`
         if colon.span().end() != name.span().start() {
-            return Err(Error::KeywordNoSpace);
+            return Err(
+                SyntaxError::KeywordNoSpace(colon.span(), name.span()).into()
+            );
         }
 
         Ok(Literal::new(
@@ -112,11 +118,10 @@ impl<'a> Literal<'a> {
 
     fn parse_non_keyword_with(
         parser: &mut Parser<'a>,
-    ) -> Result<Literal<'a>, Error> {
-        let token = parser.consume_if(
-            |token| token.kind().is_literal(),
-            "a non-keyword literal value",
-        )?;
+    ) -> SyntaxResult<Literal<'a>> {
+        let token = parser
+            .consume_if(|token| token.kind().is_literal())
+            .ok_or_else(|| Error::EOF(parser.eof_span()))?;
 
         let kind = match token.kind() {
             TokenKind::Bool => Kind::Bool,

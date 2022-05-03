@@ -18,6 +18,11 @@ pub struct Object {
 }
 
 impl Object {
+    /// The maximum number of prototypes that each object can contain.
+    ///
+    /// Note that top-level code counts as one.
+    pub const MAX_PROTOTYPES: usize = u32::MAX as usize;
+
     /// A view of all the constants used, the ordering matches the
     /// [`Index<Constant>`]s used within prototypes.
     pub fn constants(&self) -> &[Constant] {

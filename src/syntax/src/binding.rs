@@ -22,6 +22,11 @@ pub struct Binding<'a> {
 }
 
 impl Binding<'_> {
+    ///
+    pub fn keyword(&self) -> &Token {
+        &self.keyword
+    }
+
     /// Is this a `var` binding?
     pub fn is_var(&self) -> bool {
         self.keyword.kind() == Kind::Reserved(Reserved::Var)
@@ -49,38 +54,36 @@ impl Binding<'_> {
 }
 
 impl Syntax for Binding<'_> {
-    const NAME: &'static str = "a `let` or `var` binding";
-
     fn span(&self) -> Span {
         self.keyword.span() + self.body.span()
     }
 }
 
 impl<'a> Parse<'a> for Binding<'a> {
-    fn parse_with(parser: &mut Parser<'a>) -> Result<Binding<'a>, Error> {
-        let keyword = parser.consume_if(
-            |t| {
+    type SyntaxError = SyntaxError;
+
+    fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Binding<'a>> {
+        let keyword = parser
+            .consume_if(|t| {
                 matches!(
                     t.kind(),
                     Kind::Reserved(Reserved::Let | Reserved::Var),
                 )
-            },
-            "a `let` or `var`",
-        )?;
+            })
+            .ok_or_else(|| {
+                SyntaxError::BindingNoReserved(parser.peek_span())
+            })?;
 
         let name = parser.parse()?;
 
         let equals = parser
-            .consume(Kind::Operator, "equals sign")
-            .and_then(|token| {
-                if token.body() == "=" {
-                    Ok(token)
-                } else {
-                    Err(Error::Unexpected {
-                        wanted: "an equals sign",
-                        found: token.kind(),
-                    })
-                }
+            .consume_if(|token| token.body() == "=")
+            .ok_or_else(|| {
+                SyntaxError::BindingNoEquals(
+                    keyword.span(),
+                    keyword.body() == "let",
+                    parser.peek_span(),
+                )
             })?
             .span();
 
