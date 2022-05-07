@@ -60,7 +60,7 @@ impl<'a> Subscript<'a> {
     ) -> SyntaxResult<Self> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Bracket))
-            .ok_or_else(|| SyntaxError::SubscriptNoOpen(parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::SubscriptNoOpen(parser.next_span()))?
             .span();
 
         let index = Box::new(parser.parse()?);
@@ -68,7 +68,7 @@ impl<'a> Subscript<'a> {
         let close = parser
             .consume(TokenKind::Close(Delimiter::Bracket))
             .ok_or_else(|| {
-                SyntaxError::SubscriptNoClose(open, parser.peek_span())
+                SyntaxError::SubscriptNoClose(open, parser.next_span())
             })?
             .span();
 

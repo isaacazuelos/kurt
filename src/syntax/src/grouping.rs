@@ -45,7 +45,7 @@ impl<'a> Parse<'a> for Grouping<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
-            .ok_or_else(|| SyntaxError::GroupingNoOpen(parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::GroupingNoOpen(parser.next_span()))?
             .span();
 
         let body = parser.parse()?;
@@ -53,7 +53,7 @@ impl<'a> Parse<'a> for Grouping<'a> {
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis))
             .ok_or_else(|| {
-                SyntaxError::GroupingNoClose(open, parser.peek_span())
+                SyntaxError::GroupingNoClose(open, parser.next_span())
             })?
             .span();
 

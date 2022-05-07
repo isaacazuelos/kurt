@@ -41,9 +41,9 @@ impl<'a> Parse<'a> for Statement<'a> {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Statement<'a>> {
-        match parser.peek() {
+        match parser.peek_kind() {
             Some(TokenKind::Semicolon) => {
-                Ok(Statement::Empty(parser.peek_span()))
+                Ok(Statement::Empty(parser.next_span()))
             }
 
             Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {
@@ -52,7 +52,9 @@ impl<'a> Parse<'a> for Statement<'a> {
 
             Some(TokenKind::Reserved(Reserved::If)) => {
                 let if_only: IfOnly = parser.parse()?;
-                if parser.peek() == Some(TokenKind::Reserved(Reserved::Else)) {
+                if parser.peek_kind()
+                    == Some(TokenKind::Reserved(Reserved::Else))
+                {
                     let if_else = if_only.expand_with_else(parser)?;
 
                     Ok(Statement::Expression(Expression::If(if_else)))

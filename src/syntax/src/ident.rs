@@ -50,7 +50,7 @@ impl<'a> Parse<'a> for Identifier {
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Identifier> {
         let id = parser.consume(TokenKind::Identifier).ok_or_else(|| {
-            SyntaxError::IdentifierMissing(parser.peek_span())
+            SyntaxError::IdentifierMissing(parser.next_span())
         })?;
 
         Ok(Identifier::new(id))

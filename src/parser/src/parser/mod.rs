@@ -21,10 +21,11 @@ use crate::{
 /// fits together, and how to use it.
 #[derive(Debug)]
 pub struct Parser<'a> {
-    /// The tokens from our input.
+    /// The non-comment tokens from our input.
     tokens: Vec<Token<'a>>,
 
-    /// The cursor is the index into the `tokens` which tracks where we've parsed to.
+    /// The cursor is the index into the `tokens` which tracks where we've
+    /// parsed to.
     cursor: usize,
 
     /// The grammar can be recursive in a few places, we track our 'depth' into
@@ -41,16 +42,17 @@ impl<'a> Parser<'a> {
     /// This will immediately return a lexical error if the input isn't
     /// lexically valid.
     pub fn new(input: &'a str) -> Result<Parser<'a>, lexer::Error> {
-        let tokens = {
-            let mut buf = Vec::new();
-            let mut lexer = Lexer::new(input);
+        let mut tokens = Vec::new();
+        let mut lexer = Lexer::new(input);
 
-            while !lexer.is_empty() {
-                buf.push(lexer.token()?);
+        while !lexer.is_empty() {
+            let token = lexer.token()?;
+
+            // For now we just discard comments.
+            if !matches!(token.kind(), TokenKind::Comment(_)) {
+                tokens.push(token)
             }
-
-            buf
-        };
+        }
 
         Ok(Parser {
             cursor: 0,
@@ -93,17 +95,14 @@ impl<'a> Parser<'a> {
     /// we were looking for using `name`.
     ///
     /// If you just want a specific kind, use [`Parser::consume`] instead.
-    ///
-    /// Ultimately, this is the only method that moves the parser forward over
-    /// input.
     pub fn consume_if(
         &mut self,
         predicate: impl Fn(&Token) -> bool,
     ) -> Option<Token<'a>> {
-        if let Some(token) = self.tokens.get(self.cursor) {
-            if predicate(token) {
-                self.cursor += 1;
-                return Some(*token);
+        if let Some(token) = self.tokens.get(self.cursor).cloned() {
+            if predicate(&token) {
+                self.advance();
+                return Some(token);
             }
         }
 
@@ -111,8 +110,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Returns the `TokenKind` of the next token, without consuming it.
-    pub fn peek(&self) -> Option<TokenKind> {
-        self.peek_nth(0)
+    pub fn peek_kind(&self) -> Option<TokenKind> {
+        self.peek_kind_nth(0)
     }
 
     /// Like `Parser::peek` but looking ahead `n` tokens instead of just one.
@@ -120,20 +119,22 @@ impl<'a> Parser<'a> {
     /// Note that this means `peek_n(0)` is like `peek`.
     ///
     /// This returns `None` if there are not `n` more tokens.`
-    pub fn peek_nth(&self, n: usize) -> Option<TokenKind> {
+    pub fn peek_kind_nth(&self, n: usize) -> Option<TokenKind> {
         self.tokens.get(self.cursor + n).map(Token::kind)
     }
 
     /// The span of the next token. This is sometimes useful when parsing
     /// delimiters.
     ///
-    /// If there's no next token, the previous span is used. If the input is
-    /// empty, the default span
-    pub fn peek_span(&self) -> Span {
+    /// This always returns a span that should be remotely useful for
+    /// diagnostics. If there's no next token, the previous token's span is
+    /// used. If the input is empty, the default span is used.
+    pub fn next_span(&self) -> Span {
         if let Some(token) = self.tokens.get(self.cursor) {
             token.span()
         } else {
-            self.tokens.last().map(Token::span).unwrap_or_default()
+            // if we're empty, eof_span still gives us something useful
+            self.eof_span()
         }
     }
 
@@ -172,7 +173,7 @@ impl<'a> Parser<'a> {
                     if self.cursor != before {
                         return Err(e);
                     } else if self.depth >= Parser::MAX_DEPTH {
-                        let span = self.peek_span();
+                        let span = self.next_span();
                         return Err(Error::ParserDepthExceeded(span));
                     } else {
                         // if it didn't consume anything, we continue
@@ -180,7 +181,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            match self.peek() {
+            match self.peek_kind() {
                 // If we see a separator, save it and continue
                 Some(t) if t == sep => {
                     let tok = self.consume(t).unwrap();
@@ -197,6 +198,11 @@ impl<'a> Parser<'a> {
         }
 
         Ok((elements, separators))
+    }
+
+    /// Advance the cursor.
+    pub(crate) fn advance(&mut self) {
+        self.cursor += 1;
     }
 }
 
@@ -224,7 +230,7 @@ impl<'a> Parser<'a> {
         F: FnOnce(&mut Self) -> Result<S, Error<E>>,
     {
         if self.depth >= Parser::MAX_DEPTH {
-            let span = self.peek_span();
+            let span = self.next_span();
             return Err(Error::ParserDepthExceeded(span));
         } else {
             self.depth += 1;
@@ -295,21 +301,21 @@ mod parser_tests {
 
     #[test]
     fn peek() {
-        assert!(Parser::new("").unwrap().peek().is_none());
-        assert!(Parser::new("a").unwrap().peek().is_some());
+        assert!(Parser::new("").unwrap().peek_kind().is_none());
+        assert!(Parser::new("a").unwrap().peek_kind().is_some());
     }
     #[test]
     fn peek_nth() {
-        assert!(Parser::new("").unwrap().peek_nth(0).is_none());
-        assert!(Parser::new("a").unwrap().peek_nth(0).is_some());
-        assert!(Parser::new("a").unwrap().peek_nth(1).is_none());
+        assert!(Parser::new("").unwrap().peek_kind_nth(0).is_none());
+        assert!(Parser::new("a").unwrap().peek_kind_nth(0).is_some());
+        assert!(Parser::new("a").unwrap().peek_kind_nth(1).is_none());
     }
 
     #[test]
     fn peek_span() {
-        assert_eq!(Parser::new("").unwrap().peek_span(), Span::default());
+        assert_eq!(Parser::new("").unwrap().next_span(), Span::default());
         assert_eq!(
-            Parser::new("hi").unwrap().peek_span(),
+            Parser::new("hi").unwrap().next_span(),
             Span::new(Caret::new(0, 0), Caret::new(0, 2))
         );
     }
@@ -327,6 +333,11 @@ mod parser_tests {
         assert!(tok.is_some());
         assert!(parser.is_empty());
     }
+}
+
+#[cfg(test)]
+mod backtracking_tests {
+    use super::*;
 
     #[test]
     fn backtracking() {
@@ -354,12 +365,12 @@ mod parser_tests {
 
         assert!(result.is_err());
         assert!(!parser.is_empty());
-        assert_eq!(parser.peek_span().start().column(), 0);
+        assert_eq!(parser.next_span().start().column(), 0);
     }
-
-    // A few things are tested elsewhere since testing makes more sense with a
-    // grammar specified. See tests in `/tests/parser_tests.rs` for more.
-    //
-    // - `depth_track`
-    // - `sep_by_trailing`
 }
+
+// A few things are tested elsewhere since testing makes more sense with a
+// grammar specified. See tests in `/tests/parser_tests.rs` for more.
+//
+// - `depth_track`
+// - `sep_by_trailing`

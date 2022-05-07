@@ -36,7 +36,7 @@ impl<'a> Parse<'a> for S<'a> {
     fn parse_with(
         parser: &mut Parser<'a>,
     ) -> Result<S<'a>, Error<SyntaxError>> {
-        parser.depth_track(|parser| match parser.peek() {
+        parser.depth_track(|parser| match parser.peek_kind() {
             Some(TokenKind::Identifier) => {
                 let token = parser.consume(TokenKind::Identifier).unwrap();
                 Ok(S::Identifier(token.body()))
@@ -71,7 +71,7 @@ impl<'a> Parse<'a> for P<'a> {
                 .consume(TokenKind::Open(Delimiter::Parenthesis))
                 .ok_or(Error::Syntax(SyntaxError::Mismatch(format!(
                     "P needed `(` but found {:?}",
-                    parser.peek()
+                    parser.peek_kind()
                 ))))?
                 .span(),
 
@@ -81,7 +81,7 @@ impl<'a> Parse<'a> for P<'a> {
                 .consume(TokenKind::Close(Delimiter::Parenthesis))
                 .ok_or(Error::Syntax(SyntaxError::Mismatch(format!(
                     "P needed `)` but found {:?}",
-                    parser.peek()
+                    parser.peek_kind()
                 ))))?
                 .span(),
         })

@@ -51,7 +51,7 @@ impl<'a> ::std::fmt::Display for Token<'a> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Kind {
     /// Comments which begin with `//`.
-    Comment(Comment),
+    Comment(CommentKind),
 
     /// Words which are used by the language and can't be identifiers.
     Reserved(Reserved),
@@ -111,7 +111,7 @@ pub enum Kind {
 impl Kind {
     /// The user-facing name of this kind of token.
     pub fn name(&self) -> &'static str {
-        use self::Comment::*;
+        use CommentKind::*;
         use Delimiter::*;
         use Kind::*;
         match self {
@@ -325,19 +325,22 @@ impl ::std::fmt::Display for Reserved {
 // We can include ways to identify item documentation, header documentation,
 // license headers, compiler directives, etc.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Comment {
+pub enum CommentKind {
     /// Line comments start with `//` and go to the end of the line. Comments
     /// don't include the end of line character -- that belongs to a following
-    /// Whitespace fill. This is to handle a comment ending in EOF.
+    /// Whitespace. This is to handle a comment ending in EOF.
     Line,
+
     /// Doc comments are comments that start with `///` which are used to
     /// provide documentation.
     Doc,
-    /// Head comments go at the start of the document and begin with `//!`,
-    /// they're for module metadata like copyright info, dates, authors, etc..
+
+    /// Header comments go at the start of the document and begin with `//!`,
+    /// they're for module metadata like copyright info, dates, authors, etc.
+    /// but are not for module-level documentation. For that use markup comments
     Header,
+
     /// Markup comments being with `//:` and are used for documentation that
-    /// isn't bound to an item. This is useful for a sort of poor-man's
-    /// literal programming.
+    /// isn't bound to an item.
     Markup,
 }

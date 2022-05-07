@@ -3,7 +3,7 @@
 use unicode_categories::UnicodeCategories;
 use unicode_xid::UnicodeXID;
 
-use crate::lexer::{Comment, Delimiter, Error, Lexer, Reserved, TokenKind};
+use crate::lexer::{CommentKind, Delimiter, Error, Lexer, Reserved, TokenKind};
 
 impl Lexer<'_> {
     /// This is the main entry point into the lexer internals. It dispatches to
@@ -166,14 +166,14 @@ impl Lexer<'_> {
         self.char('/').unwrap();
 
         let kind = match self.peek() {
-            Some(':') => Comment::Markup,
-            Some('/') => Comment::Doc,
-            Some('!') => Comment::Header,
-            _ => Comment::Line,
+            Some(':') => CommentKind::Markup,
+            Some('/') => CommentKind::Doc,
+            Some('!') => CommentKind::Header,
+            _ => CommentKind::Line,
         };
 
         // We want to consume the char which told us the kind of comment.
-        if kind != Comment::Line {
+        if kind != CommentKind::Line {
             let _ = self.advance();
         }
 
@@ -212,4 +212,17 @@ fn is_operator(c: char) -> bool {
         && c != ')'
         && c != '}'
         && (c.is_symbol() || c.is_punctuation())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn comment_eof() {
+        let mut lexer = Lexer::new("// eof");
+        let token = lexer.token().unwrap();
+        assert_eq!(token.kind(), TokenKind::Comment(CommentKind::Line));
+        assert_eq!(token.span().end().column(), 6);
+    }
 }

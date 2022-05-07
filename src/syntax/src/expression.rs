@@ -158,7 +158,7 @@ impl<'a> Expression<'a> {
         let mut expression = Expression::primary(parser)?;
 
         loop {
-            expression = match parser.peek() {
+            expression = match parser.peek_kind() {
                 Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                     Call::parse_from(expression, parser)
                         .map(Expression::Call)?
@@ -195,7 +195,7 @@ impl<'a> Expression<'a> {
     ///
     /// [p]: Expression::primary
     pub fn primary(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
-        match parser.peek() {
+        match parser.peek_kind() {
             Some(TokenKind::Reserved(Reserved::If)) => {
                 parser.parse().map(Expression::If)
             }
@@ -223,7 +223,7 @@ impl<'a> Expression<'a> {
             }
 
             Some(_) => Err(Error::Syntax(SyntaxError::ExpressionInvalidStart(
-                parser.peek_span(),
+                parser.next_span(),
             ))),
 
             None => Err(Error::EOF(parser.eof_span())),
@@ -255,7 +255,7 @@ impl<'a> Expression<'a> {
         match parser.with_backtracking(Function::parse_with) {
             Ok(f) => Ok(Expression::Function(f)),
             Err(e1) => {
-                if parser.peek_nth(1)
+                if parser.peek_kind_nth(1)
                     == Some(TokenKind::Close(Delimiter::Parenthesis))
                 {
                     let unit = parser.parse()?;

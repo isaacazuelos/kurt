@@ -60,7 +60,7 @@ impl<'a> Parse<'a> for Block<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Block<'a>> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Brace))
-            .ok_or_else(|| SyntaxError::BlockNoOpen(parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::BlockNoOpen(parser.next_span()))?
             .span();
 
         let (statements, semicolons) =
@@ -68,7 +68,7 @@ impl<'a> Parse<'a> for Block<'a> {
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Brace))
-            .ok_or_else(|| SyntaxError::BlockNoClose(open, parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::BlockNoClose(open, parser.next_span()))?
             .span();
 
         Ok(Block {

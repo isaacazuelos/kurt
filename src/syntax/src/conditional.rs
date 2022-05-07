@@ -111,7 +111,7 @@ impl<'a> IfOnly<'a> {
         let else_keyword = parser
             .consume(Kind::Reserved(Reserved::Else))
             .ok_or_else(|| {
-                SyntaxError::IfNoElse(if_keyword, parser.peek_span())
+                SyntaxError::IfNoElse(if_keyword, parser.next_span())
             })?
             .span();
 
@@ -139,7 +139,7 @@ impl<'a> Parse<'a> for IfOnly<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let if_keyword = parser
             .consume(Kind::Reserved(Reserved::If))
-            .ok_or_else(|| SyntaxError::IfNoReserved(parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::IfNoReserved(parser.next_span()))?
             .span();
 
         let condition = Box::new(parser.parse()?);

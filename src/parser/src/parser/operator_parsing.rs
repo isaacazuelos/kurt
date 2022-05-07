@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.cursor += 1;
+        self.advance();
         Ok(token)
     }
 
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.cursor += 1;
+        self.advance();
         Ok(token)
     }
 
@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
             return Err(Error::InfixUnbalanced(token.span()));
         }
 
-        self.cursor += 1;
+        self.advance();
         Ok((token, associativity))
     }
 }

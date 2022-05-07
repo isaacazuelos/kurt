@@ -44,10 +44,16 @@ impl<'a> Parse<'a> for Module<'a> {
         let (statements, semicolons) =
             parser.sep_by_trailing(TokenKind::Semicolon)?;
 
-        Ok(Module {
-            statements,
-            semicolons,
-        })
+        if parser.is_empty() {
+            Ok(Module {
+                statements,
+                semicolons,
+            })
+        } else {
+            Err(Error::Syntax(SyntaxError::TopLevelUnusedInput(
+                parser.next_span(),
+            )))
+        }
     }
 }
 

@@ -110,7 +110,7 @@ fn comments_no_newline() {
     let mut lexer = Lexer::new("// comment");
     assert!(matches!(
         lexer.token().unwrap().kind(),
-        TokenKind::Comment(Comment::Line)
+        TokenKind::Comment(CommentKind::Line)
     ));
 }
 
@@ -119,7 +119,7 @@ fn comments_doc() {
     let mut lexer = Lexer::new("/// doc comment");
     assert!(matches!(
         lexer.token().unwrap().kind(),
-        TokenKind::Comment(Comment::Doc)
+        TokenKind::Comment(CommentKind::Doc)
     ));
 }
 

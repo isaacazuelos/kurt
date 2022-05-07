@@ -66,7 +66,7 @@ impl<'a> Parse<'a> for Literal<'a> {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
-        match parser.peek() {
+        match parser.peek_kind() {
             Some(TokenKind::Colon) => Literal::parse_keyword_with(parser),
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                 Literal::parse_unit(parser)
@@ -80,12 +80,12 @@ impl<'a> Literal<'a> {
     fn parse_unit(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
-            .ok_or_else(|| SyntaxError::UnitNoOpen(parser.peek_span()))?;
+            .ok_or_else(|| SyntaxError::UnitNoOpen(parser.next_span()))?;
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis))
             .ok_or_else(|| {
-                SyntaxError::UnitNoClose(open.span(), parser.peek_span())
+                SyntaxError::UnitNoClose(open.span(), parser.next_span())
             })?;
 
         Ok(Literal::new(Kind::Unit, "", open.span() + close.span()))
@@ -96,10 +96,10 @@ impl<'a> Literal<'a> {
     ) -> SyntaxResult<Literal<'a>> {
         let colon = parser
             .consume(TokenKind::Colon)
-            .ok_or_else(|| SyntaxError::KeywordNoColon(parser.peek_span()))?;
+            .ok_or_else(|| SyntaxError::KeywordNoColon(parser.next_span()))?;
 
         let name = parser.consume(TokenKind::Identifier).ok_or_else(|| {
-            SyntaxError::KeywordNoName(colon.span(), parser.peek_span())
+            SyntaxError::KeywordNoName(colon.span(), parser.next_span())
         })?;
 
         // Check to rule out keyword like `: foo`

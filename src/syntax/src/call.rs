@@ -79,7 +79,7 @@ impl<'a> Call<'a> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
             .ok_or_else(|| {
-                SyntaxError::CallNoOpen(target.span(), parser.peek_span())
+                SyntaxError::CallNoOpen(target.span(), parser.next_span())
             })?
             .span();
 
@@ -87,7 +87,7 @@ impl<'a> Call<'a> {
 
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis))
-            .ok_or_else(|| SyntaxError::CallNoClose(open, parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::CallNoClose(open, parser.next_span()))?
             .span();
 
         Ok(Call {

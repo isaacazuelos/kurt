@@ -58,7 +58,7 @@ impl<'a> Parse<'a> for Function<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Self> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
-            .ok_or_else(|| SyntaxError::FunctionNoOpen(parser.peek_span()))?
+            .ok_or_else(|| SyntaxError::FunctionNoOpen(parser.next_span()))?
             .span();
 
         let (parameters, commas) = parser.sep_by_trailing(TokenKind::Comma)?;
@@ -66,19 +66,19 @@ impl<'a> Parse<'a> for Function<'a> {
         let close = parser
             .consume(TokenKind::Close(Delimiter::Parenthesis))
             .ok_or_else(|| {
-                SyntaxError::FunctionNoClose(open, parser.peek_span())
+                SyntaxError::FunctionNoClose(open, parser.next_span())
             })?
             .span();
 
         let arrow = parser
             .consume(TokenKind::DoubleArrow)
             .ok_or_else(|| {
-                SyntaxError::FunctionNoArrow(open + close, parser.peek_span())
+                SyntaxError::FunctionNoArrow(open + close, parser.next_span())
             })?
             .span();
 
         let body = Box::new(parser.parse().map_err(|_| {
-            SyntaxError::FunctionNoBody(open + arrow, parser.peek_span())
+            SyntaxError::FunctionNoBody(open + arrow, parser.next_span())
         })?);
 
         Ok(Function {

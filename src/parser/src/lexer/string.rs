@@ -62,7 +62,7 @@ impl Lexer<'_> {
 
         let close = self.peek_span();
         self.char('\'')
-            .ok_or_else(|| Error::UnclosedCharacter(open, close))?;
+            .ok_or(Error::UnclosedCharacter(open, close))?;
         Ok(TokenKind::Char)
     }
 

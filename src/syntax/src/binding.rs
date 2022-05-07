@@ -22,7 +22,7 @@ pub struct Binding<'a> {
 }
 
 impl Binding<'_> {
-    ///
+    /// The `let` or `var` token that created this binding.
     pub fn keyword(&self) -> &Token {
         &self.keyword
     }
@@ -71,7 +71,7 @@ impl<'a> Parse<'a> for Binding<'a> {
                 )
             })
             .ok_or_else(|| {
-                SyntaxError::BindingNoReserved(parser.peek_span())
+                SyntaxError::BindingNoReserved(parser.next_span())
             })?;
 
         let name = parser.parse()?;
@@ -82,7 +82,7 @@ impl<'a> Parse<'a> for Binding<'a> {
                 SyntaxError::BindingNoEquals(
                     keyword.span(),
                     keyword.body() == "let",
-                    parser.peek_span(),
+                    parser.next_span(),
                 )
             })?
             .span();

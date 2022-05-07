@@ -24,7 +24,7 @@ use diagnostic::{Caret, Span};
 
 pub use crate::lexer::{
     error::Error,
-    token::{Comment, Delimiter, Kind as TokenKind, Reserved, Token},
+    token::{CommentKind, Delimiter, Kind as TokenKind, Reserved, Token},
 };
 
 /// A [`Lexer`] scans over a `&str` which scans over the input character by

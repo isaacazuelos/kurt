@@ -113,7 +113,7 @@ impl Lexer<'_> {
             self.consume_digits(10)
                 // I'm not sure this can actually be triggered by
                 // `float_or_integer` right now.
-                .ok_or_else(|| Error::EmptyFloatFractional(dot_span))?;
+                .ok_or(Error::EmptyFloatFractional(dot_span))?;
         }
 
         let start = self.location;
