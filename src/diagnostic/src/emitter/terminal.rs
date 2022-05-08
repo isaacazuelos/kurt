@@ -126,28 +126,36 @@ impl FancyEmitter {
 
     /// Line wrapping options for code.
     ///
-    /// Input can't be more than one line.
+    /// Input must be exactly one line.
     pub(crate) fn code_wrap<'a>(
         &self,
         text: &'a str,
         width: usize,
     ) -> Vec<&'a str> {
-        debug_assert_eq!(text.lines().count(), 1);
+        debug_assert!(
+            text.lines().count() <= 1,
+            "expected exactly 1 line, but got {:?}",
+            text
+        );
 
         let mut buf: Vec<&'a str> = Vec::new();
-        let mut remaining = text;
 
-        while !remaining.is_empty() {
-            // `str::split_at` will panic if width is too long, or not at a
-            // character boundary.
-            let mut split_index = width.min(remaining.len());
-            while !remaining.is_char_boundary(split_index) {
-                split_index -= 1;
+        if text.is_empty() {
+            buf.push("");
+        } else {
+            let mut remaining = text;
+            while !remaining.is_empty() {
+                // `str::split_at` will panic if width is too long, or not at a
+                // character boundary.
+                let mut split_index = width.min(remaining.len());
+                while !remaining.is_char_boundary(split_index) {
+                    split_index -= 1;
+                }
+
+                let (l, r) = remaining.split_at(split_index);
+                buf.push(l);
+                remaining = r;
             }
-
-            let (l, r) = remaining.split_at(split_index);
-            buf.push(l);
-            remaining = r;
         }
 
         buf
