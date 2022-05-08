@@ -51,6 +51,7 @@ impl<'a> Parse<'a> for Module<'a> {
             })
         } else {
             Err(Error::Syntax(SyntaxError::TopLevelUnusedInput(
+                parser.prev_span(),
                 parser.next_span(),
             )))
         }

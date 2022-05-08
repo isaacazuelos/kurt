@@ -138,6 +138,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// The span of the previous token. This is sometimes useful when producing
+    /// diagnostics.
+    ///
+    /// This always returns a span, so if there is no previous span, the first
+    /// span is used, and if there are no tokens, the defautl span is used.
+    pub fn prev_span(&self) -> Span {
+        if let Some(token) = self.tokens.get(self.cursor.saturating_sub(1)) {
+            token.span()
+        } else {
+            Span::default()
+        }
+    }
+
     /// The span of the token right before the end of the input.
     ///
     /// If there's no input, the default span is used.

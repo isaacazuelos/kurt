@@ -44,7 +44,7 @@ pub enum Error {
     SubscriptNoOpen(Span),
     SubscriptNoClose(Span, Span),
 
-    TopLevelUnusedInput(Span),
+    TopLevelUnusedInput(Span, Span),
 }
 
 impl From<Error> for parser::Error<Error> {
@@ -136,8 +136,8 @@ impl From<Error> for Diagnostic {
                 Error::subscript_no_close(open, found)
             }
 
-            Error::TopLevelUnusedInput(span) => {
-                Error::top_level_unused_input(span)
+            Error::TopLevelUnusedInput(prev, found) => {
+                Error::top_level_unused_input(prev, found)
             }
         }
     }
@@ -171,7 +171,7 @@ impl Error {
             Error::KeywordNoName(_, s) => s,
             Error::SubscriptNoOpen(s) => s,
             Error::SubscriptNoClose(_, s) => s,
-            Error::TopLevelUnusedInput(s) => s,
+            Error::TopLevelUnusedInput(s, _) => s,
         }
     }
 
@@ -371,9 +371,13 @@ impl Error {
             .highlight(found, "expected a `]` here")
     }
 
-    fn top_level_unused_input(span: Span) -> Diagnostic {
-        Diagnostic::new("this isn't the start of a statement")
-            .location(span.start())
-            .highlight(span, "more top-level statements were expected here")
+    fn top_level_unused_input(prev: Span, issue: Span) -> Diagnostic {
+        Diagnostic::new("a statement didn't end where expected")
+            .location(prev.end())
+            .highlight(prev, "should there be a semicolon after this?")
+            .highlight(
+                issue,
+                "this doesn't look like part of the previous statement",
+            )
     }
 }
