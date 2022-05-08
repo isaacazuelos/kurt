@@ -45,7 +45,10 @@ impl Caret {
     /// probably the right call.
     pub fn increment(&mut self, c: char) {
         match c {
-            '\n' => self.line += 1,
+            '\n' => {
+                self.line += 1;
+                self.column = 0;
+            }
             _ => self.column += 1,
         }
     }
