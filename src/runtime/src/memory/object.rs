@@ -15,6 +15,7 @@ use crate::{
         list::List,
         string::String,
         trace::{Trace, WorkList},
+        upvalue::Upvalue,
     },
     primitives::{Error, PrimitiveOperations},
     value::Value,
@@ -28,6 +29,7 @@ macro_rules! dispatch {
             ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
             ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
+            ClassId::Upvalue => $f( $obj.downcast::<Upvalue>().unwrap(), $( $arg, )*),
         }
     };
 }
