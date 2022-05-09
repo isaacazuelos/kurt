@@ -6,6 +6,7 @@ mod compiler;
 mod error;
 mod object;
 
+pub mod capture;
 pub mod constant;
 pub mod index;
 pub mod local;

@@ -257,6 +257,8 @@ impl Compiler {
 
         if let Some(index) = self.resolve_local(name) {
             self.emit(Op::LoadLocal(index), syntax.span())
+        } else if let Some(index) = self.resolve_capture(name) {
+            self.emit(Op::LoadCapture(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
         }

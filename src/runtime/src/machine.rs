@@ -1,6 +1,7 @@
 //! The virtual machine's big dispatch loop
 
 use compiler::{
+    capture::Capture,
     constant::Constant,
     index::{Get, Index},
     local::Local,
@@ -39,6 +40,7 @@ impl Runtime {
                 Op::Unit => self.stack.push(Value::UNIT),
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
+                Op::LoadCapture(i) => self.load_capture(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
@@ -117,6 +119,13 @@ impl Runtime {
         let local = self.stack.get_local(self.bp(), index)?;
         self.stack.push(local);
         Ok(())
+    }
+
+    /// The [`LoadCapture`][Op::LoadCapture] instruction isn't defined yet, this is
+    /// placeholder for now.
+    #[inline]
+    fn load_capture(&mut self, _index: Index<Capture>) -> Result<()> {
+        todo!("captures cannot be loaded yet")
     }
 
     /// The [`DefineLocal`][Op::DefineLocal] instruction increments the top of the

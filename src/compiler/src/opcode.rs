@@ -3,7 +3,8 @@
 use std::fmt::{Display, Formatter, Result};
 
 use crate::{
-    constant::Constant, index::Index, local::Local, prototype::Prototype,
+    capture::Capture, constant::Constant, index::Index, local::Local,
+    prototype::Prototype,
 };
 
 /// These are the individual instructions that our VM interprets.
@@ -43,6 +44,9 @@ pub enum Op {
 
     /// Load a local binding.
     LoadLocal(Index<Local>),
+
+    /// Load a non-local binding.
+    LoadCapture(Index<Capture>),
 
     /// Keep the top of the stack as a local.
     DefineLocal,

@@ -12,8 +12,8 @@ use syntax::{Identifier, Syntax};
 mod visitor;
 
 use crate::{
-    constant::Pool, error::Error, error::Result, index::Index, local::Local,
-    opcode::Op, prototype::Prototype, Object,
+    capture::Capture, constant::Pool, error::Error, error::Result,
+    index::Index, local::Local, opcode::Op, prototype::Prototype, Object,
 };
 
 /// A compiler turns source code into an [`Object`] the runtime can work with.
@@ -190,5 +190,14 @@ impl Compiler {
 
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         self.active_prototype_mut().resolve_local(name)
+    }
+
+    pub(crate) fn resolve_capture(
+        &mut self,
+        name: &str,
+    ) -> Option<Index<Capture>> {
+        let (current, enclosing) = self.compiling.split_last_mut()?;
+
+        current.resolve_capture(name, enclosing)
     }
 }
