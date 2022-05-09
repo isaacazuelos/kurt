@@ -1,4 +1,5 @@
 //! Runtime closure representation
+
 use std::{
     fmt::{self, Debug},
     ptr::addr_of_mut,
@@ -14,14 +15,19 @@ use crate::{
     },
     module::Module,
     primitives::PrimitiveOperations,
+    value::Value,
 };
 
 #[repr(C, align(8))]
 pub struct Closure {
     /// The base object required to be a [`Class`].
     base: Object,
+
     module: Index<Module>,
     prototype: Index<Prototype>,
+
+    // TODO: We should make this inline since we know the max capacity per-closure.
+    captures: Vec<Value>,
 }
 
 impl Closure {
@@ -33,6 +39,11 @@ impl Closure {
     /// The prototype index for this closure, in it's original module.
     pub fn prototype(&self) -> Index<Prototype> {
         self.prototype
+    }
+
+    /// This closures current captures.
+    pub fn captures(&self) -> &[Value] {
+        &self.captures
     }
 }
 
@@ -63,8 +74,10 @@ impl PartialEq for Closure {
 }
 
 impl Trace for Closure {
-    fn enqueue_gc_references(&self, _worklist: &mut super::trace::WorkList) {
-        // no gc references until we have captures.
+    fn enqueue_gc_references(&self, worklist: &mut super::trace::WorkList) {
+        for capture in self.captures() {
+            capture.enqueue_gc_references(worklist);
+        }
     }
 }
 
@@ -78,17 +91,16 @@ impl Debug for Closure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "<closure {}-{}>",
+            "<closure {}-{} {:?}>",
             self.module.as_usize(),
-            self.prototype.as_usize()
+            self.prototype.as_usize(),
+            self.captures(),
         )
     }
 }
 
 impl InitFrom<(Index<Module>, Index<Prototype>)> for Closure {
-    fn extra_size(_arg: &(Index<Module>, Index<Prototype>)) -> usize {
-        // This is a fixed-sized for now, but once we have captures we'll make
-        // space for them here.
+    fn extra_size((_, _): &(Index<Module>, Index<Prototype>)) -> usize {
         0
     }
 
@@ -98,5 +110,7 @@ impl InitFrom<(Index<Module>, Index<Prototype>)> for Closure {
     ) {
         addr_of_mut!((*ptr).module).write(module);
         addr_of_mut!((*ptr).prototype).write(prototype);
+
+        addr_of_mut!((*ptr).captures).write(Vec::new());
     }
 }

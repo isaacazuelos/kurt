@@ -134,6 +134,7 @@ impl Runtime {
     #[inline]
     fn load_closure(&mut self, index: Index<Prototype>) -> Result<()> {
         let module = self.pc().module;
+
         let gc_obj = self.make_from::<Closure, _>((module, index));
         self.stack.push(Value::object(gc_obj));
         Ok(())

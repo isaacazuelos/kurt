@@ -88,8 +88,8 @@ impl Runtime {
             return Err(Error::NoMainModule);
         }
 
-        let indexes = (Self::MAIN_INDEX, Module::MAIN_INDEX);
-        let main_closure = self.make_from::<Closure, _>(indexes);
+        let main_closure = self
+            .make_from::<Closure, _>((Self::MAIN_INDEX, Module::MAIN_INDEX));
 
         self.stack.push(Value::object(main_closure));
 
