@@ -161,8 +161,6 @@ impl Prototype {
     /// Return the [`Index<Local>`] for a local variable with the given name, if
     /// one is in scope.
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
-        println!("looking for a local named {} in {:?}", name, &self.locals);
-
         // the rev is so we find more recently bound locals faster than less
         // recently bound ones, and ensures that shadowing works by finding the
         // most-recent binding with the given name.
@@ -180,8 +178,6 @@ impl Prototype {
         name: &str,
         enclosing: &mut [Prototype],
     ) -> Option<Index<Capture>> {
-        dbg!(&self, name, enclosing.len());
-
         // The top-level has no captures. At least not yet.
         if enclosing == [] {
             return None;
@@ -197,15 +193,12 @@ impl Prototype {
 
         // If it's a capture of some enclosing scope, capture that.
         if let Some(capture) = next.resolve_capture(name, enclosing_next) {
-            println!("found capture, adding");
             // They're different kinds of indexes, but that's okay because a
             // capture index is a local index relative to it's original call
             // frame, which is the one that needs to promote it.
             let index = Index::new(capture.as_u32());
             return Some(self.add_capture(index, false));
         }
-
-        println!("not found");
 
         None
     }

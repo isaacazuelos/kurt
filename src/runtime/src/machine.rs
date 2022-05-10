@@ -136,14 +136,7 @@ impl Runtime {
             .get_closure(self.bp())
             .ok_or_else(|| Error::StackIndexBelowZero)?
             .use_as::<Closure, _, UpvalueContents>(|c| {
-                c.get_capture(index)
-                    .ok_or(
-                        // Not the right error, just trying something
-                        PrimitiveError::OperationNotSupported {
-                            type_name: "upvalue",
-                            op_name: "get_capture",
-                        },
-                    )?
+                c.get_capture(index.as_usize())
                     .use_as::<Upvalue, _, _>(|u| Ok(u.contents()))
             })?;
 
@@ -179,28 +172,41 @@ impl Runtime {
         let closure = Value::object(gc_obj);
         self.stack.push(closure);
 
-        // now we set up the upvalues
-        let prototype = self.get(module).unwrap().get(index).unwrap();
+        let bp = self.bp();
+
         self.stack
-            .get_closure(self.bp())
+            .get_closure(bp)
             .unwrap()
             .use_as::<Closure, _, ()>(|current_closure| {
                 closure.use_as::<Closure, _, ()>(|new_closure| {
-                    for cap in prototype.captures().iter() {
-                        if cap.is_local() {
-                            let local: Index<Stack> = Index::new(
-                                cap.index().as_u32() + self.bp().as_u32(),
-                            );
-                            new_closure.push_capture_from_local(local);
-                        } else {
-                            let upvalue: Value = current_closure
-                                .captures()
-                                .get(cap.index().as_usize())
-                                .cloned()
-                                .unwrap();
+                    let cap_len = {
+                        let prototype =
+                            self.get(module).unwrap().get(index).unwrap();
+                        prototype.capture_count()
+                    };
 
-                            new_closure.push_capture_from_upvalue(upvalue);
-                        }
+                    // now we set up the upvalues
+                    for i in 0..cap_len {
+                        let (is_local, index) = {
+                            let cap = self
+                                .get(module)
+                                .unwrap()
+                                .get(index)
+                                .unwrap()
+                                .captures()[i];
+                            (cap.is_local(), cap.index())
+                        };
+
+                        let upvalue = if is_local {
+                            let local: Index<Stack> =
+                                Index::new(index.as_u32() + self.bp().as_u32());
+
+                            Value::object(self.make_from::<Upvalue, _>(local))
+                        } else {
+                            current_closure.get_capture(index.as_usize())
+                        };
+
+                        new_closure.push_capture(upvalue);
                     }
 
                     Ok(())

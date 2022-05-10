@@ -1,16 +1,19 @@
 //! Runtime closure representation
 
 use std::{
+    cell::RefCell,
     fmt::{self, Debug},
+    ops::DerefMut,
     ptr::addr_of_mut,
 };
 
-use compiler::{capture::Capture, index::Index, prototype::Prototype};
+use compiler::{index::Index, prototype::Prototype};
 
 use crate::{
     memory::{
         class::{Class, ClassId},
         trace::Trace,
+        upvalue::Upvalue,
         InitFrom, Object,
     },
     module::Module,
@@ -27,7 +30,7 @@ pub struct Closure {
     prototype: Index<Prototype>,
 
     // TODO: We should make this inline since we know the max capacity per-closure.
-    captures: Vec<Value>,
+    captures: RefCell<Vec<Value>>,
 }
 
 impl Closure {
@@ -41,24 +44,19 @@ impl Closure {
         self.prototype
     }
 
-    /// This closures current captures.
-    pub fn captures(&self) -> &[Value] {
-        &self.captures
+    pub fn get_capture(&self, i: usize) -> Value {
+        self.captures.borrow()[i]
     }
 
-    pub fn get_capture(&self, index: Index<Capture>) -> Option<Value> {
-        self.captures().get(index.as_usize()).cloned()
-    }
+    pub(crate) fn push_capture(&self, upvalue: Value) {
+        debug_assert!(
+            upvalue
+                .as_object()
+                .map(|o| o.deref().class_id() == Upvalue::ID)
+                == Some(true)
+        );
 
-    pub(crate) fn push_capture_from_local(
-        &self,
-        _local: Index<crate::stack::Stack>,
-    ) {
-        todo!()
-    }
-
-    pub(crate) fn push_capture_from_upvalue(&self, _upvalue: Value) {
-        todo!()
+        self.captures.borrow_mut().deref_mut().push(upvalue);
     }
 }
 
@@ -90,7 +88,7 @@ impl PartialEq for Closure {
 
 impl Trace for Closure {
     fn enqueue_gc_references(&self, worklist: &mut super::trace::WorkList) {
-        for capture in self.captures() {
+        for capture in self.captures.borrow().iter() {
             capture.enqueue_gc_references(worklist);
         }
     }
@@ -109,7 +107,7 @@ impl Debug for Closure {
             "<closure {}-{} {:?}>",
             self.module.as_usize(),
             self.prototype.as_usize(),
-            self.captures(),
+            self.captures.borrow(),
         )
     }
 }
@@ -126,6 +124,6 @@ impl InitFrom<(Index<Module>, Index<Prototype>)> for Closure {
         addr_of_mut!((*ptr).module).write(module);
         addr_of_mut!((*ptr).prototype).write(prototype);
 
-        addr_of_mut!((*ptr).captures).write(Vec::new());
+        addr_of_mut!((*ptr).captures).write(RefCell::new(Vec::new()));
     }
 }
