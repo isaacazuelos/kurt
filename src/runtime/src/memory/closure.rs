@@ -5,7 +5,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::{index::Index, prototype::Prototype};
+use compiler::{capture::Capture, index::Index, prototype::Prototype};
 
 use crate::{
     memory::{
@@ -44,6 +44,21 @@ impl Closure {
     /// This closures current captures.
     pub fn captures(&self) -> &[Value] {
         &self.captures
+    }
+
+    pub fn get_capture(&self, index: Index<Capture>) -> Option<Value> {
+        self.captures().get(index.as_usize()).cloned()
+    }
+
+    pub(crate) fn push_capture_from_local(
+        &self,
+        _local: Index<crate::stack::Stack>,
+    ) {
+        todo!()
+    }
+
+    pub(crate) fn push_capture_from_upvalue(&self, _upvalue: Value) {
+        todo!()
     }
 }
 

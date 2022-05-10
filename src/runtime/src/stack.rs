@@ -98,4 +98,15 @@ impl Stack {
 
         Index::new(i as u32)
     }
+
+    pub(crate) fn get_closure(&self, base: Index<Stack>) -> Option<Value> {
+        match base.as_usize() {
+            0 => None,
+            n => self.values.get(n - 1).cloned(),
+        }
+    }
+
+    pub(crate) fn get(&self, index: Index<Stack>) -> Option<Value> {
+        self.values.get(index.as_usize()).cloned()
+    }
 }

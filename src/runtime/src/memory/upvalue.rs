@@ -35,7 +35,7 @@ pub struct Upvalue {
 }
 
 impl Upvalue {
-    pub fn _contents(&self) -> UpvalueContents {
+    pub fn contents(&self) -> UpvalueContents {
         self.contents
     }
 }

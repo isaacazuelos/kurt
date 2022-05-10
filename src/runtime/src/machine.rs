@@ -13,8 +13,13 @@ use crate::{
     address::Address,
     call_stack::CallFrame,
     error::Result,
-    memory::{closure::Closure, list::List},
+    memory::{
+        closure::Closure,
+        list::List,
+        upvalue::{Upvalue, UpvalueContents},
+    },
     primitives::{Error as PrimitiveError, PrimitiveOperations},
+    stack::Stack,
     value::Value,
     Error, Exit, Runtime,
 };
@@ -121,11 +126,37 @@ impl Runtime {
         Ok(())
     }
 
-    /// The [`LoadCapture`][Op::LoadCapture] instruction isn't defined yet, this is
-    /// placeholder for now.
+    /// The [`LoadCapture`][Op::LoadCapture] instruction pulls a value out of
+    /// the currently-executing closure's captures and places it on the top of
+    /// the stack.
     #[inline]
-    fn load_capture(&mut self, _index: Index<Capture>) -> Result<()> {
-        todo!("captures cannot be loaded yet")
+    fn load_capture(&mut self, index: Index<Capture>) -> Result<()> {
+        let upvalue: UpvalueContents = self
+            .stack
+            .get_closure(self.bp())
+            .ok_or_else(|| Error::StackIndexBelowZero)?
+            .use_as::<Closure, _, UpvalueContents>(|c| {
+                c.get_capture(index)
+                    .ok_or(
+                        // Not the right error, just trying something
+                        PrimitiveError::OperationNotSupported {
+                            type_name: "upvalue",
+                            op_name: "get_capture",
+                        },
+                    )?
+                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents()))
+            })?;
+
+        let value = match upvalue {
+            UpvalueContents::Stack(stack_index) => self
+                .stack
+                .get(stack_index)
+                .ok_or_else(|| Error::StackIndexBelowZero)?,
+            UpvalueContents::Inline(v) => v,
+        };
+
+        self.stack.push(value);
+        Ok(())
     }
 
     /// The [`DefineLocal`][Op::DefineLocal] instruction increments the top of the
@@ -145,7 +176,37 @@ impl Runtime {
         let module = self.pc().module;
 
         let gc_obj = self.make_from::<Closure, _>((module, index));
-        self.stack.push(Value::object(gc_obj));
+        let closure = Value::object(gc_obj);
+        self.stack.push(closure);
+
+        // now we set up the upvalues
+        let prototype = self.get(module).unwrap().get(index).unwrap();
+        self.stack
+            .get_closure(self.bp())
+            .unwrap()
+            .use_as::<Closure, _, ()>(|current_closure| {
+                closure.use_as::<Closure, _, ()>(|new_closure| {
+                    for cap in prototype.captures().iter() {
+                        if cap.is_local() {
+                            let local: Index<Stack> = Index::new(
+                                cap.index().as_u32() + self.bp().as_u32(),
+                            );
+                            new_closure.push_capture_from_local(local);
+                        } else {
+                            let upvalue: Value = current_closure
+                                .captures()
+                                .get(cap.index().as_usize())
+                                .cloned()
+                                .unwrap();
+
+                            new_closure.push_capture_from_upvalue(upvalue);
+                        }
+                    }
+
+                    Ok(())
+                })
+            })?;
+
         Ok(())
     }
 

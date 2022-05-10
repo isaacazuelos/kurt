@@ -26,6 +26,7 @@ pub enum Error {
     ModuleIndexOutOfRange,
     OpIndexOutOfRange,
     PrototypeIndexOutOfRange,
+    CaptureIndexOutOfRange,
 
     Primitive(PrimitiveError),
 }
@@ -59,6 +60,9 @@ impl fmt::Display for Error {
             OpIndexOutOfRange => write!(f, "op code index is out of range"),
             PrototypeIndexOutOfRange => {
                 write!(f, "function prototype index is out of range")
+            }
+            CaptureIndexOutOfRange => {
+                write!(f, "capture index is out of range")
             }
 
             Primitive(p) => write!(f, "primitive error: {:?}", p),

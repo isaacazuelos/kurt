@@ -69,6 +69,11 @@ impl Prototype {
         self.captures.len()
     }
 
+    /// The captures this prototype has.
+    pub fn captures(&self) -> &[Capture] {
+        &self.captures
+    }
+
     /// Set the number of parameters this prototype needs when being called.
     pub(crate) fn set_parameter_count(&mut self, count: u32) {
         self.parameter_count = count;

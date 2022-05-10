@@ -50,6 +50,6 @@ test_compile! { out_of_scope_shadow, "let x = 0; { let x = 1; }; x" }
 test_compile! { grouping, "(1)" }
 test_compile! { function, "(x) => x" }
 test_compile! { call, "let id = (x) => x; id(1)" }
-test_no_compile! { capture, "let a = 1; let f = () => a;" }
+test_compile! { capture, "let a = 1; let f = () => a;" }
 test_compile! { if_only, "if true { 1 }" }
 test_compile! { if_else, "if true { 1 } else { 2 }" }
