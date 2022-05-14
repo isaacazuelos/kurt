@@ -149,5 +149,10 @@ impl Trace for Runtime {
                 value.enqueue_gc_references(worklist);
             }
         }
+
+        // And all the open captures too
+        for capture in &self.open_captures {
+            capture.enqueue_gc_references(worklist);
+        }
     }
 }

@@ -5,6 +5,7 @@ use syntax::{Identifier, Syntax};
 pub struct Local {
     name: String,
     span: Span,
+    is_captured: bool,
 }
 
 impl Local {
@@ -13,6 +14,7 @@ impl Local {
         Local {
             name: name.into(),
             span,
+            is_captured: false,
         }
     }
 
@@ -25,6 +27,15 @@ impl Local {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    /// Is this captured by some later closure?
+    pub fn is_captured(&self) -> bool {
+        self.is_captured
+    }
+
+    pub fn capture(&mut self) {
+        self.is_captured = true;
+    }
 }
 
 impl<'a> From<&Identifier> for Local {
@@ -32,6 +43,7 @@ impl<'a> From<&Identifier> for Local {
         Local {
             name: id.as_str().into(),
             span: id.span(),
+            is_captured: false,
         }
     }
 }

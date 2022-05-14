@@ -3,7 +3,8 @@
 use std::fmt::{Display, Formatter, Result};
 
 use crate::{
-    constant::Constant, index::Index, local::Local, prototype::Prototype,
+    capture::Capture, constant::Constant, index::Index, local::Local,
+    prototype::Prototype,
 };
 
 /// These are the individual instructions that our VM interprets.
@@ -44,6 +45,9 @@ pub enum Op {
     /// Load a local binding.
     LoadLocal(Index<Local>),
 
+    /// Load a non-local binding.
+    LoadCapture(Index<Capture>),
+
     /// Keep the top of the stack as a local.
     DefineLocal,
 
@@ -63,6 +67,9 @@ pub enum Op {
     /// The `u32` is the number of arguments being passed, with the called value
     /// being that far from the top of the stack.
     Call(u32),
+
+    /// Close a the most recent open capture.
+    CloseCapture,
 
     /// Return from the currently executing function.
     Return,

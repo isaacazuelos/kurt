@@ -26,6 +26,7 @@ pub mod keyword;
 pub mod list;
 pub mod string;
 pub mod trace;
+pub mod upvalue;
 
 use crate::Runtime;
 

@@ -38,7 +38,7 @@ impl Stack {
         self.values.truncate(index.as_usize().saturating_sub(1));
     }
 
-    /// Drop `count` values from the top of the stack. If `n` is larger then the
+    /// Drop `count` values from the top of the stack. If `count` is larger then the
     /// length of the stack, it'll be left empty.
     pub fn truncate_by(&mut self, count: u32) {
         let len = self.values.len().saturating_sub(count as usize);
@@ -97,5 +97,16 @@ impl Stack {
         assert!(i <= u32::MAX as usize);
 
         Index::new(i as u32)
+    }
+
+    pub(crate) fn get_closure(&self, base: Index<Stack>) -> Option<Value> {
+        match base.as_usize() {
+            0 => None,
+            n => self.values.get(n - 1).cloned(),
+        }
+    }
+
+    pub(crate) fn get(&self, index: Index<Stack>) -> Option<Value> {
+        self.values.get(index.as_usize()).cloned()
     }
 }

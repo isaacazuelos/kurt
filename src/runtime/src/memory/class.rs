@@ -23,6 +23,7 @@ pub(crate) enum ClassId {
     Keyword,
     List,
     String,
+    Upvalue,
 }
 
 impl ClassId {
@@ -32,6 +33,7 @@ impl ClassId {
             ClassId::Keyword => "Keyword",
             ClassId::List => "List",
             ClassId::String => "String",
+            ClassId::Upvalue => "Upvalue",
         }
     }
 }
@@ -56,9 +58,7 @@ impl ClassId {
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub(crate) trait Class:
-    'static + Debug + Sized + Trace + PartialEq + PartialOrd
-{
+pub(crate) trait Class: 'static + Debug + Sized + Trace {
     /// The [`ClassId`] that's unique to objects of this class.
     const ID: ClassId;
 

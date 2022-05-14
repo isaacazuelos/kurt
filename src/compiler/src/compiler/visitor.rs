@@ -191,7 +191,10 @@ impl Compiler {
 
     /// Compile a block expression.
     fn block(&mut self, syntax: &syntax::Block) -> Result<()> {
-        self.with_scope(|compiler| compiler.statement_sequence(syntax))
+        self.with_scope(
+            |compiler| compiler.statement_sequence(syntax),
+            syntax.span(),
+        )
     }
 
     /// Compile a function call.
@@ -257,6 +260,8 @@ impl Compiler {
 
         if let Some(index) = self.resolve_local(name) {
             self.emit(Op::LoadLocal(index), syntax.span())
+        } else if let Some(index) = self.resolve_capture(name) {
+            self.emit(Op::LoadCapture(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
         }

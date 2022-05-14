@@ -1,6 +1,7 @@
 //! The virtual machine's big dispatch loop
 
 use compiler::{
+    capture::Capture,
     constant::Constant,
     index::{Get, Index},
     local::Local,
@@ -12,8 +13,13 @@ use crate::{
     address::Address,
     call_stack::CallFrame,
     error::Result,
-    memory::{closure::Closure, list::List},
+    memory::{
+        closure::Closure,
+        list::List,
+        upvalue::{Upvalue, UpvalueContents},
+    },
     primitives::{Error as PrimitiveError, PrimitiveOperations},
+    stack::Stack,
     value::Value,
     Error, Exit, Runtime,
 };
@@ -39,12 +45,17 @@ impl Runtime {
                 Op::Unit => self.stack.push(Value::UNIT),
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
+                Op::LoadCapture(i) => self.load_capture(i)?,
                 Op::LoadClosure(i) => self.load_closure(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
+                Op::CloseCapture => {
+                    self.close_capture(self.stack.index_from_top(1))?;
+                    self.stack.pop();
+                }
                 Op::Return => self.r#return()?,
 
                 // branching
@@ -119,6 +130,32 @@ impl Runtime {
         Ok(())
     }
 
+    /// The [`LoadCapture`][Op::LoadCapture] instruction pulls a value out of
+    /// the currently-executing closure's captures and places it on the top of
+    /// the stack.
+    #[inline]
+    fn load_capture(&mut self, index: Index<Capture>) -> Result<()> {
+        let upvalue: UpvalueContents = self
+            .stack
+            .get_closure(self.bp())
+            .ok_or_else(|| Error::StackIndexBelowZero)?
+            .use_as::<Closure, _, UpvalueContents>(|c| {
+                c.get_capture(index.as_usize())
+                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents().clone()))
+            })?;
+
+        let value = match upvalue {
+            UpvalueContents::Stack(stack_index) => self
+                .stack
+                .get(stack_index)
+                .ok_or_else(|| Error::StackIndexBelowZero)?,
+            UpvalueContents::Inline(v) => v,
+        };
+
+        self.stack.push(value);
+        Ok(())
+    }
+
     /// The [`DefineLocal`][Op::DefineLocal] instruction increments the top of the
     /// stack by pushing a `()`. This has the effect of leaving the value
     /// previous on the top of the stack around.
@@ -134,8 +171,52 @@ impl Runtime {
     #[inline]
     fn load_closure(&mut self, index: Index<Prototype>) -> Result<()> {
         let module = self.pc().module;
+
         let gc_obj = self.make_from::<Closure, _>((module, index));
-        self.stack.push(Value::object(gc_obj));
+        let closure = Value::object(gc_obj);
+        self.stack.push(closure);
+
+        let bp = self.bp();
+
+        self.stack
+            .get_closure(bp)
+            .unwrap()
+            .use_as::<Closure, _, ()>(|current_closure| {
+                closure.use_as::<Closure, _, ()>(|new_closure| {
+                    let cap_len = {
+                        let prototype =
+                            self.get(module).unwrap().get(index).unwrap();
+                        prototype.capture_count()
+                    };
+
+                    // now we set up the upvalues
+                    for i in 0..cap_len {
+                        let (is_local, index) = {
+                            let cap = self
+                                .get(module)
+                                .unwrap()
+                                .get(index)
+                                .unwrap()
+                                .captures()[i];
+                            (cap.is_local(), cap.index())
+                        };
+
+                        let upvalue = if is_local {
+                            let local: Index<Stack> =
+                                Index::new(index.as_u32() + self.bp().as_u32());
+
+                            Value::object(self.make_from::<Upvalue, _>(local))
+                        } else {
+                            current_closure.get_capture(index.as_usize())
+                        };
+
+                        new_closure.push_capture(upvalue);
+                    }
+
+                    Ok(())
+                })
+            })?;
+
         Ok(())
     }
 
@@ -169,6 +250,34 @@ impl Runtime {
         Ok(())
     }
 
+    /// The [`CloseCapture`][Op::CloseCapture] instruction closes any open
+    /// upvalues which occur on the stack on top of the the `top` index.
+    #[inline]
+    fn close_capture(&mut self, top: Index<Stack>) -> Result<()> {
+        while let Some(capture) = self.open_captures.last() {
+            let done =
+                capture.use_as::<Upvalue, _, _>(|u| match u.contents() {
+                    UpvalueContents::Inline(_) => Ok(false),
+                    UpvalueContents::Stack(index) => {
+                        if index >= top {
+                            let value = self.stack.get(index).unwrap();
+                            u.close(value);
+                            Ok(false)
+                        } else {
+                            Ok(true)
+                        }
+                    }
+                })?;
+            if done {
+                break;
+            } else {
+                self.open_captures.pop();
+            }
+        }
+
+        Ok(())
+    }
+
     /// The [`Return`][Op::Return] instruction returns from a function call,
     /// which means it saves the top of the stack, pops the frame, drops the
     /// values up to the old base pointer, and then puts the result back on the
@@ -177,6 +286,9 @@ impl Runtime {
     fn r#return(&mut self) -> Result<()> {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
         let result = self.stack.last();
+
+        self.close_capture(frame.bp)?;
+
         self.stack.truncate_to(frame.bp);
         // TODO: are we worried about it collecting result before this?
         self.stack.push(result);
@@ -191,11 +303,20 @@ impl Runtime {
         let start = self.stack_frame().len() - n as usize;
 
         let slice = &self.stack_frame()[start..];
+
+        debug_assert_eq!(slice.len(), n as usize);
+
         let vec = Vec::from(slice);
         let list = self.make_from::<List, _>(vec);
+        let value = Value::object(list);
 
-        self.stack.set_from_top(n, Value::object(list))?;
-        self.stack.truncate_by(n);
+        if n > 0 {
+            self.stack.set_from_top(n - 1, value)?;
+            self.stack.truncate_by(n - 1);
+        } else {
+            self.stack.push(value);
+        }
+
         Ok(())
     }
 

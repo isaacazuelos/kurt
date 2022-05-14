@@ -64,6 +64,7 @@ mod functions {
 mod lists {
     test_eval! { list_empty, "[]", "[ ]" }
     test_eval! { list, "[1,2,3]", "[ 1, 2, 3, ]" }
+    test_eval! { list_stack, "let x = 0; [1,2,3]; x", "0" }
 }
 
 mod conditionals {
@@ -101,4 +102,8 @@ mod primitive_operations {
 mod indexing {
     test_eval! { index, "[1,2,3][1]", "2" }
     test_eval! { index_neg, "[1,2,3][-1]", "3" }
+}
+
+mod closures {
+    test_eval! { capture, "(() => { let x = 1; () => x })()", "1"}
 }
