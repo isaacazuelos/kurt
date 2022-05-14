@@ -191,7 +191,10 @@ impl Compiler {
 
     /// Compile a block expression.
     fn block(&mut self, syntax: &syntax::Block) -> Result<()> {
-        self.with_scope(|compiler| compiler.statement_sequence(syntax))
+        self.with_scope(
+            |compiler| compiler.statement_sequence(syntax),
+            syntax.span(),
+        )
     }
 
     /// Compile a function call.

@@ -68,6 +68,9 @@ pub enum Op {
     /// being that far from the top of the stack.
     Call(u32),
 
+    /// Close a the most recent open capture.
+    CloseCapture,
+
     /// Return from the currently executing function.
     Return,
 

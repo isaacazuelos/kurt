@@ -2,6 +2,7 @@
 // value, or a stack index to a value.
 
 use std::{
+    cell::Cell,
     cmp::Ordering,
     fmt::{self, Debug},
     ptr::addr_of_mut,
@@ -31,12 +32,16 @@ pub struct Upvalue {
     /// The base object required to be a [`Class`].
     base: Object,
 
-    contents: UpvalueContents,
+    contents: Cell<UpvalueContents>,
 }
 
 impl Upvalue {
     pub fn contents(&self) -> UpvalueContents {
-        self.contents
+        self.contents.get()
+    }
+
+    pub(crate) fn close(&self, value: Value) {
+        self.contents.replace(UpvalueContents::Inline(value));
     }
 }
 
@@ -46,8 +51,10 @@ impl Class for Upvalue {
 
 impl Trace for Upvalue {
     fn enqueue_gc_references(&self, worklist: &mut super::trace::WorkList) {
-        match self.contents {
-            UpvalueContents::Inline(v) => v.enqueue_gc_references(worklist),
+        match self.contents.get() {
+            UpvalueContents::Inline(v) => {
+                v.enqueue_gc_references(worklist);
+            }
             UpvalueContents::Stack(_) => {
                 // If the value is on the stack, it's a GC root and we don't
                 // need to worry about it.
@@ -79,7 +86,7 @@ impl PrimitiveOperations for Upvalue {
 
 impl Debug for Upvalue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.contents {
+        match self.contents.get() {
             UpvalueContents::Inline(v) => write!(f, "<upvalue inline {:?}>", v),
             UpvalueContents::Stack(i) => write!(f, "<upvalue stack {:?}>", i),
         }
@@ -92,7 +99,8 @@ impl InitFrom<Value> for Upvalue {
     }
 
     unsafe fn init(ptr: *mut Self, value: Value) {
-        addr_of_mut!((*ptr).contents).write(UpvalueContents::Inline(value));
+        addr_of_mut!((*ptr).contents)
+            .write(Cell::new(UpvalueContents::Inline(value)));
     }
 }
 
@@ -102,6 +110,7 @@ impl InitFrom<Index<Stack>> for Upvalue {
     }
 
     unsafe fn init(ptr: *mut Self, index: Index<Stack>) {
-        addr_of_mut!((*ptr).contents).write(UpvalueContents::Stack(index));
+        addr_of_mut!((*ptr).contents)
+            .write(Cell::new(UpvalueContents::Stack(index)));
     }
 }

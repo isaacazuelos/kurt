@@ -22,7 +22,7 @@ impl Display for Runtime {
 impl Runtime {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
         if let Ok(op) = self.op() {
-            write!(f, "op: {:16}", format!("{op}"))?;
+            write!(f, "{} op: {:16}", self.pc(), format!("{op}"))?;
         } else {
             write!(f, "op: <none>          ")?;
         }
@@ -31,7 +31,7 @@ impl Runtime {
     }
 
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
-        write!(f, "stack: [ ... | ",)?;
+        write!(f, "[ ... | ",)?;
 
         for v in self.stack_frame() {
             write!(f, "{:?}, ", v)?;

@@ -141,7 +141,7 @@ impl Compiler {
         self.active_prototype_mut().code_mut().patch(index, op)
     }
 
-    pub(crate) fn with_scope<F, T>(&mut self, inner: F) -> Result<T>
+    pub(crate) fn with_scope<F, T>(&mut self, inner: F, span: Span) -> Result<T>
     where
         F: FnOnce(&mut Compiler) -> Result<T>,
     {
@@ -149,7 +149,7 @@ impl Compiler {
 
         let result = inner(self);
 
-        self.active_prototype_mut().end_scope();
+        self.active_prototype_mut().end_scope(span);
 
         result
     }

@@ -52,6 +52,10 @@ impl Runtime {
 
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
+                Op::CloseCapture => {
+                    self.close_capture(self.stack.index_from_top(1))?;
+                    self.stack.pop();
+                }
                 Op::Return => self.r#return()?,
 
                 // branching
@@ -137,7 +141,7 @@ impl Runtime {
             .ok_or_else(|| Error::StackIndexBelowZero)?
             .use_as::<Closure, _, UpvalueContents>(|c| {
                 c.get_capture(index.as_usize())
-                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents()))
+                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents().clone()))
             })?;
 
         let value = match upvalue {
@@ -246,6 +250,34 @@ impl Runtime {
         Ok(())
     }
 
+    /// The [`CloseCapture`][Op::CloseCapture] instruction closes any open
+    /// upvalues which occur on the stack on top of the the `top` index.
+    #[inline]
+    fn close_capture(&mut self, top: Index<Stack>) -> Result<()> {
+        while let Some(capture) = self.open_captures.last() {
+            let done =
+                capture.use_as::<Upvalue, _, _>(|u| match u.contents() {
+                    UpvalueContents::Inline(_) => Ok(false),
+                    UpvalueContents::Stack(index) => {
+                        if index >= top {
+                            let value = self.stack.get(index).unwrap();
+                            u.close(value);
+                            Ok(false)
+                        } else {
+                            Ok(true)
+                        }
+                    }
+                })?;
+            if done {
+                break;
+            } else {
+                self.open_captures.pop();
+            }
+        }
+
+        Ok(())
+    }
+
     /// The [`Return`][Op::Return] instruction returns from a function call,
     /// which means it saves the top of the stack, pops the frame, drops the
     /// values up to the old base pointer, and then puts the result back on the
@@ -254,6 +286,9 @@ impl Runtime {
     fn r#return(&mut self) -> Result<()> {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
         let result = self.stack.last();
+
+        self.close_capture(frame.bp)?;
+
         self.stack.truncate_to(frame.bp);
         // TODO: are we worried about it collecting result before this?
         self.stack.push(result);
@@ -268,11 +303,20 @@ impl Runtime {
         let start = self.stack_frame().len() - n as usize;
 
         let slice = &self.stack_frame()[start..];
+
+        debug_assert_eq!(slice.len(), n as usize);
+
         let vec = Vec::from(slice);
         let list = self.make_from::<List, _>(vec);
+        let value = Value::object(list);
 
-        self.stack.set_from_top(n, Value::object(list))?;
-        self.stack.truncate_by(n);
+        if n > 0 {
+            self.stack.set_from_top(n - 1, value)?;
+            self.stack.truncate_by(n - 1);
+        } else {
+            self.stack.push(value);
+        }
+
         Ok(())
     }
 

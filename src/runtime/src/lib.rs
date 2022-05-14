@@ -59,6 +59,7 @@ pub struct Runtime {
 
     // Heap
     heap_head: Option<Gc>,
+    open_captures: Vec<Value>,
 }
 
 impl Runtime {
@@ -73,6 +74,7 @@ impl Runtime {
             call_stack: CallStack::default(),
 
             heap_head: None,
+            open_captures: Vec::new(),
         }
     }
 

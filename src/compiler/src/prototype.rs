@@ -113,7 +113,7 @@ impl Prototype {
         self.scopes.push(0);
     }
 
-    pub(crate) fn end_scope(&mut self) -> usize {
+    pub(crate) fn end_scope(&mut self, span: Span) -> usize {
         let total_in_scope = self.locals.len();
         let going_out_of_scope = self.scopes.pop().unwrap();
 
@@ -122,7 +122,19 @@ impl Prototype {
             "top level function scope should not end."
         );
 
-        self.locals.truncate(total_in_scope - going_out_of_scope);
+        debug_assert!(total_in_scope >= going_out_of_scope);
+
+        // self.locals.truncate(total_in_scope - going_out_of_scope);
+        for _ in 0..going_out_of_scope {
+            let local = self.locals.pop().unwrap();
+
+            if local.is_captured() {
+                self.emit(Op::CloseCapture, span).unwrap();
+            } else {
+                self.emit(Op::Pop, span).unwrap();
+            }
+        }
+
         going_out_of_scope
     }
 
