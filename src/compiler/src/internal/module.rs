@@ -34,6 +34,8 @@ impl Default for ModuleBuilder {
 }
 
 impl ModuleBuilder {
+    pub const MAIN_NAME: &'static str = "main";
+
     const MAIN: usize = 0;
 
     /// Convert the current compiler state into a new [`Object`] that can be
@@ -49,13 +51,15 @@ impl ModuleBuilder {
 
         let mut main = self.compiling[ModuleBuilder::MAIN].build();
 
-        main.code.push(Op::Halt); // hacky
+        main.close_with_halt_for_main();
 
         functions[Module::MAIN.as_usize()] = main;
 
         Module {
             constants: self.constants.as_vec(),
             functions,
+
+            debug_info: None,
         }
     }
 
@@ -81,6 +85,7 @@ impl ModuleBuilder {
         Ok(self)
     }
 
+    /// Push some input through the module builder.
     pub fn push_input(&mut self, input: &str) -> Result<(), Diagnostic> {
         use syntax::Parse;
         let syntax = syntax::Module::parse(input)?;
@@ -137,7 +142,10 @@ impl ModuleBuilder {
             "the builder should only be primed once, when made"
         );
 
-        self.compiling.push(FunctionBuilder::new(Span::default()));
+        let mut main = FunctionBuilder::new(Span::default());
+        main.set_name(Some(Self::MAIN_NAME));
+
+        self.compiling.push(main);
 
         // We push also need to push a placeholder into the finished functions,
         // to keep the indexes aligned, and reserve teh spot for the final

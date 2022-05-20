@@ -27,6 +27,10 @@ impl Code {
         }
     }
 
+    pub(crate) fn spans(&self) -> &[Span] {
+        &self.spans
+    }
+
     pub(crate) fn ops(&self) -> &[Op] {
         &self.opcodes
     }

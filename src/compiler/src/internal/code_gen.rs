@@ -234,12 +234,7 @@ impl ModuleBuilder {
                 function.set_parameter_count(syntax.elements().len() as u32);
             }
 
-            if let Some(n) = name {
-                let index = self
-                    .insert_constant(String::from(n))
-                    .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-                self.active_prototype_mut().set_name(index);
-            }
+            self.active_prototype_mut().set_name(name);
 
             for parameter in syntax.elements() {
                 self.bind_local(parameter.name());

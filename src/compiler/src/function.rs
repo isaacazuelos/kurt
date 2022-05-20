@@ -1,14 +1,15 @@
 use diagnostic::Span;
 
-use crate::{Capture, Constant, Index, Local, Op};
+use crate::{Capture, FunctionDebug, Index, Local, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Function {
-    pub(crate) name: Option<Index<Constant>>,
     pub(crate) span: Span,
     pub(crate) parameter_count: u32,
     pub(crate) captures: Vec<Capture>,
     pub(crate) code: Vec<Op>,
+
+    pub(crate) debug_info: Option<FunctionDebug>,
 }
 
 impl Function {
@@ -28,12 +29,6 @@ impl Function {
     /// Since parameters are treated the same way as local variable, this ends
     /// up being the same as the max number of local variables.
     pub const MAX_ARGUMENTS: usize = u32::MAX as usize;
-
-    /// The name of the function (if it was named), as a constant index for the
-    /// [`Module`] it was defined inside.
-    pub fn name(&self) -> Option<Index<Constant>> {
-        self.name
-    }
 
     /// The number of parameters required when this function is called.
     pub fn parameter_count(&self) -> u32 {
@@ -60,5 +55,29 @@ impl Function {
     /// The span in the source code where this function was defined.
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    /// The debug info for this module.
+    pub fn debug_info(&self) -> Option<&FunctionDebug> {
+        self.debug_info.as_ref()
+    }
+
+    /// Throw away the extra debug info this function carries.
+    pub fn strip_debug(&mut self) {
+        self.debug_info = None;
+    }
+
+    /// Kind of a gross hack.
+    ///
+    /// Main needs to end with a Halt, so this pushes that halt, and updates teh
+    /// debug info's spans to match the last instructions span.
+    pub(crate) fn close_with_halt_for_main(&mut self) {
+        self.code.push(Op::Halt);
+
+        if let Some(debug_info) = &mut self.debug_info {
+            let last_span =
+                debug_info.code_spans.last().cloned().unwrap_or_default();
+            debug_info.code_spans.push(last_span);
+        }
     }
 }

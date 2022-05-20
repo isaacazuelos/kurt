@@ -1,4 +1,5 @@
-//! A prototype describes a block of runnable code and it's attributes.
+//! A function builder describes a block of runnable code and it's attributes as
+//! it's being compiled.
 
 use diagnostic::Span;
 
@@ -7,12 +8,12 @@ use crate::{
     index::{Get, Index},
     internal::{capture::Capture, code::Code, local::Local},
     opcode::Op,
-    Constant, Function,
+    Function, FunctionDebug,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FunctionBuilder {
-    name: Option<Index<Constant>>,
+    name: Option<String>,
     span: Span,
     parameter_count: u32,
     captures: Vec<Capture>,
@@ -22,10 +23,7 @@ pub(crate) struct FunctionBuilder {
 }
 
 impl FunctionBuilder {
-    /// Crate a prototype for a new closure.
-    ///
-    /// If you're trying to create one for the top level code, use
-    /// [`Prototype::new_main`] instead.
+    /// Crate a builder for a new function.
     pub(crate) fn new(span: Span) -> FunctionBuilder {
         FunctionBuilder {
             name: None,
@@ -41,18 +39,35 @@ impl FunctionBuilder {
     /// Throw out all the extra context we kept around for compiling and
     /// compress this into a finalized [`Function`].
     pub fn build(&self) -> Function {
+        let debug_info = FunctionDebug::new(&self);
+
         Function {
-            name: self.name,
             span: self.span,
             parameter_count: self.parameter_count,
             captures: self.captures.clone(),
             code: self.code.ops().to_owned(),
+
+            debug_info,
         }
     }
 
-    /// Set the prototype's name.
-    pub(crate) fn set_name(&mut self, name: Index<Constant>) {
-        self.name = Some(name);
+    /// Get teh function's name, if known.
+    pub(crate) fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Set the functions's name.
+    pub(crate) fn set_name(&mut self, name: Option<&str>) {
+        self.name = name.map(ToOwned::to_owned)
+    }
+
+    /// The number of parameters this function
+    pub(crate) fn parameter_count(&self) -> u32 {
+        self.parameter_count
+    }
+
+    pub(crate) fn parameters(&self) -> &[Local] {
+        &self.locals[0..(self.parameter_count() as usize)]
     }
 
     /// Set the number of parameters this prototype needs when being called.

@@ -4,6 +4,7 @@
 
 use crate::{
     constant::Constant,
+    debug::ModuleDebug,
     index::{Get, Index},
     internal::ModuleBuilder,
     Function,
@@ -13,6 +14,8 @@ use crate::{
 pub struct Module {
     pub(crate) constants: Vec<Constant>,
     pub(crate) functions: Vec<Function>,
+
+    pub(crate) debug_info: Option<ModuleDebug>,
 }
 
 impl Module {
@@ -27,10 +30,14 @@ impl Module {
     /// The maximum number of constants that a module can contain.
     pub const MAX_CONSTANTS: usize = Index::<Constant>::MAX;
 
-    /// A view of all the constants used, the ordering matches the
-    /// [`Index<Constant>`]s used within prototypes.
-    pub fn constants(&self) -> &[Constant] {
-        &self.constants
+    /// The debug info for this module.
+    pub fn debug_info(&self) -> Option<&ModuleDebug> {
+        self.debug_info.as_ref()
+    }
+
+    /// Throw away the extra debug info this module carries.
+    pub fn strip_debug(&mut self) {
+        self.debug_info = None;
     }
 }
 

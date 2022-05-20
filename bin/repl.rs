@@ -95,7 +95,7 @@ impl ReplState {
         let new_main = self.module.build();
 
         if self.dump {
-            println!("{:#?}", new_main);
+            println!("{}", new_main);
         }
 
         if let Err(error) = self.runtime.reload_main(new_main) {

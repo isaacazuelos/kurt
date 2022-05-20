@@ -54,7 +54,7 @@ impl Script {
         };
 
         if args.dump {
-            println!("{:#?}", main);
+            println!("{}", main);
             return;
         }
 
