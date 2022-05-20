@@ -143,13 +143,6 @@ impl Trace for Runtime {
             value.enqueue_gc_references(worklist);
         }
 
-        // Anything in a module's constant pool is reachable.
-        for module in &self.modules {
-            for value in &module.constants {
-                value.enqueue_gc_references(worklist);
-            }
-        }
-
         // And all the open captures too
         for capture in &self.open_captures {
             capture.enqueue_gc_references(worklist);

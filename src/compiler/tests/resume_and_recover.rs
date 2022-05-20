@@ -1,29 +1,25 @@
 //! Tests that make sure the compiler can resume compiling code.
 
-use compiler::*;
-use syntax::{Module, Parse};
+use compiler::ModuleBuilder;
 
 macro_rules! test_recover {
     ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
-            let mut compiler = Compiler::default();
+            let mut builder = ModuleBuilder::default();
 
-            let before = compiler.build();
-            assert!(before.is_ok());
+            let before = builder.build();
 
-            let module = Module::parse($input).unwrap();
-
-            let result = compiler.push(&module);
+            let result = builder.push_input($input);
             assert!(result.is_err());
 
-            let after = compiler.build();
-            assert!(after.is_ok());
+            let after = builder.build();
 
-            let b = before.unwrap();
-            let a = after.unwrap();
-
-            assert_eq!(b, a, "before: {:#?}\nafter: {:#?}", b, a);
+            assert_eq!(
+                before, after,
+                "before: {:#?}\nafter: {:#?}",
+                before, after
+            );
         }
     };
 }
@@ -32,16 +28,12 @@ macro_rules! test_resume {
     ($name: ident, $before: expr, $after: expr) => {
         #[test]
         fn $name() {
-            let mut compiler = Compiler::default();
+            let mut builder = ModuleBuilder::default();
 
-            assert!(compiler.build().is_ok());
-
-            let module = Module::parse($before).unwrap();
-            let before = compiler.push(&module);
+            let before = builder.push_input($before);
             assert!(before.is_ok());
 
-            let module = Module::parse($after).unwrap();
-            let after = compiler.push(&module);
+            let after = builder.push_input($after);
             assert!(after.is_ok());
         }
     };

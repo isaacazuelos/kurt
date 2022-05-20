@@ -18,21 +18,19 @@
 
 use std::marker::PhantomData;
 
-use crate::opcode::Op;
-
 /// An index which refers to a specific opcode.
 ///
 /// This is a 'newtype' wrapper since we don't want people creating new
-/// arbitrary indices or doing math on them.
+/// arbitrary indices or carelessly doing math on them.
 #[derive()]
 // NOTE: Since `derive` is a conditional impl on the generic parameters, we
 //       can't really trust those to do the right thing -- since `T` doesn't
 //       impact if we can compare/copy/etc. indexes.
-pub struct Index<T>(pub(crate) u32, pub(crate) PhantomData<T>);
+pub struct Index<T>(u32, PhantomData<T>);
 
-impl Index<Op> {
-    /// The [`Index`] used to refer to the first opcode in some chunk of code.
-    pub const START: Self = Index(0, PhantomData);
+impl<T> Index<T> {
+    /// The largest any [`Index`] can be.
+    pub const MAX: usize = u32::MAX as usize;
 
     /// The next index, returns `None` if it would overflow. This _is not_
     /// checking the underlying collection to see if here's actually another
@@ -47,8 +45,19 @@ impl Index<Op> {
 
     /// The previous index.
     ///
-    /// However if the index is the start, it remains the start.
-    pub fn pred_saturating(self) -> Self {
+    /// However, if the index is already at 0, it returns None.
+    pub fn previous(self) -> Option<Index<T>> {
+        if self.0 == 0 {
+            None
+        } else {
+            Some(Index::new(self.0 - 1))
+        }
+    }
+
+    /// The previous index.
+    ///
+    /// However if the index is 0, it remains 0.
+    pub fn saturating_previous(self) -> Self {
         Index(self.0.saturating_sub(1), PhantomData)
     }
 }
@@ -103,10 +112,16 @@ impl<T> Index<T> {
     pub fn as_usize(self) -> usize {
         self.0 as _
     }
+}
 
-    /// Cast the [`Index`] into a [`u32`].
-    #[inline(always)]
-    pub fn as_u32(self) -> u32 {
-        self.0 as _
+impl<T> From<Index<T>> for u32 {
+    fn from(val: Index<T>) -> Self {
+        val.0
+    }
+}
+
+impl<T> From<Index<T>> for usize {
+    fn from(val: Index<T>) -> Self {
+        val.0 as usize
     }
 }

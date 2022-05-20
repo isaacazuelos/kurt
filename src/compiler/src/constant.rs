@@ -9,10 +9,6 @@ use std::{
 
 use crate::error::Error;
 
-mod pool;
-
-pub use self::pool::Pool;
-
 /// A constant value (or part of value in the case of closures) which occurs in
 /// some code. Some values like `true` don't need to be turned into constants
 /// since they can be produced with opcodes directly.

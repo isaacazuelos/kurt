@@ -7,7 +7,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::{index::Index, prototype::Prototype};
+use compiler::{Function, Index, Module};
 
 use crate::{
     memory::{
@@ -16,7 +16,6 @@ use crate::{
         upvalue::Upvalue,
         InitFrom, Object,
     },
-    module::Module,
     primitives::PrimitiveOperations,
     value::Value,
 };
@@ -27,7 +26,7 @@ pub struct Closure {
     base: Object,
 
     module: Index<Module>,
-    prototype: Index<Prototype>,
+    prototype: Index<Function>,
 
     // TODO: We should make this inline since we know the max capacity per-closure.
     captures: RefCell<Vec<Value>>,
@@ -40,7 +39,7 @@ impl Closure {
     }
 
     /// The prototype index for this closure, in it's original module.
-    pub fn prototype(&self) -> Index<Prototype> {
+    pub fn prototype(&self) -> Index<Function> {
         self.prototype
     }
 
@@ -112,14 +111,14 @@ impl Debug for Closure {
     }
 }
 
-impl InitFrom<(Index<Module>, Index<Prototype>)> for Closure {
-    fn extra_size((_, _): &(Index<Module>, Index<Prototype>)) -> usize {
+impl InitFrom<(Index<Module>, Index<Function>)> for Closure {
+    fn extra_size((_, _): &(Index<Module>, Index<Function>)) -> usize {
         0
     }
 
     unsafe fn init(
         ptr: *mut Self,
-        (module, prototype): (Index<Module>, Index<Prototype>),
+        (module, prototype): (Index<Module>, Index<Function>),
     ) {
         addr_of_mut!((*ptr).module).write(module);
         addr_of_mut!((*ptr).prototype).write(prototype);

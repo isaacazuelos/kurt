@@ -1,6 +1,6 @@
 //! The call stack and call frames.
 
-use compiler::index::Index;
+use compiler::Index;
 
 use crate::address::Address;
 use crate::stack::Stack;

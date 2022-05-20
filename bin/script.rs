@@ -2,12 +2,11 @@
 
 use std::{fs::File, io::Read, path::PathBuf};
 
-use compiler::Compiler;
+use compiler::Module;
 use diagnostic::{
     verify_utf8, Diagnostic, DiagnosticCoordinator, InputCoordinator,
 };
 use runtime::Runtime;
-use syntax::{Module, Parse};
 
 use crate::Args;
 
@@ -22,7 +21,6 @@ impl Script {
     pub(crate) fn run(&self, args: &Args) {
         let mut inputs = InputCoordinator::default();
         let mut diagnostics = DiagnosticCoordinator::default();
-        let mut compiler = Compiler::default();
 
         let mut bytes = Vec::new();
 
@@ -46,38 +44,17 @@ impl Script {
 
         let id = inputs.file_input(input.into(), self.filename.clone());
 
-        let syntax = match Module::parse(input) {
+        let main = match Module::try_from(input) {
             Ok(object) => object,
-            Err(error) => {
-                let d = Diagnostic::from(error).input(id);
-                diagnostics.register(d);
-                diagnostics.emit(&inputs);
-                return;
-            }
-        };
-
-        match compiler.push(&syntax) {
-            Ok(()) => {}
-            Err(e) => {
-                let d = Diagnostic::from(e).input(id);
-                diagnostics.register(d);
-                diagnostics.emit(&inputs);
-                return;
-            }
-        }
-
-        let main = match compiler.build() {
-            Ok(object) => object,
-            Err(e) => {
-                let d = Diagnostic::from(e).input(id);
-                diagnostics.register(d);
+            Err(d) => {
+                diagnostics.register(d.input(id));
                 diagnostics.emit(&inputs);
                 return;
             }
         };
 
         if args.dump {
-            println!("{main}");
+            println!("{:#?}", main);
             return;
         }
 

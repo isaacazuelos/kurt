@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use compiler::Compiler;
+use compiler::ModuleBuilder;
 use diagnostic::{
     Diagnostic, DiagnosticCoordinator, InputCoordinator, InputId,
 };
@@ -27,7 +27,7 @@ struct ReplState {
     dump: bool,
     editor: Editor<()>,
     runtime: Runtime,
-    compiler: Compiler,
+    module: ModuleBuilder,
     diagnostics: DiagnosticCoordinator,
     inputs: InputCoordinator,
 }
@@ -48,7 +48,7 @@ impl ReplState {
             dump: args.dump,
             editor,
             runtime: Runtime::default(),
-            compiler: Compiler::default(),
+            module: ModuleBuilder::default(),
             diagnostics: DiagnosticCoordinator::default(),
             inputs: InputCoordinator::default(),
         }
@@ -85,25 +85,17 @@ impl ReplState {
             }
         };
 
-        if let Err(error) = self.compiler.push(&syntax) {
+        if let Err(error) = self.module.push_syntax(&syntax) {
             let mut diagnostic = Diagnostic::from(error);
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        let new_main = match self.compiler.build() {
-            Ok(object) => object,
-            Err(error) => {
-                let mut diagnostic = Diagnostic::from(error);
-                diagnostic.set_input(Some(id));
-                self.diagnostics.register(diagnostic);
-                return Err(ReplError::Step);
-            }
-        };
+        let new_main = self.module.build();
 
         if self.dump {
-            println!("{new_main}");
+            println!("{:#?}", new_main);
         }
 
         if let Err(error) = self.runtime.reload_main(new_main) {

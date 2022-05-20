@@ -5,7 +5,7 @@ mod call_stack;
 mod error;
 mod machine;
 mod memory;
-mod module;
+
 mod primitives;
 mod stack;
 mod value;
@@ -15,21 +15,13 @@ mod tracing;
 
 use address::Address;
 use call_stack::{CallFrame, CallStack};
-use compiler::{
-    self,
-    constant::Constant,
-    index::{Get, Index},
-    opcode::Op,
-    prototype::Prototype,
-    Object,
-};
+use compiler::{Constant, Function, Get, Index, Module, Op};
 use memory::closure::Closure;
 
 use crate::value::i48_type::i48;
 
 use crate::{
     memory::{keyword::Keyword, string::String, Gc},
-    module::Module,
     stack::Stack,
     value::Value,
 };
@@ -63,7 +55,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    const MAIN_INDEX: Index<Module> = Index::new(0);
+    const MAIN: Index<Module> = Index::new(0);
 
     /// Create a new runtime with `object` as it's main module.
     pub fn new() -> Runtime {
@@ -78,10 +70,10 @@ impl Runtime {
         }
     }
 
-    pub fn load(&mut self, object: Object) -> Result<()> {
+    pub fn load(&mut self, module: Module) -> Result<()> {
         let new_index = Index::new(self.modules.len() as u32);
         self.modules.push(Module::default());
-        self.load_at(object, new_index)
+        self.load_at(module, new_index)
     }
 
     /// Begin running 'Main.main'
@@ -90,13 +82,13 @@ impl Runtime {
             return Err(Error::NoMainModule);
         }
 
-        let main_closure = self
-            .make_from::<Closure, _>((Self::MAIN_INDEX, Module::MAIN_INDEX));
+        let main_closure =
+            self.make_from::<Closure, _>((Runtime::MAIN, Module::MAIN));
 
         self.stack.push(Value::object(main_closure));
 
         self.call_stack.push(CallFrame::new(
-            Address::new(Self::MAIN_INDEX, Module::MAIN_INDEX, Index::START),
+            Address::new(Runtime::MAIN, Module::MAIN, Index::new(0)),
             self.stack.index_from_top(0),
         ));
 
@@ -104,12 +96,12 @@ impl Runtime {
     }
 
     /// Reload the main module specifically.
-    pub fn reload_main(&mut self, main: Object) -> Result<()> {
+    pub fn reload_main(&mut self, main: Module) -> Result<()> {
         if self.modules.is_empty() {
             self.modules.push(Module::default());
         }
 
-        self.load_at(main, Runtime::MAIN_INDEX)
+        self.load_at(main, Runtime::MAIN)
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
@@ -163,39 +155,25 @@ impl Runtime {
     /// The [`Op`] referred to by the program counter.
     fn op(&self) -> Result<Op> {
         let address = self.pc();
-        self.get(address.module)
+        let op = self
+            .get(address.module)
             .ok_or(Error::ModuleIndexOutOfRange)?
             .get(address.prototype)
             .ok_or(Error::PrototypeIndexOutOfRange)?
             .get(address.instruction)
-            .ok_or(Error::OpIndexOutOfRange)
-            .cloned()
+            .ok_or(Error::OpIndexOutOfRange)?;
+
+        Ok(op)
     }
 }
 
 impl Runtime {
-    fn load_at(&mut self, object: Object, index: Index<Module>) -> Result<()> {
+    fn load_at(&mut self, module: Module, index: Index<Module>) -> Result<()> {
         if self.get(index).is_none() {
             return Err(Error::ModuleIndexOutOfRange);
         }
 
-        // We do things is a bit of a weird order here.
-        //
-        // The module is created with it's `constants` vector initiated to all
-        // `()` so that any indexes to it are valid. We then replace these with
-        // the live values. We do this so that any GC collection that's
-        // triggered during this process will find the constants properly.
-        let m = index.as_usize();
-
-        self.modules[m] = Module {
-            constants: vec![Value::UNIT; object.constants().len()],
-            prototypes: object.prototypes().to_owned(),
-        };
-
-        for (i, constant) in object.constants().iter().enumerate() {
-            let value = self.inflate(constant)?;
-            self.modules[m].constants[i] = value;
-        }
+        self.modules[index.as_usize()] = module;
 
         Ok(())
     }
@@ -230,8 +208,8 @@ impl Get<Module> for Runtime {
     }
 }
 
-impl Get<Prototype> for Runtime {
-    fn get(&self, index: Index<Prototype>) -> Option<&Prototype> {
+impl Get<Function> for Runtime {
+    fn get(&self, index: Index<Function>) -> Option<&Function> {
         self.get(self.pc().module)?.get(index)
     }
 }

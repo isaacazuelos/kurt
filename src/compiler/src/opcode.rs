@@ -3,8 +3,7 @@
 use std::fmt::{Display, Formatter, Result};
 
 use crate::{
-    capture::Capture, constant::Constant, index::Index, local::Local,
-    prototype::Prototype,
+    constant::Constant, function::Function, index::Index, Capture, Local,
 };
 
 /// These are the individual instructions that our VM interprets.
@@ -52,7 +51,7 @@ pub enum Op {
     DefineLocal,
 
     /// Load a prototype and make a closure from it, placing it on the stack.
-    LoadClosure(Index<Prototype>),
+    LoadClosure(Index<Function>),
 
     // ## Accessing
 
@@ -165,12 +164,12 @@ impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             // We only need to match the ones with embedded arguments
-            Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_u32()),
-            Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
-            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
+            Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_usize()),
+            Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_usize()),
+            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_usize()),
             Op::Call(i) => write!(f, "Call {}", i),
-            Op::Jump(i) => write!(f, "Jump {}", i.as_u32()),
-            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_u32()),
+            Op::Jump(i) => write!(f, "Jump {}", i.as_usize()),
+            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_usize()),
             Op::List(n) => write!(f, "List {n}"),
 
             // Everything else is the same as what is derived for Debug.

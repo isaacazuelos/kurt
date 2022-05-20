@@ -1,9 +1,8 @@
 //! Run an expression taken from the command line, printing the result.
 
-use compiler::Compiler;
-use diagnostic::{Diagnostic, DiagnosticCoordinator, InputCoordinator};
+use compiler::Module;
+use diagnostic::{DiagnosticCoordinator, InputCoordinator};
 use runtime::Runtime;
-use syntax::{Module, Parse};
 
 use crate::Args;
 
@@ -19,36 +18,12 @@ impl Evaluate {
     pub(crate) fn run(&self, args: &Args) {
         let mut inputs = InputCoordinator::default();
         let mut diagnostics = DiagnosticCoordinator::default();
-        let mut compiler = Compiler::default();
 
         let id = inputs.eval_input(self.input.clone());
 
-        let syntax = match Module::parse(&self.input) {
-            Ok(m) => m,
-            Err(e) => {
-                let mut d = Diagnostic::from(e);
-                d.set_input(Some(id));
-                diagnostics.register(d);
-                diagnostics.emit(&inputs);
-                return;
-            }
-        };
-
-        match compiler.push(&syntax) {
-            Ok(()) => {}
-            Err(e) => {
-                let mut d = Diagnostic::from(e);
-                d.set_input(Some(id));
-                diagnostics.register(d);
-                diagnostics.emit(&inputs);
-                return;
-            }
-        };
-
-        let object = match compiler.build() {
+        let main = match Module::try_from(self.input.as_str()) {
             Ok(o) => o,
-            Err(e) => {
-                let mut d = Diagnostic::from(e);
+            Err(mut d) => {
                 d.set_input(Some(id));
                 diagnostics.register(d);
                 diagnostics.emit(&inputs);
@@ -57,13 +32,13 @@ impl Evaluate {
         };
 
         if args.dump {
-            println!("{object}");
+            println!("{:#?}", main);
             return;
         }
 
         let mut runtime = Runtime::new();
 
-        match runtime.load(object) {
+        match runtime.load(main) {
             Ok(rt) => rt,
             Err(e) => {
                 eprintln!("{e}");

@@ -3,17 +3,16 @@
 use diagnostic::Span;
 
 use crate::{
-    capture::Capture,
-    code::Code,
     error::Result,
     index::{Get, Index},
-    local::Local,
+    internal::{capture::Capture, code::Code, local::Local},
     opcode::Op,
+    Constant, Function,
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Prototype {
-    name: Option<String>,
+pub(crate) struct FunctionBuilder {
+    name: Option<Index<Constant>>,
     span: Span,
     parameter_count: u32,
     captures: Vec<Capture>,
@@ -22,23 +21,13 @@ pub struct Prototype {
     scopes: Vec<usize>,
 }
 
-impl Prototype {
-    /// The name used for the prototype containing 'main', the top-level code
-    /// for a module.
-    pub const MAIN_NAME: &'static str = "main";
-
-    /// The maximum number of arguments allowed in a function call.
-    pub const MAX_ARGUMENTS: usize = u32::MAX as usize;
-
-    /// The maximum number of parameters allowed in a function.
-    pub const MAX_PARAMETERS: usize = u32::MAX as usize;
-
+impl FunctionBuilder {
     /// Crate a prototype for a new closure.
     ///
     /// If you're trying to create one for the top level code, use
     /// [`Prototype::new_main`] instead.
-    pub(crate) fn new(span: Span) -> Prototype {
-        Prototype {
+    pub(crate) fn new(span: Span) -> FunctionBuilder {
+        FunctionBuilder {
             name: None,
             span,
             parameter_count: 0,
@@ -49,49 +38,26 @@ impl Prototype {
         }
     }
 
-    /// The name of the module, if it has one.
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+    /// Throw out all the extra context we kept around for compiling and
+    /// compress this into a finalized [`Function`].
+    pub fn build(&self) -> Function {
+        Function {
+            name: self.name,
+            span: self.span,
+            parameter_count: self.parameter_count,
+            captures: self.captures.clone(),
+            code: self.code.ops().to_owned(),
+        }
     }
 
     /// Set the prototype's name.
-    pub(crate) fn set_name(&mut self, name: impl Into<String>) {
-        self.name = Some(name.into());
-    }
-
-    /// Get the prototype's parameter count.
-    pub fn parameter_count(&self) -> u32 {
-        self.parameter_count
-    }
-
-    /// Get the prototype's maximum capture count.
-    pub fn capture_count(&self) -> usize {
-        self.captures.len()
-    }
-
-    /// The captures this prototype has.
-    pub fn captures(&self) -> &[Capture] {
-        &self.captures
+    pub(crate) fn set_name(&mut self, name: Index<Constant>) {
+        self.name = Some(name);
     }
 
     /// Set the number of parameters this prototype needs when being called.
     pub(crate) fn set_parameter_count(&mut self, count: u32) {
         self.parameter_count = count;
-    }
-
-    /// A view of the local bindings which represent the parameters.
-    pub(crate) fn parameters(&self) -> &[Local] {
-        &self.locals[0..self.parameter_count as usize]
-    }
-
-    /// The span which created a specific opcode.
-    pub fn span_for_op(&self, index: Index<Op>) -> Option<Span> {
-        self.code.get_span(index)
-    }
-
-    /// Is this prototype empty, as in no code has been compiled to it?
-    pub fn is_empty(&self) -> bool {
-        self.code.is_empty()
     }
 
     /// Emit into this prototype's code segment.
@@ -188,10 +154,10 @@ impl Prototype {
     pub(crate) fn resolve_capture(
         &mut self,
         name: &str,
-        enclosing: &mut [Prototype],
+        enclosing: &mut [FunctionBuilder],
     ) -> Option<Index<Capture>> {
         // The top-level has no captures. At least not yet.
-        if enclosing == [] {
+        if enclosing.is_empty() {
             return None;
         }
 
@@ -208,31 +174,11 @@ impl Prototype {
             // They're different kinds of indexes, but that's okay because a
             // capture index is a local index relative to it's original call
             // frame, which is the one that needs to promote it.
-            let index = Index::new(capture.as_u32());
+            let index = Index::new(capture.into());
             return Some(self.add_capture(index, false));
         }
 
         None
-    }
-
-    /// Reopen the prototype.
-    ///
-    /// This is done to allow the compiler to push more code through. This can
-    /// only be done if the prototype ends in `Halt`.
-    pub(crate) fn reopen(&mut self) {
-        match self.code().last() {
-            Some(Op::Halt) => {
-                let index = self.code().next_index().pred_saturating();
-                self.code_mut().patch(index, Op::Nop).expect(
-                    "compiler could not patch Op::Halt with Op::Nop to reopen",
-                );
-            }
-            None => {}
-            Some(op) => panic!(
-                "compiler can only reopen module at Op::Halt but found {}",
-                op
-            ),
-        }
     }
 
     pub(crate) fn mark_as_captured(&mut self, local: Index<Local>) {
@@ -240,7 +186,7 @@ impl Prototype {
     }
 }
 
-impl Get<Op> for Prototype {
+impl Get<Op> for FunctionBuilder {
     fn get(&self, index: Index<Op>) -> Option<&Op> {
         self.code.get(index)
     }

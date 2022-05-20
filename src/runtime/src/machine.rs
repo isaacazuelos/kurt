@@ -1,13 +1,6 @@
 //! The virtual machine's big dispatch loop
 
-use compiler::{
-    capture::Capture,
-    constant::Constant,
-    index::{Get, Index},
-    local::Local,
-    opcode::Op,
-    prototype::Prototype,
-};
+use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
 
 use crate::{
     address::Address,
@@ -109,11 +102,14 @@ impl Runtime {
     /// on the stop of the stack.
     #[inline]
     fn load_constant(&mut self, index: Index<Constant>) -> Result<()> {
-        let value = *self
+        let constant = self
             .get(self.pc().module)
             .ok_or(Error::ModuleIndexOutOfRange)?
             .get(index)
-            .ok_or(Error::ConstantIndexOutOfRange)?;
+            .ok_or(Error::ConstantIndexOutOfRange)?
+            .clone();
+
+        let value = self.inflate(&constant)?;
 
         self.stack.push(value);
         Ok(())
@@ -138,17 +134,17 @@ impl Runtime {
         let upvalue: UpvalueContents = self
             .stack
             .get_closure(self.bp())
-            .ok_or_else(|| Error::StackIndexBelowZero)?
+            .ok_or(Error::StackIndexBelowZero)?
             .use_as::<Closure, _, UpvalueContents>(|c| {
                 c.get_capture(index.as_usize())
-                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents().clone()))
+                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents()))
             })?;
 
         let value = match upvalue {
             UpvalueContents::Stack(stack_index) => self
                 .stack
                 .get(stack_index)
-                .ok_or_else(|| Error::StackIndexBelowZero)?,
+                .ok_or(Error::StackIndexBelowZero)?,
             UpvalueContents::Inline(v) => v,
         };
 
@@ -169,7 +165,7 @@ impl Runtime {
     /// the closure described by the indexed [`Prototype`] in the current
     /// module, and leaves it on the stack.
     #[inline]
-    fn load_closure(&mut self, index: Index<Prototype>) -> Result<()> {
+    fn load_closure(&mut self, index: Index<Function>) -> Result<()> {
         let module = self.pc().module;
 
         let gc_obj = self.make_from::<Closure, _>((module, index));
@@ -202,8 +198,11 @@ impl Runtime {
                         };
 
                         let upvalue = if is_local {
-                            let local: Index<Stack> =
-                                Index::new(index.as_u32() + self.bp().as_u32());
+                            let local: Index<Stack> = Index::new(
+                                // TODO: overflows?
+                                (index.as_usize() + self.bp().as_usize())
+                                    as u32,
+                            );
 
                             Value::object(self.make_from::<Upvalue, _>(local))
                         } else {
@@ -241,7 +240,7 @@ impl Runtime {
             None => Err(Error::PrototypeIndexOutOfRange),
         }?;
 
-        let pc = Address::new(module, prototype, Index::START);
+        let pc = Address::new(module, prototype, Index::new(0));
         let bp = self.stack.index_from_top(arg_count);
 
         let new_frame = CallFrame::new(pc, bp);

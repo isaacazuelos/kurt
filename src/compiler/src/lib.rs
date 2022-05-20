@@ -1,16 +1,20 @@
 //! Turns syntax trees into [`Object`] values that the runtime can
 //! load and run.
 
-mod code;
-mod compiler;
-mod error;
-mod object;
+mod constant;
+mod function;
+mod index;
+mod internal;
+mod module;
+mod opcode;
 
-pub mod capture;
-pub mod constant;
-pub mod index;
-pub mod local;
-pub mod opcode;
-pub mod prototype;
+pub mod error;
 
-pub use crate::{compiler::Compiler, error::Error, object::Object};
+pub use crate::{
+    constant::Constant,
+    function::Function,
+    index::{Get, Index},
+    internal::{Capture, Local, ModuleBuilder},
+    module::Module,
+    opcode::Op,
+};

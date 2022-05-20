@@ -1,6 +1,6 @@
 //! The runtime value stack.
 
-use compiler::{index::Index, local::Local};
+use compiler::{Index, Local};
 
 use crate::{
     error::{Error, Result},

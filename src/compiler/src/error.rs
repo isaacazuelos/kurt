@@ -4,7 +4,7 @@ use std::{error, fmt};
 
 use diagnostic::{Diagnostic, Span};
 
-use crate::{code::Code, constant::Pool, object::Object, prototype::Prototype};
+use crate::{Function, Module};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -135,7 +135,7 @@ impl Error {
         let info_text = format!(
             "modules and functions compile to a sequence of instructions. \
             Each module or function must fit in {} instructions",
-            Code::MAX_OPS
+            Function::MAX_OPS
         );
 
         let help_text = "you can avoid these limits by breaking this into \
@@ -150,14 +150,14 @@ impl Error {
         d.highlight(s, "this parameter is the culprit")
             .info(format!(
                 "functions can have a maximum of {} parameters",
-                Prototype::MAX_PARAMETERS
+                Function::MAX_ARGUMENTS
             ))
     }
 
     fn too_many_args(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this argument is the culprit").info(format!(
             "function calls can have a maximum of {} arguments",
-            Prototype::MAX_ARGUMENTS
+            Function::MAX_PARAMETERS
         ))
     }
 
@@ -165,14 +165,14 @@ impl Error {
         d.highlight(s, "this constant is where the limit is exceeded")
             .info(format!(
                 "each module can only have {} unique literal values",
-                Pool::MAX_CONSTANTS,
+                Module::MAX_CONSTANTS,
             ))
     }
 
     fn too_many_prototypes(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this function is the culprit").info(format!(
             "each module can only have {} function definitions",
-            Object::MAX_PROTOTYPES - 1,
+            Module::MAX_FUNCTIONS - 1,
         ))
     }
 
