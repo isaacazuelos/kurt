@@ -39,7 +39,7 @@ impl FunctionBuilder {
     /// Throw out all the extra context we kept around for compiling and
     /// compress this into a finalized [`Function`].
     pub fn build(&self) -> Function {
-        let debug_info = FunctionDebug::new(&self);
+        let debug_info = FunctionDebug::new(self);
 
         Function {
             span: self.span,

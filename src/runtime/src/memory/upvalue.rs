@@ -17,14 +17,14 @@ use crate::{
         InitFrom, Object,
     },
     primitives::PrimitiveOperations,
-    stack::Stack,
     value::Value,
+    vm::ValueStack,
 };
 
 #[derive(Debug, Clone, Copy)]
 pub enum UpvalueContents {
     Inline(Value),
-    Stack(Index<Stack>),
+    Stack(Index<ValueStack>),
 }
 
 #[repr(C, align(8))]
@@ -104,12 +104,12 @@ impl InitFrom<Value> for Upvalue {
     }
 }
 
-impl InitFrom<Index<Stack>> for Upvalue {
-    fn extra_size(_: &Index<Stack>) -> usize {
+impl InitFrom<Index<ValueStack>> for Upvalue {
+    fn extra_size(_: &Index<ValueStack>) -> usize {
         0
     }
 
-    unsafe fn init(ptr: *mut Self, index: Index<Stack>) {
+    unsafe fn init(ptr: *mut Self, index: Index<ValueStack>) {
         addr_of_mut!((*ptr).contents)
             .write(Cell::new(UpvalueContents::Stack(index)));
     }

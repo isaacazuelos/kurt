@@ -19,7 +19,7 @@ use crate::{
         trace::{Trace, WorkList},
         Gc,
     },
-    Runtime,
+    VirtualMachine,
 };
 
 pub(crate) struct GCHeader {
@@ -50,7 +50,7 @@ impl GCHeader {
     }
 }
 
-impl Runtime {
+impl VirtualMachine {
     /// Collect garbage, but only if needed.
     #[inline(always)] // inline the fast check, not slow collection.
     pub fn collect_garbage(&mut self) {
@@ -136,15 +136,15 @@ impl Runtime {
     }
 }
 
-impl Trace for Runtime {
+impl Trace for VirtualMachine {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         // Values on th stack are reachable.
-        for value in self.stack.as_slice() {
+        for value in self.value_stack().iter() {
             value.enqueue_gc_references(worklist);
         }
 
         // And all the open captures too
-        for capture in &self.open_captures {
+        for capture in self.open_captures() {
             capture.enqueue_gc_references(worklist);
         }
     }

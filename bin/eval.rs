@@ -2,7 +2,7 @@
 
 use compiler::Module;
 use diagnostic::{DiagnosticCoordinator, InputCoordinator};
-use runtime::Runtime;
+use runtime::VirtualMachine;
 
 use crate::Args;
 
@@ -36,7 +36,7 @@ impl Evaluate {
             return;
         }
 
-        let mut runtime = Runtime::new();
+        let mut runtime = VirtualMachine::new();
 
         match runtime.load(main) {
             Ok(rt) => rt,
@@ -49,7 +49,6 @@ impl Evaluate {
         if let Err(e) = runtime.start() {
             runtime.stack_trace(e, &mut diagnostics);
             diagnostics.emit(&inputs);
-            return;
         } else {
             println!("{}", runtime.last_result())
         }

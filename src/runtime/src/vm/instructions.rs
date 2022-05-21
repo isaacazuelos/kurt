@@ -3,8 +3,6 @@
 use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
 
 use crate::{
-    address::Address,
-    call_stack::CallFrame,
     error::Result,
     memory::{
         closure::Closure,
@@ -12,12 +10,12 @@ use crate::{
         upvalue::{Upvalue, UpvalueContents},
     },
     primitives::{Error as PrimitiveError, PrimitiveOperations},
-    stack::Stack,
     value::Value,
-    Error, Exit, Runtime,
+    vm::{Address, CallFrame, Exit, ValueStack},
+    Error, VirtualMachine,
 };
 
-impl Runtime {
+impl VirtualMachine {
     /// Start the VM up again.
     pub(crate) fn run(&mut self) -> Result<Exit> {
         loop {
@@ -30,12 +28,12 @@ impl Runtime {
                 Op::Nop => continue,
 
                 // stack
-                Op::Pop => self.stack.pop(),
+                Op::Pop => self.value_stack.pop(),
 
                 // values
-                Op::True => self.stack.push(Value::TRUE),
-                Op::False => self.stack.push(Value::FALSE),
-                Op::Unit => self.stack.push(Value::UNIT),
+                Op::True => self.value_stack.push(Value::TRUE),
+                Op::False => self.value_stack.push(Value::FALSE),
+                Op::Unit => self.value_stack.push(Value::UNIT),
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,
@@ -46,8 +44,8 @@ impl Runtime {
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::CloseCapture => {
-                    self.close_capture(self.stack.index_from_top(1))?;
-                    self.stack.pop();
+                    self.close_capture(self.value_stack.index_from_top(1))?;
+                    self.value_stack.pop();
                 }
                 Op::Return => self.r#return()?,
 
@@ -96,7 +94,7 @@ impl Runtime {
     }
 }
 
-impl Runtime {
+impl VirtualMachine {
     /// The [`LoadConstant`][Op::LoadConstant] instruction loads a constant from
     /// the current module's constant pool using the given `index` and places it
     /// on the stop of the stack.
@@ -111,7 +109,7 @@ impl Runtime {
 
         let value = self.inflate(&constant)?;
 
-        self.stack.push(value);
+        self.value_stack.push(value);
         Ok(())
     }
 
@@ -121,8 +119,8 @@ impl Runtime {
     /// Local variables are indexed up from the base pointer.
     #[inline]
     fn load_local(&mut self, index: Index<Local>) -> Result<()> {
-        let local = self.stack.get_local(self.bp(), index)?;
-        self.stack.push(local);
+        let local = self.value_stack.get_local(self.bp(), index)?;
+        self.value_stack.push(local);
         Ok(())
     }
 
@@ -132,7 +130,7 @@ impl Runtime {
     #[inline]
     fn load_capture(&mut self, index: Index<Capture>) -> Result<()> {
         let upvalue: UpvalueContents = self
-            .stack
+            .value_stack
             .get_closure(self.bp())
             .ok_or(Error::StackIndexBelowZero)?
             .use_as::<Closure, _, UpvalueContents>(|c| {
@@ -142,13 +140,13 @@ impl Runtime {
 
         let value = match upvalue {
             UpvalueContents::Stack(stack_index) => self
-                .stack
+                .value_stack
                 .get(stack_index)
                 .ok_or(Error::StackIndexBelowZero)?,
             UpvalueContents::Inline(v) => v,
         };
 
-        self.stack.push(value);
+        self.value_stack.push(value);
         Ok(())
     }
 
@@ -157,7 +155,7 @@ impl Runtime {
     /// previous on the top of the stack around.
     #[inline]
     fn define_local(&mut self) -> Result<()> {
-        self.stack.push(Value::UNIT);
+        self.value_stack.push(Value::UNIT);
         Ok(())
     }
 
@@ -170,13 +168,13 @@ impl Runtime {
 
         let gc_obj = self.make_from::<Closure, _>((module, index));
         let closure = Value::object(gc_obj);
-        self.stack.push(closure);
+        self.value_stack.push(closure);
 
         let bp = self.bp();
 
         // hard to believe there's a bug here
 
-        self.stack
+        self.value_stack
             .get_closure(bp)
             .unwrap()
             .use_as::<Closure, _, ()>(|current_closure| {
@@ -200,7 +198,7 @@ impl Runtime {
                         };
 
                         let upvalue = if is_local {
-                            let local: Index<Stack> = Index::new(
+                            let local: Index<ValueStack> = Index::new(
                                 // TODO: overflows?
                                 (index.as_usize() + self.bp().as_usize())
                                     as u32,
@@ -232,7 +230,7 @@ impl Runtime {
         let module = self.pc().module;
 
         let prototype = self
-            .stack
+            .value_stack
             .get_from_top(arg_count)?
             .use_as(|c: &Closure| Ok(c.prototype()))?;
 
@@ -243,7 +241,7 @@ impl Runtime {
         }?;
 
         let pc = Address::new(module, prototype, Index::new(0));
-        let bp = self.stack.index_from_top(arg_count);
+        let bp = self.value_stack.index_from_top(arg_count);
 
         let new_frame = CallFrame::new(pc, bp);
         self.call_stack.push(new_frame);
@@ -254,14 +252,14 @@ impl Runtime {
     /// The [`CloseCapture`][Op::CloseCapture] instruction closes any open
     /// upvalues which occur on the stack on top of the the `top` index.
     #[inline]
-    fn close_capture(&mut self, top: Index<Stack>) -> Result<()> {
+    fn close_capture(&mut self, top: Index<ValueStack>) -> Result<()> {
         while let Some(capture) = self.open_captures.last() {
             let done =
                 capture.use_as::<Upvalue, _, _>(|u| match u.contents() {
                     UpvalueContents::Inline(_) => Ok(false),
                     UpvalueContents::Stack(index) => {
                         if index >= top {
-                            let value = self.stack.get(index).unwrap();
+                            let value = self.value_stack.get(index).unwrap();
                             u.close(value);
                             Ok(false)
                         } else {
@@ -286,12 +284,12 @@ impl Runtime {
     #[inline]
     fn r#return(&mut self) -> Result<()> {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
-        let result = self.stack.last();
+        let result = self.value_stack.last();
 
         self.close_capture(frame.bp)?;
-        self.stack.truncate_to(frame.bp);
+        self.value_stack.truncate_to(frame.bp);
         // TODO: are we worried about it collecting result before this?
-        self.stack.push(result);
+        self.value_stack.push(result);
         Ok(())
     }
 
@@ -311,10 +309,10 @@ impl Runtime {
         let value = Value::object(list);
 
         if n > 0 {
-            self.stack.set_from_top(n - 1, value)?;
-            self.stack.truncate_by(n - 1);
+            self.value_stack.set_from_top(n - 1, value)?;
+            self.value_stack.truncate_by(n - 1);
         } else {
-            self.stack.push(value);
+            self.value_stack.push(value);
         }
 
         Ok(())
@@ -333,8 +331,8 @@ impl Runtime {
     /// continues on. If it's not, then it jumps to `i`.
     #[inline]
     fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
-        let truthy = self.stack.last().is_truthy();
-        self.stack.pop();
+        let truthy = self.value_stack.last().is_truthy();
+        self.value_stack.pop();
 
         if !truthy {
             self.jump(i)
@@ -348,13 +346,13 @@ impl Runtime {
     #[inline]
     fn unary<F, E>(&mut self, op: F) -> Result<()>
     where
-        F: Fn(&Value, &mut Runtime) -> std::result::Result<Value, E>,
+        F: Fn(&Value, &mut VirtualMachine) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
-        let arg = self.stack.last();
+        let arg = self.value_stack.last();
 
         let result = op(&arg, self).map_err(Into::into)?;
-        self.stack.set_from_top(0, result)
+        self.value_stack.set_from_top(0, result)
     }
 
     /// Performs a binary operation `op` which applies some function to the two
@@ -362,20 +360,24 @@ impl Runtime {
     #[inline]
     fn binop<F, E>(&mut self, op: F) -> Result<()>
     where
-        F: Fn(&Value, Value, &mut Runtime) -> std::result::Result<Value, E>,
+        F: Fn(
+            &Value,
+            Value,
+            &mut VirtualMachine,
+        ) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
         // The order here is tricky, we don't want to remove the operands from
         // the stack (and the GC root set) until after we have the result of
         // `op`.
 
-        let rhs = self.stack.get_from_top(0)?;
-        let lhs = self.stack.get_from_top(1)?;
+        let rhs = self.value_stack.get_from_top(0)?;
+        let lhs = self.value_stack.get_from_top(1)?;
 
         let result = op(&lhs, rhs, self).map_err(Into::into)?;
 
-        self.stack.set_from_top(1, result)?;
-        self.stack.pop();
+        self.value_stack.set_from_top(1, result)?;
+        self.value_stack.pop();
 
         Ok(())
     }
@@ -386,8 +388,11 @@ impl Runtime {
 #[inline(always)]
 fn cmp(
     op: fn(&Value, &Value) -> Option<bool>,
-) -> impl Fn(&Value, Value, &mut Runtime) -> std::result::Result<Value, PrimitiveError>
-{
+) -> impl Fn(
+    &Value,
+    Value,
+    &mut VirtualMachine,
+) -> std::result::Result<Value, PrimitiveError> {
     #[inline(always)]
     move |lhs, rhs, _| {
         op(lhs, &rhs).map(Value::bool).ok_or_else(|| {

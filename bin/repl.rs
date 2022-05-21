@@ -6,7 +6,7 @@ use compiler::ModuleBuilder;
 use diagnostic::{
     Diagnostic, DiagnosticCoordinator, InputCoordinator, InputId,
 };
-use runtime::Runtime;
+use runtime::VirtualMachine;
 use rustyline::{error::ReadlineError, Editor};
 use syntax::{Module, Parse};
 
@@ -26,7 +26,7 @@ impl Repl {
 struct ReplState {
     dump: bool,
     editor: Editor<()>,
-    runtime: Runtime,
+    runtime: VirtualMachine,
     module: ModuleBuilder,
     diagnostics: DiagnosticCoordinator,
     inputs: InputCoordinator,
@@ -47,7 +47,7 @@ impl ReplState {
         ReplState {
             dump: args.dump,
             editor,
-            runtime: Runtime::default(),
+            runtime: VirtualMachine::default(),
             module: ModuleBuilder::default(),
             diagnostics: DiagnosticCoordinator::default(),
             inputs: InputCoordinator::default(),

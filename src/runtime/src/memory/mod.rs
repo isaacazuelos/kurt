@@ -28,7 +28,7 @@ pub mod string;
 pub mod trace;
 pub mod upvalue;
 
-use crate::Runtime;
+use crate::VirtualMachine;
 
 pub use self::gc::Gc;
 
@@ -81,7 +81,7 @@ where
     }
 }
 
-impl Runtime {
+impl VirtualMachine {
     /// Allocate a new [`Object`] and initialize it using it's [`Default`]
     /// instance.
     #[allow(dead_code)]
@@ -99,7 +99,7 @@ impl Runtime {
     {
         // find the layout needed for the object.
         let extra = C::extra_size(&arg);
-        let layout = Runtime::object_layout_with_extra::<C>(extra);
+        let layout = VirtualMachine::object_layout_with_extra::<C>(extra);
 
         unsafe {
             let raw = self.allocate(layout);

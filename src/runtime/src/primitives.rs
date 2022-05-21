@@ -13,7 +13,7 @@
 
 use std::cmp::Ordering;
 
-use crate::{Runtime, Value};
+use crate::{Value, VirtualMachine};
 
 #[derive(Debug)]
 pub enum Error {
@@ -33,90 +33,90 @@ pub enum Error {
 pub trait PrimitiveOperations: Sized {
     fn type_name(&self) -> &'static str;
 
-    fn neg(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn neg(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "neg",
         })
     }
-    fn not(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn not(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "not",
         })
     }
 
-    fn add(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn add(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "add",
         })
     }
 
-    fn sub(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn sub(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "sub",
         })
     }
 
-    fn mul(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn mul(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "mul",
         })
     }
 
-    fn div(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn div(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "div",
         })
     }
 
-    fn pow(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn pow(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "pow",
         })
     }
 
-    fn rem(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn rem(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "rem",
         })
     }
 
-    fn bitand(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitand(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "bitand",
         })
     }
 
-    fn bitor(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitor(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "bitor",
         })
     }
 
-    fn bitxor(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitxor(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "bitxor",
         })
     }
 
-    fn shl(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn shl(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "shl",
         })
     }
 
-    fn shr(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn shr(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "shr",
@@ -127,7 +127,7 @@ pub trait PrimitiveOperations: Sized {
         true
     }
 
-    fn index(&self, _: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn index(&self, _: Value, _: &mut VirtualMachine) -> Result<Value, Error> {
         Err(Error::OperationNotSupported {
             type_name: self.type_name(),
             op_name: "index",

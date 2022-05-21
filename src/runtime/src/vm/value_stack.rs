@@ -8,13 +8,17 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub struct Stack {
+pub struct ValueStack {
     values: Vec<Value>,
 }
 
-impl Stack {
+impl ValueStack {
     pub fn as_slice(&self) -> &[Value] {
         &self.values
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Value> {
+        self.values.iter()
     }
 
     pub fn push(&mut self, value: Value) {
@@ -34,7 +38,7 @@ impl Stack {
 
     /// Drop all the values from the top of the stack down to (and including)
     /// the given index.
-    pub fn truncate_to(&mut self, index: Index<Stack>) {
+    pub fn truncate_to(&mut self, index: Index<ValueStack>) {
         self.values.truncate(index.as_usize().saturating_sub(1));
     }
 
@@ -59,7 +63,7 @@ impl Stack {
 
     pub(crate) fn get_local(
         &self,
-        base: Index<Stack>,
+        base: Index<ValueStack>,
         local: Index<Local>,
     ) -> Result<Value> {
         let index = base.as_usize() + local.as_usize();
@@ -91,7 +95,7 @@ impl Stack {
         }
     }
 
-    pub(crate) fn index_from_top(&self, arg_count: u32) -> Index<Stack> {
+    pub(crate) fn index_from_top(&self, arg_count: u32) -> Index<ValueStack> {
         let i = self.values.len() - arg_count as usize;
 
         assert!(i <= u32::MAX as usize);
@@ -99,14 +103,14 @@ impl Stack {
         Index::new(i as u32)
     }
 
-    pub(crate) fn get_closure(&self, base: Index<Stack>) -> Option<Value> {
+    pub(crate) fn get_closure(&self, base: Index<ValueStack>) -> Option<Value> {
         match base.as_usize() {
             0 => None,
             n => self.values.get(n - 1).cloned(),
         }
     }
 
-    pub(crate) fn get(&self, index: Index<Stack>) -> Option<Value> {
+    pub(crate) fn get(&self, index: Index<ValueStack>) -> Option<Value> {
         self.values.get(index.as_usize()).cloned()
     }
 }

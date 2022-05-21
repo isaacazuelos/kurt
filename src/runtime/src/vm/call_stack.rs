@@ -2,8 +2,9 @@
 
 use compiler::Index;
 
-use crate::address::Address;
-use crate::stack::Stack;
+use crate::vm::Address;
+
+use super::ValueStack;
 
 /// A call frame is information about a specific function call that's either
 /// currently running, or could be returned to.
@@ -15,7 +16,7 @@ pub struct CallFrame {
 
     /// The 'Base Pointer' is the stack index which is the first slot in the
     /// current call frame.
-    pub(crate) bp: Index<Stack>,
+    pub(crate) bp: Index<ValueStack>,
 }
 
 impl Default for CallFrame {
@@ -29,7 +30,7 @@ impl Default for CallFrame {
 
 impl CallFrame {
     /// Create a new call frame with the given base pointer and program counter.
-    pub fn new(pc: Address, bp: Index<Stack>) -> CallFrame {
+    pub fn new(pc: Address, bp: Index<ValueStack>) -> CallFrame {
         CallFrame { pc, bp }
     }
 }

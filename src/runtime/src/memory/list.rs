@@ -122,7 +122,7 @@ impl PrimitiveOperations for List {
     fn index(
         &self,
         key: Value,
-        _: &mut crate::Runtime,
+        _: &mut crate::VirtualMachine,
     ) -> Result<Value, Error> {
         self.index(key)
     }

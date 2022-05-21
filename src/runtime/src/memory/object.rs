@@ -19,7 +19,7 @@ use crate::{
     },
     primitives::{Error, PrimitiveOperations},
     value::Value,
-    Runtime,
+    VirtualMachine,
 };
 
 macro_rules! dispatch {
@@ -172,19 +172,27 @@ impl PrimitiveOperations for Object {
         dispatch!(PrimitiveOperations::type_name, self,)
     }
 
-    fn neg(&self, rt: &mut Runtime) -> Result<Value, Error> {
+    fn neg(&self, rt: &mut VirtualMachine) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::neg, self, rt,)
     }
 
-    fn not(&self, rt: &mut Runtime) -> Result<Value, Error> {
+    fn not(&self, rt: &mut VirtualMachine) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::not, self, rt,)
     }
 
-    fn add(&self, other: Value, rt: &mut Runtime) -> Result<Value, Error> {
+    fn add(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::add, self, other, rt,)
     }
 
-    fn index(&self, key: Value, rt: &mut Runtime) -> Result<Value, Error> {
+    fn index(
+        &self,
+        key: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::index, self, key, rt,)
     }
 

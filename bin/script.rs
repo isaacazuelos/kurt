@@ -6,7 +6,7 @@ use compiler::ModuleBuilder;
 use diagnostic::{
     verify_utf8, Diagnostic, DiagnosticCoordinator, InputCoordinator,
 };
-use runtime::Runtime;
+use runtime::VirtualMachine;
 
 use crate::Args;
 
@@ -44,7 +44,7 @@ impl Script {
 
         let id = inputs.file_input(input.into(), self.filename.clone());
 
-        let main = match ModuleBuilder::default().input(&input) {
+        let main = match ModuleBuilder::default().input(input) {
             Ok(builder) => builder.with_id(Some(id)).build(),
 
             Err(d) => {
@@ -59,7 +59,7 @@ impl Script {
             return;
         }
 
-        let mut runtime = Runtime::new();
+        let mut runtime = VirtualMachine::new();
 
         if let Err(e) = runtime.load(main) {
             let d = Diagnostic::new(format!("{e}"));
@@ -71,7 +71,6 @@ impl Script {
         if let Err(e) = runtime.start() {
             runtime.stack_trace(e, &mut diagnostics);
             diagnostics.emit(&inputs);
-            return;
         }
     }
 }

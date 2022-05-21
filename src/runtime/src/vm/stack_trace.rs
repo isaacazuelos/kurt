@@ -4,9 +4,12 @@ use diagnostic::{Diagnostic, DiagnosticCoordinator, Level, Span};
 
 use compiler::{Function, Get, Module, ModuleDebug};
 
-use crate::{address::Address, call_stack::CallFrame, Error, Runtime};
+use crate::{
+    vm::{address::Address, call_stack::CallFrame, VirtualMachine},
+    Error,
+};
 
-impl Runtime {
+impl VirtualMachine {
     pub fn stack_trace(
         &self,
         error: Error,
