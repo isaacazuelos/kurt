@@ -1,5 +1,6 @@
 //! The virtual machine's big dispatch loop
 
+use common::i48;
 use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
 
 use crate::{
@@ -34,6 +35,11 @@ impl VirtualMachine {
                 Op::True => self.value_stack.push(Value::TRUE),
                 Op::False => self.value_stack.push(Value::FALSE),
                 Op::Unit => self.value_stack.push(Value::UNIT),
+                Op::U48(n) => self.value_stack.push(Value::int(
+                    i48::try_from(n).map_err(|_| Error::NumberTooBig)?,
+                )),
+                Op::I48(n) => self.value_stack.push(Value::from(n)),
+
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,

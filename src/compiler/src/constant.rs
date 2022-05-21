@@ -20,19 +20,12 @@ pub enum Constant {
     // stored with `to_bits` for hash/eq reasons
     Float(u64),
     Keyword(String),
-    Number(u48),
     String(String),
 }
 
 impl From<char> for Constant {
     fn from(c: char) -> Constant {
         Constant::Character(c)
-    }
-}
-
-impl From<u48> for Constant {
-    fn from(n: u48) -> Constant {
-        Constant::Number(n)
     }
 }
 
@@ -138,7 +131,6 @@ impl Display for Constant {
             Constant::Character(c) => write!(f, "char {c}"),
             Constant::Float(n) => write!(f, "float {}", f64::from_bits(*n)),
             Constant::Keyword(s) => write!(f, "keyword :{s}"),
-            Constant::Number(n) => write!(f, "number {n}"),
             Constant::String(s) => write!(f, "string {s}"),
         }
     }

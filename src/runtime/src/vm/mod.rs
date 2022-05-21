@@ -9,8 +9,6 @@ mod instructions;
 mod stack_trace;
 mod value_stack;
 
-use common::i48;
-
 use crate::{
     memory::{closure::Closure, keyword::Keyword, string::String, Gc},
     value::Value,
@@ -175,12 +173,6 @@ impl VirtualMachine {
     fn inflate(&mut self, constant: &Constant) -> Result<Value> {
         match constant {
             Constant::Character(c) => Ok(Value::char(*c)),
-            Constant::Number(n) => {
-                // For now everything loads as an integer.
-                let i = i48::try_from(n.as_u64())
-                    .map_err(|_| Error::NumberTooBig)?;
-                Ok(Value::int(i))
-            }
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {
                 let string: Gc = self.make_from::<String, _>(s.as_str());

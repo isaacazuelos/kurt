@@ -2,6 +2,8 @@
 
 use std::fmt::{Display, Formatter, Result};
 
+use common::{i48, u48};
+
 use crate::{
     constant::Constant, function::Function, index::Index, Capture, Local,
 };
@@ -33,6 +35,12 @@ pub enum Op {
 
     /// Push a `()` to the top of the stack.
     Unit,
+
+    /// An immediate 48-bit signed integer value.
+    U48(u48),
+
+    /// An immediate 48-bit signed integer value.
+    I48(i48),
 
     /// Load the constant at the specified index to the top of the stack. 
     /// 

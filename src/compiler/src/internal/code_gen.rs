@@ -330,10 +330,7 @@ impl ModuleBuilder {
     fn binary_literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 2)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .insert_constant(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     /// Compile a boolean literal.
@@ -361,10 +358,7 @@ impl ModuleBuilder {
     fn decimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_int(syntax.body())
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .insert_constant(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     fn float(&mut self, syntax: &syntax::Literal) -> Result<()> {
@@ -380,10 +374,7 @@ impl ModuleBuilder {
     fn octal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 8)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .insert_constant(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     /// Compile a keyword literal
@@ -399,10 +390,7 @@ impl ModuleBuilder {
     fn hexadecimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 16)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .insert_constant(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     fn string(&mut self, syntax: &syntax::Literal) -> Result<()> {

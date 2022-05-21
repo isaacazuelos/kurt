@@ -45,7 +45,7 @@ impl ConstantPool {
     /// Turn this into a [`Vec<Constant>`] where each constant's position in teh
     /// array is it's [Index].
     pub(crate) fn as_vec(&self) -> Vec<Constant> {
-        let mut vec: Vec<_> = std::iter::repeat(Constant::Number(0.into()))
+        let mut vec: Vec<_> = std::iter::repeat(Constant::Float(0))
             .take(self.constants.len())
             .collect();
 
@@ -70,27 +70,24 @@ mod tests {
     #[test]
     fn insert_new() {
         let mut pool = ConstantPool::default();
-        let i1 = pool.insert(Constant::Number(0.into())).unwrap();
-        let i2 = pool.insert(Constant::Number(1.into())).unwrap();
+        let i1 = pool.insert(Constant::Float(0)).unwrap();
+        let i2 = pool.insert(Constant::Float(1)).unwrap();
         assert_ne!(i1, i2);
     }
 
     #[test]
     fn insert_dup() {
         let mut pool = ConstantPool::default();
-        let i1 = pool.insert(Constant::Number(0.into())).unwrap();
-        let i2 = pool.insert(Constant::Number(0.into())).unwrap();
+        let i1 = pool.insert(Constant::Float(0)).unwrap();
+        let i2 = pool.insert(Constant::Float(0)).unwrap();
         assert_eq!(i1, i2);
     }
 
     #[test]
     fn into_vec() {
         let mut pool = ConstantPool::default();
-        pool.insert(Constant::Number(6.into())).unwrap();
-        pool.insert(Constant::Number(5.into())).unwrap();
-        assert_eq!(
-            pool.as_vec(),
-            [Constant::Number(6.into()), Constant::Number(5.into())]
-        );
+        pool.insert(Constant::Float(6)).unwrap();
+        pool.insert(Constant::Float(5)).unwrap();
+        assert_eq!(pool.as_vec(), [Constant::Float(6), Constant::Float(5)]);
     }
 }
