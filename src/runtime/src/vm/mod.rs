@@ -176,10 +176,9 @@ impl VirtualMachine {
         match constant {
             Constant::Character(c) => Ok(Value::char(*c)),
             Constant::Number(n) => {
-                // TODO: this is wrong at n > i64::MAX, and inelegant.
-                //
                 // For now everything loads as an integer.
-                let i = i48::from_i64(*n as i64).ok_or(Error::NumberTooBig)?;
+                let i = i48::try_from(n.as_u64())
+                    .map_err(|_| Error::NumberTooBig)?;
                 Ok(Value::int(i))
             }
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),

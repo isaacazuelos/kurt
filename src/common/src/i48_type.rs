@@ -16,7 +16,7 @@
 
 use std::convert::TryFrom;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash)]
 #[allow(non_camel_case_types)]
 pub struct i48([u8; 6]);
 
@@ -124,6 +124,19 @@ impl TryFrom<i64> for i48 {
             Err(TryFromIntError::NegOverflow)
         } else {
             Ok(i48::from_i64_unchecked(i))
+        }
+    }
+}
+
+impl TryFrom<u64> for i48 {
+    // true for overflow
+    type Error = TryFromIntError;
+
+    fn try_from(n: u64) -> Result<Self, Self::Error> {
+        if n > i48::MAX_I64 as u64 {
+            Err(TryFromIntError::PosOverflow)
+        } else {
+            Ok(i48::from_i64_unchecked(n as i64))
         }
     }
 }
