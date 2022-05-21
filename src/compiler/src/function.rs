@@ -17,6 +17,9 @@ impl Function {
     /// for a module.
     pub const MAIN_NAME: &'static str = "main";
 
+    /// The name used for functions that don't have names.
+    pub const DEFAULT_NAMELESS_NAME: &'static str = "<nameless function>";
+
     pub const MAX_OPS: usize = Index::<Op>::MAX;
 
     /// The maximum number of parameters allowed in a function definition

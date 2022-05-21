@@ -2,7 +2,7 @@
 
 use diagnostic::Span;
 
-use crate::internal::FunctionBuilder;
+use crate::{internal::FunctionBuilder, Index, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct FunctionDebug {
@@ -26,11 +26,15 @@ impl FunctionDebug {
         })
     }
 
-    pub(crate) fn parameter_names(&self) -> &[String] {
+    pub fn parameter_names(&self) -> &[String] {
         &self.parameter_names
     }
 
-    pub(crate) fn name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
+    }
+
+    pub fn span_of(&self, index: Index<Op>) -> Option<Span> {
+        self.code_spans.get(index.as_usize()).cloned()
     }
 }

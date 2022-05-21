@@ -1,13 +1,15 @@
-use diagnostic::{Diagnostic, Span};
+use diagnostic::{Diagnostic, InputId, Span};
 use syntax::{Identifier, Syntax};
 
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Function, Index, Local, Module, Op,
+    Capture, Constant, Function, Index, Local, Module, ModuleDebug, Op,
 };
 
 pub struct ModuleBuilder {
+    id: Option<InputId>,
+
     /// The constant pool of all constants seen by this compiler so far.
     constants: ConstantPool,
 
@@ -22,6 +24,7 @@ pub struct ModuleBuilder {
 impl Default for ModuleBuilder {
     fn default() -> Self {
         let mut compiler = Self {
+            id: None,
             constants: Default::default(),
             compiling: Default::default(),
             functions: Default::default(),
@@ -55,12 +58,26 @@ impl ModuleBuilder {
 
         functions[Module::MAIN.as_usize()] = main;
 
+        let debug_info = ModuleDebug::new(self);
+
         Module {
             constants: self.constants.as_vec(),
             functions,
-
-            debug_info: None,
+            debug_info: Some(debug_info),
         }
+    }
+
+    pub fn id(&self) -> Option<InputId> {
+        self.id
+    }
+
+    pub fn with_id(mut self, id: Option<InputId>) -> Self {
+        self.id = id;
+        self
+    }
+
+    pub fn set_id(&mut self, id: InputId) {
+        self.id = Some(id);
     }
 
     /// Push some input through the module builder.

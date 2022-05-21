@@ -47,7 +47,9 @@ impl Evaluate {
         };
 
         if let Err(e) = runtime.start() {
-            eprintln!("{}", e);
+            runtime.stack_trace(e, &mut diagnostics);
+            diagnostics.emit(&inputs);
+            return;
         } else {
             println!("{}", runtime.last_result())
         }

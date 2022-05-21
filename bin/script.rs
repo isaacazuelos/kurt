@@ -2,7 +2,7 @@
 
 use std::{fs::File, io::Read, path::PathBuf};
 
-use compiler::Module;
+use compiler::ModuleBuilder;
 use diagnostic::{
     verify_utf8, Diagnostic, DiagnosticCoordinator, InputCoordinator,
 };
@@ -44,8 +44,9 @@ impl Script {
 
         let id = inputs.file_input(input.into(), self.filename.clone());
 
-        let main = match Module::try_from(input) {
-            Ok(object) => object,
+        let main = match ModuleBuilder::default().input(&input) {
+            Ok(builder) => builder.with_id(Some(id)).build(),
+
             Err(d) => {
                 diagnostics.register(d.input(id));
                 diagnostics.emit(&inputs);
@@ -60,20 +61,17 @@ impl Script {
 
         let mut runtime = Runtime::new();
 
-        match runtime.load(main) {
-            Ok(object) => object,
-            Err(e) => {
-                let d = Diagnostic::new(format!("{e}"));
-                diagnostics.register(d);
-                diagnostics.emit(&inputs);
-                return;
-            }
-        };
-
-        if let Err(e) = runtime.start() {
+        if let Err(e) = runtime.load(main) {
             let d = Diagnostic::new(format!("{e}"));
             diagnostics.register(d);
             diagnostics.emit(&inputs);
+            return;
+        };
+
+        if let Err(e) = runtime.start() {
+            runtime.stack_trace(e, &mut diagnostics);
+            diagnostics.emit(&inputs);
+            return;
         }
     }
 }

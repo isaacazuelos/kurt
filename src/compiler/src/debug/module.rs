@@ -2,10 +2,30 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use crate::{Function, Get, Module, Op};
+use diagnostic::InputId;
+
+use crate::{Function, Get, Module, ModuleBuilder, Op};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ModuleDebug {}
+pub struct ModuleDebug {
+    input_id: Option<InputId>,
+}
+
+impl ModuleDebug {
+    pub fn new(builder: &ModuleBuilder) -> ModuleDebug {
+        ModuleDebug {
+            input_id: builder.id(),
+        }
+    }
+
+    pub fn input_id(&self) -> Option<InputId> {
+        self.input_id
+    }
+
+    pub fn set_input_id(&mut self, id: InputId) {
+        self.input_id = Some(id);
+    }
+}
 
 impl Display for Module {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -52,7 +72,7 @@ impl Function {
         if let Some(name) = self.debug_info().and_then(|d| d.name()) {
             write!(f, "{name}")
         } else {
-            write!(f, "<anonymous function>")
+            write!(f, "{}", Function::DEFAULT_NAMELESS_NAME)
         }
     }
 

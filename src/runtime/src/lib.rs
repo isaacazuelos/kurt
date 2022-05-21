@@ -5,9 +5,9 @@ mod call_stack;
 mod error;
 mod machine;
 mod memory;
-
 mod primitives;
 mod stack;
+mod stack_trace;
 mod value;
 
 #[cfg(feature = "trace")]
@@ -158,7 +158,7 @@ impl Runtime {
         let op = self
             .get(address.module)
             .ok_or(Error::ModuleIndexOutOfRange)?
-            .get(address.prototype)
+            .get(address.function)
             .ok_or(Error::PrototypeIndexOutOfRange)?
             .get(address.instruction)
             .ok_or(Error::OpIndexOutOfRange)?;

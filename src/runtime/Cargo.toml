@@ -8,7 +8,5 @@ trace = []
 gc_trace = []
 
 [dependencies]
+diagnostic = { path = "../diagnostic" }
 compiler = { path = "../compiler" }
-
-[dev-dependencies]
-syntax = { path = "../syntax" }

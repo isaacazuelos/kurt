@@ -174,6 +174,8 @@ impl Runtime {
 
         let bp = self.bp();
 
+        // hard to believe there's a bug here
+
         self.stack
             .get_closure(bp)
             .unwrap()
@@ -287,7 +289,6 @@ impl Runtime {
         let result = self.stack.last();
 
         self.close_capture(frame.bp)?;
-
         self.stack.truncate_to(frame.bp);
         // TODO: are we worried about it collecting result before this?
         self.stack.push(result);

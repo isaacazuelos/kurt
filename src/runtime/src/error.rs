@@ -69,6 +69,7 @@ impl fmt::Display for Error {
         }
     }
 }
+
 impl From<PrimitiveError> for Error {
     fn from(e: PrimitiveError) -> Error {
         Error::Primitive(e)

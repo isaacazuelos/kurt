@@ -82,4 +82,54 @@ impl CallStack {
             None
         }
     }
+
+    pub fn iter(&self) -> CallStackIterator<'_> {
+        CallStackIterator {
+            inner: self,
+            index: Some(self.stack.len()),
+        }
+    }
+}
+
+/// Iterator over the call stack's frames, this starts at the current frame and
+/// works backwards.
+pub struct CallStackIterator<'a> {
+    /// The call stack we're iterating over.
+    inner: &'a CallStack,
+
+    /// `None` means we already went over index 0.
+    ///
+    /// If it's at inner.stack.len() then we're at the current frame.
+    ///
+    /// If it's larger then we next_backed over the current frame.
+    index: Option<usize>,
+}
+
+impl<'a> Iterator for CallStackIterator<'a> {
+    type Item = CallFrame;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.index {
+            // already exhausted the stack
+            None => None,
+
+            // if it's at the current or past the current frame, that's the next one.
+            Some(n) if n >= self.inner.stack.len() => {
+                self.index = self.inner.stack.len().checked_sub(1);
+                Some(self.inner.current)
+            }
+
+            // otherwise, we decrement the index and get the frame it pointed to
+            Some(n) => {
+                self.index = n.checked_sub(1);
+                self.inner.stack.get(n).cloned()
+            }
+        }
+    }
+}
+
+impl<'a> ExactSizeIterator for CallStackIterator<'a> {
+    fn len(&self) -> usize {
+        self.inner.stack.len() + 1
+    }
 }

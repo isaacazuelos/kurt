@@ -13,8 +13,10 @@ impl Runtime {
 impl Display for Runtime {
     fn fmt(&self, f: &mut Formatter) -> Result {
         self.fmt_where(f)?;
-        write!(f, " stack: ")?;
+        write!(f, "\nstack: ")?;
         self.fmt_stack(f)?;
+        write!(f, "\nopen captures: ")?;
+        self.fmt_open_captures(f)?;
         Ok(())
     }
 }
@@ -28,6 +30,16 @@ impl Runtime {
         }
 
         Ok(())
+    }
+
+    fn fmt_open_captures(&self, f: &mut Formatter) -> Result {
+        write!(f, "[ ",)?;
+
+        for v in &self.open_captures {
+            write!(f, "{:?}, ", v)?;
+        }
+
+        write!(f, "]")
     }
 
     fn fmt_stack(&self, f: &mut Formatter) -> Result {

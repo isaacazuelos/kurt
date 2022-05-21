@@ -100,4 +100,15 @@ mod indexing {
 
 mod closures {
     test_eval! { capture, "(() => { let x = 1; () => x })()", "1"}
+
+    test_eval! { capture2, "
+        let getter = () => {
+            let a = 1;
+            let g = () => a;
+            g
+        }; 
+        let g = getter(); 
+        g()", 
+
+    "1" }
 }

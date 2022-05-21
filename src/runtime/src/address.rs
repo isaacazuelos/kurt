@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 #[derive(Clone, Copy, Debug)]
 pub struct Address {
     pub(crate) module: Index<Module>,
-    pub(crate) prototype: Index<Function>,
+    pub(crate) function: Index<Function>,
     pub(crate) instruction: Index<Op>,
 }
 
@@ -19,7 +19,7 @@ impl Address {
     ) -> Address {
         Address {
             module,
-            prototype,
+            function: prototype,
             instruction,
         }
     }
@@ -36,7 +36,7 @@ impl Display for Address {
         write!(
             f,
             "m{:?}/p{:?}/i{:?}",
-            self.module, self.prototype, self.instruction
+            self.module, self.function, self.instruction
         )
     }
 }
