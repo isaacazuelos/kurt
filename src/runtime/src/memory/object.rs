@@ -46,7 +46,7 @@ macro_rules! dispatch {
 /// There's deliberately no way to create an [`Object`] that's not some other
 /// concrete [`Class`] (using the [`Runtime::make`][Runtime::make])
 #[repr(C, align(8))]
-pub(crate) struct Object {
+pub struct Object {
     /// The size (in bytes) of the allocation belonging to this [`Object`].
     size: usize,
 
@@ -63,7 +63,7 @@ impl Object {
     pub const ALIGN: usize = 8; // Must keep in sync with repr directive.
 
     /// The specific [`Class`] of this object.
-    pub(crate) fn class_id(&self) -> ClassId {
+    pub fn class_id(&self) -> ClassId {
         self.class_id
     }
 
@@ -89,7 +89,7 @@ impl Object {
     /// There's no `gc_header_mut` method, instead we use interior mutability
     /// and the required access to those methods is kept private inside the
     /// collector.
-    pub fn gc_header(&self) -> &GCHeader {
+    pub(crate) fn gc_header(&self) -> &GCHeader {
         &self.gc_header
     }
 
@@ -126,7 +126,7 @@ impl Value {
         C: Class,
         F: FnOnce(&C) -> Result<R, Error>,
     {
-        if let Some(object) = self.as_object() {
+        if let Some(object) = self.as_gc_any() {
             if let Some(instance) = object.deref().downcast() {
                 return inner(instance);
             }

@@ -50,7 +50,7 @@ impl Closure {
     pub(crate) fn push_capture(&self, upvalue: Value) {
         debug_assert!(
             upvalue
-                .as_object()
+                .as_gc_any()
                 .map(|o| o.deref().class_id() == Upvalue::ID)
                 == Some(true)
         );

@@ -8,7 +8,7 @@
 
 use std::fmt::Debug;
 
-use crate::memory::{trace::Trace, Object};
+use crate::memory::trace::Trace;
 
 /// Class IDs are used as type tags.
 ///
@@ -18,7 +18,7 @@ use crate::memory::{trace::Trace, Object};
 ///
 /// [1]: crate::memory::object::dispatch!
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub(crate) enum ClassId {
+pub enum ClassId {
     Closure,
     Keyword,
     List,
@@ -58,12 +58,7 @@ impl ClassId {
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub(crate) trait Class: 'static + Debug + Sized + Trace {
+pub trait Class: 'static + Debug + Sized + Trace {
     /// The [`ClassId`] that's unique to objects of this class.
     const ID: ClassId;
-
-    /// View our value as an [`Object`].
-    fn upcast(&self) -> &Object {
-        unsafe { std::mem::transmute(self) }
-    }
 }

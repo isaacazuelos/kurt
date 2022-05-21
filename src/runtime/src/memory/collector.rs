@@ -17,14 +17,14 @@ use std::cell::Cell;
 use crate::{
     memory::{
         trace::{Trace, WorkList},
-        Gc,
+        GcAny,
     },
     VirtualMachine,
 };
 
 pub(crate) struct GCHeader {
     /// The next GC object in our all-objects linked list.
-    next: Cell<Option<Gc>>,
+    next: Cell<Option<GcAny>>,
 
     /// Was this object marked as reachable by the last mark phase?
     mark: Cell<bool>,
@@ -83,7 +83,7 @@ impl VirtualMachine {
     ///
     /// The GC must not be tracked by any runtime yet. This should only be
     /// called as part of object creation, after initialization.
-    pub(crate) unsafe fn register_gc_ptr(&mut self, ptr: Gc) {
+    pub(crate) unsafe fn register_gc_ptr(&mut self, ptr: GcAny) {
         let header = ptr.deref().gc_header();
 
         let old_heap_head = self.heap_head;

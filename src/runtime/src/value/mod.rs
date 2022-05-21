@@ -52,7 +52,7 @@ use common::{i48, u48};
 use crate::{
     memory::{
         trace::{Trace, WorkList},
-        Gc, Object,
+        Class, Gc, GcAny, Object,
     },
     primitives::{Error, PrimitiveOperations},
 };
@@ -165,7 +165,7 @@ impl Value {
 
     /// Store a [`Gc`] pointer to any [`Object`] as a [`Value`].
     #[inline]
-    pub fn object(gc: Gc) -> Value {
+    pub fn object(gc: GcAny) -> Value {
         let bits: u64 = unsafe { std::mem::transmute(gc) };
 
         Value(
@@ -283,22 +283,34 @@ impl Value {
 
     /// Is this value a pointer to a garbage collected value?
     #[inline]
-    pub fn is_object(&self) -> bool {
+    pub fn is_gc_any(&self) -> bool {
         self.0 & Value::TAG_BITS_MASK == Tag::Object as u64
     }
 
-    /// View this value as an opaque [`Gc`] reference to an [`Object`].
+    /// View this value as an opaque [`GcAny`] reference.
     #[inline]
-    pub fn as_object(&self) -> Option<Gc> {
-        if self.is_object() {
+    pub fn as_gc_any(&self) -> Option<GcAny> {
+        if self.is_gc_any() {
             unsafe {
                 let raw = self.as_raw_ptr_unchecked() as *mut Object;
                 let non_null = NonNull::new(raw)?;
-                Some(Gc::from_non_null(non_null))
+                Some(GcAny::from_non_null(non_null))
             }
         } else {
             None
         }
+    }
+
+    /// Is this value a pointer to a garbage collected value?
+    #[inline]
+    pub fn is_gc<T: Class>(&self) -> bool {
+        self.as_gc_any().map(GcAny::is_a::<T>).unwrap_or(false)
+    }
+
+    /// View this value as an opaque [`Gc<T>`] reference to an [`Object`].
+    #[inline]
+    pub fn as_gc<T: Class>(&self) -> Option<Gc<T>> {
+        self.as_gc_any().and_then(|any| Gc::try_from(any).ok())
     }
 }
 
@@ -386,10 +398,10 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         if self.is_float() && other.is_float() {
             self.as_float() == other.as_float()
-        } else if self.is_object() && other.is_object() {
+        } else if self.is_gc_any() && other.is_gc_any() {
             PartialEq::eq(
-                self.as_object().unwrap().deref(),
-                other.as_object().unwrap().deref(),
+                self.as_gc_any().unwrap().deref(),
+                other.as_gc_any().unwrap().deref(),
             )
         } else {
             self.0 == other.0
@@ -412,7 +424,7 @@ impl std::fmt::Debug for Value {
             Tag::Nat => write!(f, "{:?}", self.as_nat().unwrap()),
             Tag::Int => write!(f, "{:?}", self.as_int().unwrap()),
             Tag::Float => write!(f, "{:?}", self.as_float().unwrap()),
-            Tag::Object => write!(f, "{:?}", self.as_object().unwrap().deref()),
+            Tag::Object => write!(f, "{:?}", self.as_gc_any().unwrap().deref()),
             Tag::_Reserved0 | Tag::_Reserved1 => {
                 write!(f, "<invalid value>")
             }
@@ -422,7 +434,7 @@ impl std::fmt::Debug for Value {
 
 impl Trace for Value {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
-        if let Some(ptr) = self.as_object() {
+        if let Some(ptr) = self.as_gc_any() {
             worklist.enqueue(ptr);
         }
     }

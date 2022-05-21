@@ -33,7 +33,7 @@ macro_rules! dispatch {
             Tag::Int => $f( &$value.as_int().unwrap(), $( $arg, )* ),
             Tag::Nat => $f( &$value.as_nat().unwrap(), $( $arg, )* ),
             Tag::Object => {
-                $f( $value.as_object().unwrap().deref(), $( $arg, )* )
+                $f( $value.as_gc_any().unwrap().deref(), $( $arg, )* )
             },
             Tag::_Reserved0 | Tag::_Reserved1 => {
                 unreachable!("cannot use value with reserved tag")
@@ -293,7 +293,7 @@ impl PrimitiveOperations for Value {
             Tag::Float => 1f64.type_name(),
             Tag::Int => i48::MAX.type_name(),
             Tag::Nat => u48::MAX.type_name(),
-            Tag::Object => self.as_object().unwrap().deref().type_name(),
+            Tag::Object => self.as_gc_any().unwrap().deref().type_name(),
             Tag::_Reserved0 | Tag::_Reserved1 => "<invalid value>",
         }
     }
@@ -433,10 +433,10 @@ impl PrimitiveOperations for Value {
                 .unwrap()
                 .partial_cmp(&other.as_float().unwrap()),
             Tag::Object => self
-                .as_object()
+                .as_gc_any()
                 .unwrap()
                 .deref()
-                .partial_cmp(other.as_object().unwrap().deref()),
+                .partial_cmp(other.as_gc_any().unwrap().deref()),
 
             _ => None,
         }

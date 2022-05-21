@@ -30,10 +30,11 @@ pub mod upvalue;
 
 use crate::VirtualMachine;
 
-pub use self::gc::Gc;
+pub use self::gc::GcAny;
 
 pub(crate) use self::{
     class::{Class, ClassId},
+    gc::Gc,
     object::Object,
 };
 
@@ -85,7 +86,7 @@ impl VirtualMachine {
     /// Allocate a new [`Object`] and initialize it using it's [`Default`]
     /// instance.
     #[allow(dead_code)]
-    pub(crate) fn make<C>(&mut self) -> Gc
+    pub(crate) fn make<C>(&mut self) -> GcAny
     where
         C: Class + Default,
     {
@@ -93,7 +94,7 @@ impl VirtualMachine {
     }
 
     /// Allocate a new [`Object`], initializing it from the given argument.
-    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> Gc
+    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> GcAny
     where
         C: Class + InitFrom<A>,
     {
@@ -115,7 +116,7 @@ impl VirtualMachine {
             let ptr = NonNull::new_unchecked(raw);
 
             // SAFETY: We know it's initialized because we just initialized it.
-            let gc = Gc::from_non_null(ptr);
+            let gc = GcAny::from_non_null(ptr);
 
             // SAFETY: We just made the GC, so we know it's not tracked.
             self.register_gc_ptr(gc);
@@ -169,7 +170,7 @@ impl VirtualMachine {
     /// # Safety
     ///
     /// The pointer must not be reachable. Good luck!
-    pub(crate) unsafe fn deallocate(&mut self, gc: Gc) {
+    pub(crate) unsafe fn deallocate(&mut self, gc: GcAny) {
         #[cfg(feature = "gc_trace")]
         eprintln!("deallocating {:?}: {:?}", gc, gc.deref());
 

@@ -10,7 +10,7 @@ mod stack_trace;
 mod value_stack;
 
 use crate::{
-    memory::{closure::Closure, keyword::Keyword, string::String, Gc},
+    memory::{closure::Closure, keyword::Keyword, string::String, GcAny},
     value::Value,
     Error, Result,
 };
@@ -33,7 +33,7 @@ pub struct VirtualMachine {
     call_stack: CallStack,
 
     // Heap
-    pub(crate) heap_head: Option<Gc>,
+    pub(crate) heap_head: Option<GcAny>,
     pub(crate) open_captures: Vec<Value>,
 }
 
@@ -175,7 +175,7 @@ impl VirtualMachine {
             Constant::Character(c) => Ok(Value::char(*c)),
             Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
             Constant::String(s) => {
-                let string: Gc = self.make_from::<String, _>(s.as_str());
+                let string: GcAny = self.make_from::<String, _>(s.as_str());
                 Ok(Value::object(string))
             }
             Constant::Keyword(kw) => {
