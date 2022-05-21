@@ -47,8 +47,7 @@ use std::ptr::NonNull;
 
 mod primitives;
 
-pub mod i48_type;
-pub mod u48_type;
+use common::{i48, u48};
 
 use crate::{
     memory::{
@@ -57,9 +56,6 @@ use crate::{
     },
     primitives::{Error, PrimitiveOperations},
 };
-
-use self::i48_type::i48;
-use self::u48_type::u48;
 
 /// A value which is either stored inline or as pointer to a garbage collected
 /// [`Object`].

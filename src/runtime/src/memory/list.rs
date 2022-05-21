@@ -6,13 +6,15 @@ use std::{
     ptr::addr_of_mut,
 };
 
+use common::i48;
+
 use crate::{
     memory::{
         trace::{Trace, WorkList},
         Class, ClassId, InitFrom, Object,
     },
     primitives::{Error, PrimitiveOperations},
-    value::{i48_type::i48, Value},
+    value::Value,
 };
 
 #[repr(C, align(8))]

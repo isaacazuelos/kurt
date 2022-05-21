@@ -9,9 +9,11 @@ mod instructions;
 mod stack_trace;
 mod value_stack;
 
+use common::i48;
+
 use crate::{
     memory::{closure::Closure, keyword::Keyword, string::String, Gc},
-    value::{i48_type::i48, Value},
+    value::Value,
     Error, Result,
 };
 

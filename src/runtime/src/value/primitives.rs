@@ -8,13 +8,13 @@
 //! We'll want to come back in and expand on the [`Error`] type here once we
 //! have runtime support for handling these types of errors.
 
+use common::{i48, u48};
+
 use crate::{
     primitives::{Error, PrimitiveOperations},
-    value::Value,
+    value::{Tag, Value},
     VirtualMachine,
 };
-
-use super::{i48_type::i48, u48_type::u48, Tag};
 
 macro_rules! basic_impl {
     ( $op: path, $t: ty, $lhs: ident, $rhs: ident ) => {{

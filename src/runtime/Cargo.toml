@@ -10,3 +10,4 @@ gc_trace = []
 [dependencies]
 diagnostic = { path = "../diagnostic" }
 compiler = { path = "../compiler" }
+common = { path = "../common" }
