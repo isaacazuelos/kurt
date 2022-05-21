@@ -7,15 +7,11 @@ use std::{
 };
 
 use crate::{
+    classes::*,
     memory::{
         class::{Class, ClassId},
-        closure::Closure,
         collector::GCHeader,
-        keyword::Keyword,
-        list::List,
-        string::String,
         trace::{Trace, WorkList},
-        upvalue::Upvalue,
     },
     primitives::{Error, PrimitiveOperations},
     value::Value,

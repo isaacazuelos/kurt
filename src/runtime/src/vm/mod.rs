@@ -9,11 +9,8 @@ mod instructions;
 mod stack_trace;
 mod value_stack;
 
-use crate::{
-    memory::{closure::Closure, keyword::Keyword, string::String, GcAny},
-    value::Value,
-    Error, Result,
-};
+use crate::classes::{Closure, Keyword, String};
+use crate::{memory::GcAny, value::Value, Error, Result};
 
 pub use self::{
     address::Address,

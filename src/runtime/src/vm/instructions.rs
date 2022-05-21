@@ -4,12 +4,8 @@ use common::i48;
 use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
 
 use crate::{
+    classes::{Closure, List, Upvalue, UpvalueContents},
     error::Result,
-    memory::{
-        closure::Closure,
-        list::List,
-        upvalue::{Upvalue, UpvalueContents},
-    },
     primitives::{Error as PrimitiveError, PrimitiveOperations},
     value::Value,
     vm::{Address, CallFrame, Exit, ValueStack},

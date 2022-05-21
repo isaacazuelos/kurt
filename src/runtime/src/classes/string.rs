@@ -3,14 +3,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use crate::{
-    memory::{
-        class::{Class, ClassId},
-        trace::{Trace, WorkList},
-        InitFrom, Object,
-    },
-    primitives::PrimitiveOperations,
-};
+use crate::{memory::*, primitives::PrimitiveOperations};
 
 #[repr(C, align(8))]
 pub struct String {

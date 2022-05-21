@@ -50,10 +50,7 @@ mod primitives;
 use common::{i48, u48};
 
 use crate::{
-    memory::{
-        trace::{Trace, WorkList},
-        Class, Gc, GcAny, Object,
-    },
+    memory::{Class, Gc, GcAny, Object, Trace, WorkList},
     primitives::{Error, PrimitiveOperations},
 };
 

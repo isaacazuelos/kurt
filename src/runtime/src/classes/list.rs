@@ -9,10 +9,7 @@ use std::{
 use common::i48;
 
 use crate::{
-    memory::{
-        trace::{Trace, WorkList},
-        Class, ClassId, InitFrom, Object,
-    },
+    memory::*,
     primitives::{Error, PrimitiveOperations},
     value::Value,
 };

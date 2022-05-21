@@ -21,21 +21,15 @@ mod collector;
 mod gc;
 mod object;
 
-pub mod closure;
-pub mod keyword;
-pub mod list;
-pub mod string;
-pub mod trace;
-pub mod upvalue;
+mod trace;
 
 use crate::VirtualMachine;
 
-pub use self::gc::GcAny;
-
-pub(crate) use self::{
+pub use self::{
     class::{Class, ClassId},
-    gc::Gc,
+    gc::{Gc, GcAny},
     object::Object,
+    trace::{Trace, WorkList},
 };
 
 /// Since our [`Class`] values can be [DSTs][dst], we need a way to initialize

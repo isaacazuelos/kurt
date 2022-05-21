@@ -1,5 +1,6 @@
 //! The language runtime interface.
 
+mod classes;
 mod error;
 mod memory;
 mod primitives;

@@ -10,14 +10,7 @@ use std::{
 use compiler::{Function, Index, Module};
 
 use crate::{
-    memory::{
-        class::{Class, ClassId},
-        trace::Trace,
-        upvalue::Upvalue,
-        InitFrom, Object,
-    },
-    primitives::PrimitiveOperations,
-    value::Value,
+    classes::Upvalue, memory::*, primitives::PrimitiveOperations, value::Value,
 };
 
 #[repr(C, align(8))]
@@ -86,7 +79,7 @@ impl PartialEq for Closure {
 }
 
 impl Trace for Closure {
-    fn enqueue_gc_references(&self, worklist: &mut super::trace::WorkList) {
+    fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         for capture in self.captures.borrow().iter() {
             capture.enqueue_gc_references(worklist);
         }

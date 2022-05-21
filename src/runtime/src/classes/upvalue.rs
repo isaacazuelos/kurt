@@ -11,14 +11,7 @@ use std::{
 use compiler::Index;
 
 use crate::{
-    memory::{
-        class::{Class, ClassId},
-        trace::Trace,
-        InitFrom, Object,
-    },
-    primitives::PrimitiveOperations,
-    value::Value,
-    vm::ValueStack,
+    memory::*, primitives::PrimitiveOperations, value::Value, vm::ValueStack,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -50,7 +43,7 @@ impl Class for Upvalue {
 }
 
 impl Trace for Upvalue {
-    fn enqueue_gc_references(&self, worklist: &mut super::trace::WorkList) {
+    fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         match self.contents.get() {
             UpvalueContents::Inline(v) => {
                 v.enqueue_gc_references(worklist);
