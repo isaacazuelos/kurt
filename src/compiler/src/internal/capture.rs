@@ -1,4 +1,6 @@
-use crate::{index::Index, internal::local::Local};
+use common::Index;
+
+use crate::internal::local::Local;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Capture {

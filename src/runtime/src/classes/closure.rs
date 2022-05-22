@@ -7,7 +7,9 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::{Capture, Function, Index, Module};
+use common::Index;
+
+use compiler::{Capture, Function, Module};
 
 use crate::{
     classes::CaptureCell, memory::*, primitives::PrimitiveOperations, Error,

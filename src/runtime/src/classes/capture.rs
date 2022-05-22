@@ -8,7 +8,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::Index;
+use common::Index;
 
 use crate::{
     memory::*, primitives::PrimitiveOperations, value::Value, vm::ValueStack,

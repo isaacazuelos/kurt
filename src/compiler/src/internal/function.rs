@@ -3,9 +3,10 @@
 
 use diagnostic::Span;
 
+use common::{Get, Index};
+
 use crate::{
     error::Result,
-    index::{Get, Index},
     internal::{capture::Capture, code::Code, local::Local},
     opcode::Op,
     Function, FunctionDebug,

@@ -1,6 +1,7 @@
 //! The virtual machine is the heart of how the language executes code.
 
-use compiler::{Constant, Function, Get, Index, Module, Op};
+use common::{Get, Index};
+use compiler::{Constant, Function, Module, Op};
 
 mod address;
 mod call_stack;

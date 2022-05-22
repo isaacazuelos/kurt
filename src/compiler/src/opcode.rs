@@ -2,11 +2,9 @@
 
 use std::fmt::{Display, Formatter, Result};
 
-use common::{i48, u48};
+use common::{i48, u48, Index};
 
-use crate::{
-    constant::Constant, function::Function, index::Index, Capture, Local,
-};
+use crate::{Capture, Constant, Function, Local};
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

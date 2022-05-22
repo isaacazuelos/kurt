@@ -1,6 +1,6 @@
 //! The call stack and call frames.
 
-use compiler::Index;
+use common::Index;
 
 use crate::vm::Address;
 

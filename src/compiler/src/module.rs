@@ -2,12 +2,10 @@
 //!
 //! It's ready for the runtime. Like a python `.pyc` or C `.o` file.
 
+use common::{Get, Index};
+
 use crate::{
-    constant::Constant,
-    debug::ModuleDebug,
-    index::{Get, Index},
-    internal::ModuleBuilder,
-    Function,
+    constant::Constant, debug::ModuleDebug, internal::ModuleBuilder, Function,
 };
 
 #[derive(Debug, Clone, PartialEq)]

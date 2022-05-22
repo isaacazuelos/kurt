@@ -1,8 +1,9 @@
 //! Function debug info
 
+use common::Index;
 use diagnostic::Span;
 
-use crate::{internal::FunctionBuilder, Index, Op};
+use crate::{internal::FunctionBuilder, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct FunctionDebug {

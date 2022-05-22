@@ -3,7 +3,9 @@
 
 use std::collections::HashMap;
 
-use crate::{Constant, Index};
+use common::Index;
+
+use crate::Constant;
 
 /// A pool of constants, indexable by an [`Index`]. Inserting a constant returns
 /// the index, and if the constant is already in the pool its existing index is

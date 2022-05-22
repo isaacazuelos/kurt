@@ -1,4 +1,5 @@
-use compiler::{Function, Index, Module, Op};
+use common::Index;
+use compiler::{Function, Module, Op};
 
 use crate::error::{Error, Result};
 

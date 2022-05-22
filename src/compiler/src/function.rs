@@ -1,6 +1,8 @@
 use diagnostic::Span;
 
-use crate::{Capture, FunctionDebug, Index, Local, Op};
+use common::Index;
+
+use crate::{Capture, FunctionDebug, Local, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Function {

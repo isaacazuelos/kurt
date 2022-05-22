@@ -2,8 +2,8 @@
 
 use std::ops::Deref;
 
-use common::i48;
-use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
+use common::{i48, Get, Index};
+use compiler::{Capture, Constant, Function, Local, Op};
 
 use crate::{
     classes::{CaptureCell, Closure, List},

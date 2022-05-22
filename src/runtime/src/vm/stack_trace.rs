@@ -1,8 +1,9 @@
 //! Produce a stack trace diagnostic from an error.
 
+use common::Get;
 use diagnostic::{Diagnostic, DiagnosticCoordinator, Level, Span};
 
-use compiler::{Function, Get, Module, ModuleDebug};
+use compiler::{Function, Module, ModuleDebug};
 
 use crate::{
     vm::{address::Address, call_stack::CallFrame, VirtualMachine},

@@ -2,9 +2,10 @@
 
 use diagnostic::Span;
 
+use common::{Get, Index};
+
 use crate::{
     error::{Error, Result},
-    index::{Get, Index},
     opcode::Op,
 };
 

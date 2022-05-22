@@ -1,10 +1,11 @@
+use common::Index;
 use diagnostic::{Diagnostic, InputId, Span};
 use syntax::{Identifier, Syntax};
 
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Function, Index, Local, Module, ModuleDebug, Op,
+    Capture, Constant, Function, Local, Module, ModuleDebug, Op,
 };
 
 pub struct ModuleBuilder {

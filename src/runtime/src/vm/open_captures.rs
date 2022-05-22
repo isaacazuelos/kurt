@@ -1,4 +1,4 @@
-use compiler::Index;
+use common::Index;
 
 use crate::{classes::CaptureCell, memory::Gc, vm::value_stack::ValueStack};
 

@@ -2,9 +2,10 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use common::Get;
 use diagnostic::InputId;
 
-use crate::{Function, Get, Module, ModuleBuilder, Op};
+use crate::{Function, Module, ModuleBuilder, Op};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModuleDebug {

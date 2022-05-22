@@ -2,7 +2,11 @@
 //! specific to a single module.
 
 mod i48_type;
+mod index;
 mod u48_type;
 
-pub use i48_type::i48;
-pub use u48_type::u48;
+pub use crate::{
+    i48_type::i48,
+    index::{Get, Index},
+    u48_type::u48,
+};

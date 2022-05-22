@@ -18,6 +18,8 @@
 
 use std::marker::PhantomData;
 
+use crate::u48;
+
 /// An index which refers to a specific opcode.
 ///
 /// This is a 'newtype' wrapper since we don't want people creating new
@@ -29,6 +31,9 @@ use std::marker::PhantomData;
 pub struct Index<T>(u32, PhantomData<T>);
 
 impl<T> Index<T> {
+    /// Index 0, the starting index.
+    pub const START: Index<T> = Index::new(0);
+
     /// The largest any [`Index`] can be.
     pub const MAX: usize = u32::MAX as usize;
 
@@ -99,9 +104,8 @@ impl<T> Index<T> {
     ///
     /// # Safety
     ///
-    /// This mostly undoes the point of these [`Index`] types, but an escape
-    /// hatch is useful. It's not `unsafe` since that feels a little too big a
-    /// red flag for using this, but be careful!
+    /// While now marked `unsafe`, this mostly undoes the point if you're not
+    /// the one consuming the index you're creating.
     #[inline(always)]
     pub const fn new(n: u32) -> Index<T> {
         Index(n as u32, PhantomData)
@@ -115,13 +119,19 @@ impl<T> Index<T> {
 }
 
 impl<T> From<Index<T>> for u32 {
-    fn from(val: Index<T>) -> Self {
-        val.0
+    fn from(n: Index<T>) -> Self {
+        n.0
+    }
+}
+
+impl<T> From<Index<T>> for u48 {
+    fn from(n: Index<T>) -> Self {
+        u48::from(n.0)
     }
 }
 
 impl<T> From<Index<T>> for usize {
-    fn from(val: Index<T>) -> Self {
-        val.0 as usize
+    fn from(n: Index<T>) -> Self {
+        n.0 as usize
     }
 }
