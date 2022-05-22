@@ -50,8 +50,9 @@ mod primitives;
 use common::{i48, u48};
 
 use crate::{
+    error::CastError,
     memory::{Class, Gc, GcAny, Object, Trace, WorkList},
-    primitives::{Error, PrimitiveOperations},
+    primitives::PrimitiveOperations,
 };
 
 /// A value which is either stored inline or as pointer to a garbage collected
@@ -160,16 +161,22 @@ impl Value {
         Value(bits)
     }
 
-    /// Store a [`Gc`] pointer to any [`Object`] as a [`Value`].
+    /// Store a [`GcAny`] pointer as a [`Value`].
     #[inline]
-    pub fn object(gc: GcAny) -> Value {
-        let bits: u64 = unsafe { std::mem::transmute(gc) };
+    pub fn gc_any(any: GcAny) -> Value {
+        let bits: u64 = unsafe { std::mem::transmute(any) };
 
         Value(
             (bits & Value::PAYLOAD_MASK)
                 | Value::PACKED_MASK
                 | Tag::Object as u64,
         )
+    }
+
+    /// Store a [`Gc`] pointer as a [`Value`].
+    #[inline]
+    pub fn gc<T: Class>(gc: Gc<T>) -> Value {
+        Value::gc_any(GcAny::from(gc))
     }
 }
 
@@ -306,8 +313,15 @@ impl Value {
 
     /// View this value as an opaque [`Gc<T>`] reference to an [`Object`].
     #[inline]
-    pub fn as_gc<T: Class>(&self) -> Option<Gc<T>> {
-        self.as_gc_any().and_then(|any| Gc::try_from(any).ok())
+    pub fn as_gc<T: Class>(&self) -> Result<Gc<T>, CastError> {
+        if let Some(any) = self.as_gc_any() {
+            Gc::try_from(any)
+        } else {
+            Err(CastError {
+                from: self.type_name(),
+                to: T::ID.name(),
+            })
+        }
     }
 }
 
@@ -438,10 +452,10 @@ impl Trace for Value {
 }
 
 impl TryInto<()> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<(), Self::Error> {
-        self.as_unit().ok_or_else(|| Error::Cast {
+        self.as_unit().ok_or_else(|| CastError {
             from: self.type_name(),
             to: true.type_name(),
         })
@@ -449,10 +463,10 @@ impl TryInto<()> for Value {
 }
 
 impl TryInto<bool> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<bool, Self::Error> {
-        self.as_bool().ok_or_else(|| Error::Cast {
+        self.as_bool().ok_or_else(|| CastError {
             from: self.type_name(),
             to: true.type_name(),
         })
@@ -460,10 +474,10 @@ impl TryInto<bool> for Value {
 }
 
 impl TryInto<char> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<char, Self::Error> {
-        self.as_char().ok_or_else(|| Error::Cast {
+        self.as_char().ok_or_else(|| CastError {
             from: self.type_name(),
             to: 'a'.type_name(),
         })
@@ -471,10 +485,10 @@ impl TryInto<char> for Value {
 }
 
 impl TryInto<i48> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<i48, Self::Error> {
-        self.as_int().ok_or_else(|| Error::Cast {
+        self.as_int().ok_or_else(|| CastError {
             from: self.type_name(),
             to: i48::ZERO.type_name(),
         })
@@ -482,10 +496,10 @@ impl TryInto<i48> for Value {
 }
 
 impl TryInto<u48> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<u48, Self::Error> {
-        self.as_nat().ok_or_else(|| Error::Cast {
+        self.as_nat().ok_or_else(|| CastError {
             from: self.type_name(),
             to: u48::MAX.type_name(),
         })
@@ -493,10 +507,10 @@ impl TryInto<u48> for Value {
 }
 
 impl TryInto<f64> for Value {
-    type Error = Error;
+    type Error = CastError;
 
     fn try_into(self) -> Result<f64, Self::Error> {
-        self.as_float().ok_or_else(|| Error::Cast {
+        self.as_float().ok_or_else(|| CastError {
             from: self.type_name(),
             to: 0f64.type_name(),
         })
@@ -536,6 +550,18 @@ impl From<i48> for Value {
 impl From<f64> for Value {
     fn from(f: f64) -> Value {
         Value::float(f)
+    }
+}
+
+impl From<GcAny> for Value {
+    fn from(any: GcAny) -> Value {
+        Value::gc_any(any)
+    }
+}
+
+impl<T: Class> From<Gc<T>> for Value {
+    fn from(gc: Gc<T>) -> Value {
+        Value::gc(gc)
     }
 }
 

@@ -1,12 +1,15 @@
 //! The virtual machine's big dispatch loop
 
+use std::ops::Deref;
+
 use common::i48;
 use compiler::{Capture, Constant, Function, Get, Index, Local, Op};
 
 use crate::{
-    classes::{Closure, List, Upvalue, UpvalueContents},
+    classes::{CaptureCell, Closure, List},
     error::Result,
-    primitives::{Error as PrimitiveError, PrimitiveOperations},
+    memory::Gc,
+    primitives::PrimitiveOperations,
     value::Value,
     vm::{Address, CallFrame, Exit, ValueStack},
     Error, VirtualMachine,
@@ -46,7 +49,9 @@ impl VirtualMachine {
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::CloseCapture => {
-                    self.close_capture(self.value_stack.index_from_top(1))?;
+                    self.close_captures_above(
+                        self.value_stack.index_from_top(1),
+                    );
                     self.value_stack.pop();
                 }
                 Op::Return => self.r#return()?,
@@ -131,22 +136,16 @@ impl VirtualMachine {
     /// the stack.
     #[inline]
     fn load_capture(&mut self, index: Index<Capture>) -> Result<()> {
-        let upvalue: UpvalueContents = self
+        let contents = self
             .value_stack
-            .get_closure(self.bp())
+            .get(self.bp())
             .ok_or(Error::StackIndexBelowZero)?
-            .use_as::<Closure, _, UpvalueContents>(|c| {
-                c.get_capture(index.as_usize())
-                    .use_as::<Upvalue, _, _>(|u| Ok(u.contents()))
-            })?;
+            .as_gc::<Closure>()?
+            .deref()
+            .get_capture(index)?
+            .contents();
 
-        let value = match upvalue {
-            UpvalueContents::Stack(stack_index) => self
-                .value_stack
-                .get(stack_index)
-                .ok_or(Error::StackIndexBelowZero)?,
-            UpvalueContents::Inline(v) => v,
-        };
+        let value = contents.get(self.value_stack())?;
 
         self.value_stack.push(value);
         Ok(())
@@ -162,61 +161,54 @@ impl VirtualMachine {
     }
 
     /// The [`LoadClosure`][Op::LoadClosure] instruction creates an instance of
-    /// the closure described by the indexed [`Prototype`] in the current
+    /// the closure described by the indexed [`Function`] in the current
     /// module, and leaves it on the stack.
     #[inline]
     fn load_closure(&mut self, index: Index<Function>) -> Result<()> {
         let module = self.pc().module;
 
-        let gc_obj = self.make_from::<Closure, _>((module, index));
-        let closure = Value::object(gc_obj);
-        self.value_stack.push(closure);
+        let new_closure: Gc<Closure> = self.make_from((module, index));
+        self.value_stack.push(Value::from(new_closure));
 
         let bp = self.bp();
 
-        // hard to believe there's a bug here
+        let current_closure: Gc<Closure> =
+            self.value_stack.get(bp).unwrap().as_gc()?;
 
-        self.value_stack
-            .get_closure(bp)
+        // now we set up the capture cells
+        let capture_count = self
+            .get(module)
             .unwrap()
-            .use_as::<Closure, _, ()>(|current_closure| {
-                closure.use_as::<Closure, _, ()>(|new_closure| {
-                    let cap_len = {
-                        let prototype =
-                            self.get(module).unwrap().get(index).unwrap();
-                        prototype.capture_count()
-                    };
+            .get(index)
+            .unwrap()
+            .capture_count();
 
-                    // now we set up the upvalues
-                    for i in 0..cap_len {
-                        let (is_local, index) = {
-                            let cap = self
-                                .get(module)
-                                .unwrap()
-                                .get(index)
-                                .unwrap()
-                                .captures()[i];
-                            (cap.is_local(), cap.index())
-                        };
+        for ci in 0..capture_count {
+            let capture = self
+                .get(module)
+                .unwrap()
+                .get(index)
+                .unwrap()
+                .get_capture(ci)
+                .unwrap();
 
-                        let upvalue = if is_local {
-                            let local: Index<ValueStack> = Index::new(
-                                // TODO: overflows?
-                                (index.as_usize() + self.bp().as_usize())
-                                    as u32,
-                            );
+            let capture_cell = if capture.is_local() {
+                let local: Index<ValueStack> = Index::new(
+                    // TODO: overflows?
+                    (index.as_usize() + self.bp().as_usize()) as u32,
+                );
 
-                            Value::object(self.make_from::<Upvalue, _>(local))
-                        } else {
-                            current_closure.get_capture(index.as_usize())
-                        };
+                let cell: Gc<CaptureCell> = self.make_from(local);
 
-                        new_closure.push_capture(upvalue);
-                    }
+                cell
+            } else {
+                // TODO: what's going on here?
+                let ci = Index::new(capture.index().into());
+                current_closure.get_capture(ci)?
+            };
 
-                    Ok(())
-                })
-            })?;
+            new_closure.push_capture(capture_cell);
+        }
 
         Ok(())
     }
@@ -234,7 +226,8 @@ impl VirtualMachine {
         let prototype = self
             .value_stack
             .get_from_top(arg_count)?
-            .use_as(|c: &Closure| Ok(c.prototype()))?;
+            .as_gc::<Closure>()?
+            .prototype();
 
         match self.get(prototype) {
             Some(p) if p.parameter_count() == arg_count => Ok(()),
@@ -243,7 +236,9 @@ impl VirtualMachine {
         }?;
 
         let pc = Address::new(module, prototype, Index::new(0));
-        let bp = self.value_stack.index_from_top(arg_count);
+
+        // base pointer points to the closure, not the first argument.
+        let bp = self.value_stack.index_from_top(arg_count + 1);
 
         let new_frame = CallFrame::new(pc, bp);
         self.call_stack.push(new_frame);
@@ -252,31 +247,21 @@ impl VirtualMachine {
     }
 
     /// The [`CloseCapture`][Op::CloseCapture] instruction closes any open
-    /// upvalues which occur on the stack on top of the the `top` index.
+    /// upvalues which occur in the open list with a stack index above top.
     #[inline]
-    fn close_capture(&mut self, top: Index<ValueStack>) -> Result<()> {
-        while let Some(capture) = self.open_captures.last() {
-            let done =
-                capture.use_as::<Upvalue, _, _>(|u| match u.contents() {
-                    UpvalueContents::Inline(_) => Ok(false),
-                    UpvalueContents::Stack(index) => {
-                        if index >= top {
-                            let value = self.value_stack.get(index).unwrap();
-                            u.close(value);
-                            Ok(false)
-                        } else {
-                            Ok(true)
-                        }
-                    }
-                })?;
-            if done {
-                break;
-            } else {
-                self.open_captures.pop();
+    fn close_captures_above(&mut self, top: Index<ValueStack>) {
+        while let Some((index, cell)) = self.open_captures.open.last().cloned()
+        {
+            if index > top {
+                let value = self
+                    .value_stack
+                    .get(index)
+                    .expect("open capture cell past end of stack");
+
+                cell.close(value);
+                self.open_captures.open.pop();
             }
         }
-
-        Ok(())
     }
 
     /// The [`Return`][Op::Return] instruction returns from a function call,
@@ -288,9 +273,8 @@ impl VirtualMachine {
         let frame = self.call_stack.pop().ok_or(Error::CannotReturnFromTop)?;
         let result = self.value_stack.last();
 
-        self.close_capture(frame.bp)?;
+        self.close_captures_above(frame.bp);
         self.value_stack.truncate_to(frame.bp);
-        // TODO: are we worried about it collecting result before this?
         self.value_stack.push(result);
         Ok(())
     }
@@ -300,15 +284,13 @@ impl VirtualMachine {
     /// of the stack.
     #[inline]
     fn list(&mut self, n: u32) -> Result<()> {
-        let start = self.stack_frame().len() - n as usize;
-
-        let slice = &self.stack_frame()[start..];
+        let slice = self.value_stack().last_n(n as usize);
 
         debug_assert_eq!(slice.len(), n as usize);
 
         let vec = Vec::from(slice);
-        let list = self.make_from::<List, _>(vec);
-        let value = Value::object(list);
+        let list: Gc<List> = self.make_from(vec);
+        let value = Value::gc(list);
 
         if n > 0 {
             self.value_stack.set_from_top(n - 1, value)?;
@@ -390,15 +372,12 @@ impl VirtualMachine {
 #[inline(always)]
 fn cmp(
     op: fn(&Value, &Value) -> Option<bool>,
-) -> impl Fn(
-    &Value,
-    Value,
-    &mut VirtualMachine,
-) -> std::result::Result<Value, PrimitiveError> {
+) -> impl Fn(&Value, Value, &mut VirtualMachine) -> std::result::Result<Value, Error>
+{
     #[inline(always)]
     move |lhs, rhs, _| {
         op(lhs, &rhs).map(Value::bool).ok_or_else(|| {
-            PrimitiveError::OperationNotSupported {
+            Error::OperationNotSupported {
                 type_name: lhs.type_name(),
                 op_name: "cmp",
             }

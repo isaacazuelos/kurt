@@ -2,9 +2,13 @@
 
 use std::{error, fmt};
 
-use crate::primitives::Error as PrimitiveError;
-
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+pub struct CastError {
+    pub from: &'static str,
+    pub to: &'static str,
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -27,8 +31,14 @@ pub enum Error {
     OpIndexOutOfRange,
     PrototypeIndexOutOfRange,
     CaptureIndexOutOfRange,
+    SubscriptIndexOutOfRange,
 
-    Primitive(PrimitiveError),
+    OperationNotSupported {
+        type_name: &'static str,
+        op_name: &'static str,
+    },
+
+    Cast(CastError),
 }
 
 impl error::Error for Error {}
@@ -64,14 +74,22 @@ impl fmt::Display for Error {
             CaptureIndexOutOfRange => {
                 write!(f, "capture index is out of range")
             }
+            SubscriptIndexOutOfRange => {
+                write!(f, "subscript index out of range")
+            }
 
-            Primitive(p) => write!(f, "primitive error: {:?}", p),
+            Cast(c) => {
+                write!(f, "error casting a {} to {}", c.from, c.to)
+            }
+            OperationNotSupported { type_name, op_name } => {
+                write!(f, "cannot {} with type {}", op_name, type_name)
+            }
         }
     }
 }
 
-impl From<PrimitiveError> for Error {
-    fn from(e: PrimitiveError) -> Error {
-        Error::Primitive(e)
+impl From<CastError> for Error {
+    fn from(e: CastError) -> Self {
+        Error::Cast(e)
     }
 }

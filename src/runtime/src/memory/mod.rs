@@ -80,7 +80,7 @@ impl VirtualMachine {
     /// Allocate a new [`Object`] and initialize it using it's [`Default`]
     /// instance.
     #[allow(dead_code)]
-    pub(crate) fn make<C>(&mut self) -> GcAny
+    pub(crate) fn make<C>(&mut self) -> Gc<C>
     where
         C: Class + Default,
     {
@@ -88,7 +88,7 @@ impl VirtualMachine {
     }
 
     /// Allocate a new [`Object`], initializing it from the given argument.
-    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> GcAny
+    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> Gc<C>
     where
         C: Class + InitFrom<A>,
     {
@@ -118,7 +118,7 @@ impl VirtualMachine {
             #[cfg(feature = "gc_trace")]
             eprintln!("initialized {:?} as {:?}", gc, gc.deref());
 
-            gc
+            gc.cast_unchecked()
         }
     }
 

@@ -39,7 +39,7 @@ impl ValueStack {
     /// Drop all the values from the top of the stack down to (and including)
     /// the given index.
     pub fn truncate_to(&mut self, index: Index<ValueStack>) {
-        self.values.truncate(index.as_usize().saturating_sub(1));
+        self.values.truncate(index.as_usize());
     }
 
     /// Drop `count` values from the top of the stack. If `count` is larger then the
@@ -61,12 +61,14 @@ impl ValueStack {
         }
     }
 
+    /// Get a local by it's index (with respect to the frame's base pointer).
     pub(crate) fn get_local(
         &self,
         base: Index<ValueStack>,
         local: Index<Local>,
     ) -> Result<Value> {
-        let index = base.as_usize() + local.as_usize();
+        // base points to the current closure, so local 0 is at base + 1
+        let index = base.as_usize() + 1 + local.as_usize();
         self.values
             .get(index)
             .cloned()
@@ -103,14 +105,26 @@ impl ValueStack {
         Index::new(i as u32)
     }
 
-    pub(crate) fn get_closure(&self, base: Index<ValueStack>) -> Option<Value> {
-        match base.as_usize() {
-            0 => None,
-            n => self.values.get(n - 1).cloned(),
-        }
-    }
-
     pub(crate) fn get(&self, index: Index<ValueStack>) -> Option<Value> {
         self.values.get(index.as_usize()).cloned()
+    }
+
+    pub(crate) fn last_n(&self, n: usize) -> &[Value] {
+        let start = self.values.len().saturating_sub(n);
+        &self.values[start..]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn last_n() {
+        let mut stack = ValueStack::default();
+        stack.push(Value::from(false));
+        stack.push(Value::from(true));
+
+        assert_eq!(stack.last_n(1), [Value::from(true)]);
     }
 }

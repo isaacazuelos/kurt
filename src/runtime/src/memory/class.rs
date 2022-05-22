@@ -23,7 +23,7 @@ pub enum ClassId {
     Keyword,
     List,
     String,
-    Upvalue,
+    CaptureCell,
 }
 
 impl ClassId {
@@ -33,7 +33,7 @@ impl ClassId {
             ClassId::Keyword => "Keyword",
             ClassId::List => "List",
             ClassId::String => "String",
-            ClassId::Upvalue => "Upvalue",
+            ClassId::CaptureCell => "CaptureCell",
         }
     }
 }

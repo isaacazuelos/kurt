@@ -144,7 +144,7 @@ impl Trace for VirtualMachine {
         }
 
         // And all the open captures too
-        for capture in self.open_captures() {
+        for capture in self.open_captures.iter() {
             capture.enqueue_gc_references(worklist);
         }
     }

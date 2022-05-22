@@ -13,9 +13,9 @@ use crate::{
         collector::GCHeader,
         trace::{Trace, WorkList},
     },
-    primitives::{Error, PrimitiveOperations},
+    primitives::PrimitiveOperations,
     value::Value,
-    VirtualMachine,
+    Error, VirtualMachine,
 };
 
 macro_rules! dispatch {
@@ -25,7 +25,7 @@ macro_rules! dispatch {
             ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
             ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
-            ClassId::Upvalue => $f( $obj.downcast::<Upvalue>().unwrap(), $( $arg, )*),
+            ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
         }
     };
 }
@@ -66,7 +66,7 @@ impl Object {
     /// Attempt to cast the object as an reference to a specific [`Class`].
     ///
     /// This return's `None` if the object is not the right class.
-    pub fn downcast<C: Class>(&self) -> Option<&C> {
+    fn downcast<C: Class>(&self) -> Option<&C> {
         if self.class_id() == C::ID {
             Some(unsafe { std::mem::transmute::<_, _>(self) })
         } else {
@@ -112,26 +112,6 @@ impl Object {
     /// The size of the object's underlying allocation, in bytes.
     pub(crate) fn size(&self) -> usize {
         self.size
-    }
-}
-
-impl Value {
-    /// Use a value as an instance of some [`Class`] `C`, if it is one.
-    pub(crate) fn use_as<C, F, R>(&self, inner: F) -> Result<R, Error>
-    where
-        C: Class,
-        F: FnOnce(&C) -> Result<R, Error>,
-    {
-        if let Some(object) = self.as_gc_any() {
-            if let Some(instance) = object.deref().downcast() {
-                return inner(instance);
-            }
-        }
-
-        Err(Error::Cast {
-            from: self.type_name(),
-            to: C::ID.name(),
-        })
     }
 }
 

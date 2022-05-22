@@ -59,7 +59,7 @@ impl Script {
             return;
         }
 
-        let mut runtime = VirtualMachine::new();
+        let mut runtime = VirtualMachine::default();
 
         if let Err(e) = runtime.load(main) {
             let d = Diagnostic::new(format!("{e}"));

@@ -11,9 +11,9 @@
 use common::{i48, u48};
 
 use crate::{
-    primitives::{Error, PrimitiveOperations},
+    primitives::PrimitiveOperations,
     value::{Tag, Value},
-    VirtualMachine,
+    Error, VirtualMachine,
 };
 
 macro_rules! basic_impl {

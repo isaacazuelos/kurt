@@ -1,13 +1,13 @@
+mod capture;
 mod closure;
 mod keyword;
 mod list;
 mod string;
-mod upvalue;
 
 pub use self::{
+    capture::{CaptureCell, CaptureCellContents},
     closure::Closure,
     keyword::Keyword,
     list::List,
     string::String,
-    upvalue::{Upvalue, UpvalueContents},
 };

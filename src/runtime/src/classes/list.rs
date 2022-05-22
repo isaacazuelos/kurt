@@ -8,11 +8,7 @@ use std::{
 
 use common::i48;
 
-use crate::{
-    memory::*,
-    primitives::{Error, PrimitiveOperations},
-    value::Value,
-};
+use crate::{memory::*, primitives::PrimitiveOperations, value::Value, Error};
 
 #[repr(C, align(8))]
 pub struct List {

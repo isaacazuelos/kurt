@@ -12,43 +12,54 @@ use compiler::Index;
 
 use crate::{
     memory::*, primitives::PrimitiveOperations, value::Value, vm::ValueStack,
+    Error,
 };
 
 #[derive(Debug, Clone, Copy)]
-pub enum UpvalueContents {
+pub enum CaptureCellContents {
     Inline(Value),
     Stack(Index<ValueStack>),
 }
 
-#[repr(C, align(8))]
-pub struct Upvalue {
-    /// The base object required to be a [`Class`].
-    base: Object,
-
-    contents: Cell<UpvalueContents>,
+impl CaptureCellContents {
+    pub fn get(&self, stack: &ValueStack) -> Result<Value, Error> {
+        match self {
+            CaptureCellContents::Stack(stack_index) => {
+                stack.get(*stack_index).ok_or(Error::StackIndexBelowZero)
+            }
+            CaptureCellContents::Inline(v) => Ok(*v),
+        }
+    }
 }
 
-impl Upvalue {
-    pub fn contents(&self) -> UpvalueContents {
+#[repr(C, align(8))]
+pub struct CaptureCell {
+    /// The base object required to be a [`Class`].
+    base: Object,
+    contents: Cell<CaptureCellContents>,
+}
+
+impl CaptureCell {
+    pub fn contents(&self) -> CaptureCellContents {
         self.contents.get()
     }
 
     pub(crate) fn close(&self, value: Value) {
-        self.contents.replace(UpvalueContents::Inline(value));
+        self.contents.replace(CaptureCellContents::Inline(value));
     }
 }
 
-impl Class for Upvalue {
-    const ID: ClassId = ClassId::Upvalue;
+impl Class for CaptureCell {
+    const ID: ClassId = ClassId::CaptureCell;
 }
 
-impl Trace for Upvalue {
+impl Trace for CaptureCell {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         match self.contents.get() {
-            UpvalueContents::Inline(v) => {
+            CaptureCellContents::Inline(v) => {
                 v.enqueue_gc_references(worklist);
             }
-            UpvalueContents::Stack(_) => {
+            CaptureCellContents::Stack(_) => {
                 // If the value is on the stack, it's a GC root and we don't
                 // need to worry about it.
             }
@@ -56,7 +67,7 @@ impl Trace for Upvalue {
     }
 }
 
-impl PartialEq for Upvalue {
+impl PartialEq for CaptureCell {
     fn eq(&self, _other: &Self) -> bool {
         panic!(
             "can't compare upvalues yet, as primitive comparison methods \
@@ -65,45 +76,49 @@ impl PartialEq for Upvalue {
     }
 }
 
-impl PartialOrd for Upvalue {
+impl PartialOrd for CaptureCell {
     fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
         None
     }
 }
 
-impl PrimitiveOperations for Upvalue {
+impl PrimitiveOperations for CaptureCell {
     fn type_name(&self) -> &'static str {
         "Upvalue"
     }
 }
 
-impl Debug for Upvalue {
+impl Debug for CaptureCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.contents.get() {
-            UpvalueContents::Inline(v) => write!(f, "<upvalue inline {:?}>", v),
-            UpvalueContents::Stack(i) => write!(f, "<upvalue stack {:?}>", i),
+            CaptureCellContents::Inline(v) => {
+                write!(f, "<upvalue inline {:?}>", v)
+            }
+            CaptureCellContents::Stack(i) => {
+                write!(f, "<upvalue stack {:?}>", i)
+            }
         }
     }
 }
 
-impl InitFrom<Value> for Upvalue {
+impl InitFrom<Value> for CaptureCell {
     fn extra_size(_: &Value) -> usize {
         0
     }
 
     unsafe fn init(ptr: *mut Self, value: Value) {
         addr_of_mut!((*ptr).contents)
-            .write(Cell::new(UpvalueContents::Inline(value)));
+            .write(Cell::new(CaptureCellContents::Inline(value)));
     }
 }
 
-impl InitFrom<Index<ValueStack>> for Upvalue {
+impl InitFrom<Index<ValueStack>> for CaptureCell {
     fn extra_size(_: &Index<ValueStack>) -> usize {
         0
     }
 
     unsafe fn init(ptr: *mut Self, index: Index<ValueStack>) {
         addr_of_mut!((*ptr).contents)
-            .write(Cell::new(UpvalueContents::Stack(index)));
+            .write(Cell::new(CaptureCellContents::Stack(index)));
     }
 }

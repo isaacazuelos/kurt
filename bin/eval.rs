@@ -36,7 +36,7 @@ impl Evaluate {
             return;
         }
 
-        let mut runtime = VirtualMachine::new();
+        let mut runtime = VirtualMachine::default();
 
         match runtime.load(main) {
             Ok(rt) => rt,

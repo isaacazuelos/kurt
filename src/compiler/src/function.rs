@@ -49,6 +49,10 @@ impl Function {
         &self.captures
     }
 
+    pub fn get_capture(&self, index: usize) -> Option<Capture> {
+        self.captures.get(index).cloned()
+    }
+
     /// Get the instruction at the given instruction index. Returns `None` if
     /// the instruction is out of range.
     pub fn get(&self, index: Index<Op>) -> Option<Op> {

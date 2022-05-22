@@ -7,10 +7,10 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::{Function, Index, Module};
+use compiler::{Capture, Function, Index, Module};
 
 use crate::{
-    classes::Upvalue, memory::*, primitives::PrimitiveOperations, value::Value,
+    classes::CaptureCell, memory::*, primitives::PrimitiveOperations, Error,
 };
 
 #[repr(C, align(8))]
@@ -22,7 +22,7 @@ pub struct Closure {
     prototype: Index<Function>,
 
     // TODO: We should make this inline since we know the max capacity per-closure.
-    captures: RefCell<Vec<Value>>,
+    captures: RefCell<Vec<Gc<CaptureCell>>>,
 }
 
 impl Closure {
@@ -36,19 +36,19 @@ impl Closure {
         self.prototype
     }
 
-    pub fn get_capture(&self, i: usize) -> Value {
-        self.captures.borrow()[i]
+    pub fn get_capture(
+        &self,
+        index: Index<Capture>,
+    ) -> Result<Gc<CaptureCell>, Error> {
+        self.captures
+            .borrow()
+            .get(index.as_usize())
+            .cloned()
+            .ok_or(Error::CaptureIndexOutOfRange)
     }
 
-    pub(crate) fn push_capture(&self, upvalue: Value) {
-        debug_assert!(
-            upvalue
-                .as_gc_any()
-                .map(|o| o.deref().class_id() == Upvalue::ID)
-                == Some(true)
-        );
-
-        self.captures.borrow_mut().deref_mut().push(upvalue);
+    pub(crate) fn push_capture(&self, cell: Gc<CaptureCell>) {
+        self.captures.borrow_mut().deref_mut().push(cell);
     }
 }
 

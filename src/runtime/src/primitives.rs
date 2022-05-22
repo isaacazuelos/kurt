@@ -13,22 +13,7 @@
 
 use std::cmp::Ordering;
 
-use crate::{Value, VirtualMachine};
-
-#[derive(Debug)]
-pub enum Error {
-    OperationNotSupported {
-        type_name: &'static str,
-        op_name: &'static str,
-    },
-
-    SubscriptIndexOutOfRange,
-
-    Cast {
-        from: &'static str,
-        to: &'static str,
-    },
-}
+use crate::{Error, Value, VirtualMachine};
 
 pub trait PrimitiveOperations: Sized {
     fn type_name(&self) -> &'static str;
