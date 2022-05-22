@@ -25,6 +25,7 @@ pub enum Error {
     TooManyOps(Span),
     TooManyParameters(Span),
     TooManyPrototypes(Span),
+    TooManyLocals(Span),
 }
 
 impl fmt::Display for Error {
@@ -70,6 +71,9 @@ impl fmt::Display for Error {
             TooManyPrototypes(_) => {
                 write!(f, "this module has too many functions")
             }
+            TooManyLocals(_) => {
+                write!(f, "this function has too many local bindings")
+            }
         }
     }
 }
@@ -92,6 +96,7 @@ impl Error {
             Error::TooManyOps(s) => *s,
             Error::TooManyParameters(s) => *s,
             Error::TooManyPrototypes(s) => *s,
+            Error::TooManyLocals(s) => *s,
         }
     }
 }
@@ -121,6 +126,7 @@ impl From<Error> for Diagnostic {
             Error::TooManyOps(s) => Error::too_many_ops(s, d),
             Error::TooManyParameters(s) => Error::too_many_params(s, d),
             Error::TooManyPrototypes(s) => Error::too_many_prototypes(s, d),
+            Error::TooManyLocals(s) => Error::too_many_locals(s, d),
         }
     }
 }
@@ -174,6 +180,15 @@ impl Error {
             "each module can only have {} function definitions",
             Module::MAX_FUNCTIONS - 1,
         ))
+    }
+
+    fn too_many_locals(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this binding is the culprit")
+            .info(format!(
+                "each module can only have {} local bindings",
+                Function::MAX_BINDINGS - 1,
+            ))
+            .info("both function parameters and `let` bindings count")
     }
 
     fn parse_int(

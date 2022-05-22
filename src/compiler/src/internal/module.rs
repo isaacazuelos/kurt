@@ -255,10 +255,12 @@ impl ModuleBuilder {
 
     pub(crate) fn resolve_capture(
         &mut self,
-        name: &str,
-    ) -> Option<Index<Capture>> {
-        let (current, enclosing) = self.compiling.split_last_mut()?;
-
-        current.resolve_capture(name, enclosing)
+        syntax: &syntax::Identifier,
+    ) -> Result<Option<Index<Capture>>, Error> {
+        if let Some((current, enclosing)) = self.compiling.split_last_mut() {
+            current.resolve_capture(syntax.as_str(), syntax.span(), enclosing)
+        } else {
+            Ok(None)
+        }
     }
 }

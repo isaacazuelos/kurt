@@ -27,6 +27,10 @@ impl Function {
     /// The maximum number of parameters allowed in a function definition
     pub const MAX_PARAMETERS: usize = Index::<Local>::MAX;
 
+    /// The maximum number of bindings (locals and parameters) allowed in a
+    /// function.
+    pub const MAX_BINDINGS: usize = Index::<Local>::MAX;
+
     /// The maximum number of arguments allowed in a function call.
     ///
     /// This is limited by the number of parameters a function can access.

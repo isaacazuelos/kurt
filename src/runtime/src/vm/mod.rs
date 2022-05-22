@@ -39,7 +39,7 @@ pub struct VirtualMachine {
 }
 
 impl VirtualMachine {
-    const MAIN: Index<Module> = Index::new(0);
+    const MAIN: Index<Module> = Index::START;
 
     pub fn load(&mut self, module: Module) -> Result<()> {
         let new_index = Index::new(self.modules.len() as u32);
@@ -63,8 +63,8 @@ impl VirtualMachine {
         self.value_stack.push(Value::from(main_closure));
 
         self.call_stack.push(CallFrame::new(
-            Address::new(VirtualMachine::MAIN, Module::MAIN, Index::new(0)),
-            Index::new(0),
+            Address::new(VirtualMachine::MAIN, Module::MAIN, Index::START),
+            Index::START,
         ));
 
         self.run()

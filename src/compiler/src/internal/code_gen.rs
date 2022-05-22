@@ -261,11 +261,9 @@ impl ModuleBuilder {
         &mut self,
         syntax: &syntax::Identifier,
     ) -> Result<()> {
-        let name = syntax.as_str();
-
-        if let Some(index) = self.resolve_local(name) {
+        if let Some(index) = self.resolve_local(syntax.as_str()) {
             self.emit(Op::LoadLocal(index), syntax.span())
-        } else if let Some(index) = self.resolve_capture(name) {
+        } else if let Some(index) = self.resolve_capture(syntax)? {
             self.emit(Op::LoadCapture(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))

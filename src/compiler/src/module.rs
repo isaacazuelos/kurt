@@ -18,7 +18,7 @@ pub struct Module {
 
 impl Module {
     /// Index of the `main` function for this module, it's top-level code.
-    pub const MAIN: Index<Function> = Index::new(0);
+    pub const MAIN: Index<Function> = Index::START;
 
     /// The maximum number of functions that a module can contain.
     ///

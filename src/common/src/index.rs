@@ -32,7 +32,7 @@ pub struct Index<T>(u32, PhantomData<T>);
 
 impl<T> Index<T> {
     /// Index 0, the starting index.
-    pub const START: Index<T> = Index::new(0);
+    pub const START: Index<T> = Index(0, PhantomData);
 
     /// The largest any [`Index`] can be.
     pub const MAX: usize = u32::MAX as usize;
@@ -55,7 +55,7 @@ impl<T> Index<T> {
         if self.0 == 0 {
             None
         } else {
-            Some(Index::new(self.0 - 1))
+            Some(Index(self.0 - 1, PhantomData))
         }
     }
 
@@ -104,8 +104,8 @@ impl<T> Index<T> {
     ///
     /// # Safety
     ///
-    /// While now marked `unsafe`, this mostly undoes the point if you're not
-    /// the one consuming the index you're creating.
+    /// While now marked `unsafe`, this mostly undoes the point. Try not to use
+    /// this if you're not the one consuming the index later.
     #[inline(always)]
     pub const fn new(n: u32) -> Index<T> {
         Index(n as u32, PhantomData)

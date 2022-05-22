@@ -37,6 +37,7 @@ impl Code {
     }
 
     pub(crate) fn next_index(&self) -> Index<Op> {
+        // len was checked in emit, so this cast is safe.
         Index::new(self.opcodes.len() as u32)
     }
 

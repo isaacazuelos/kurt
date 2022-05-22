@@ -235,7 +235,7 @@ impl VirtualMachine {
             None => Err(Error::PrototypeIndexOutOfRange),
         }?;
 
-        let pc = Address::new(module, prototype, Index::new(0));
+        let pc = Address::new(module, prototype, Index::START);
 
         // base pointer points to the closure, not the first argument.
         let bp = self.value_stack.index_from_top(arg_count + 1);

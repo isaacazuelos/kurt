@@ -6,7 +6,7 @@ use diagnostic::Span;
 use common::{Get, Index};
 
 use crate::{
-    error::Result,
+    error::{Error, Result},
     internal::{capture::Capture, code::Code, local::Local},
     opcode::Op,
     Function, FunctionDebug,
@@ -135,21 +135,24 @@ impl FunctionBuilder {
         &mut self,
         local_index: Index<Local>,
         is_local: bool,
-    ) -> Index<Capture> {
+        span: Span,
+    ) -> Result<Index<Capture>> {
         // reuse if already captured
         for (i, capture) in self.captures.iter().enumerate() {
             if capture.index() == local_index && capture.is_local() == is_local
             {
-                return Index::new(i as u32);
+                // We only add things to self.captures below, and check it there.
+                return Ok(Index::new(i as u32));
             }
         }
 
-        // TODO: Error::TooManyLocals
-
-        let capture_index = self.captures.len() as u32;
-        self.captures.push(Capture::new(local_index, is_local));
-
-        Index::new(capture_index)
+        let capture_index = self.captures.len();
+        if capture_index >= Function::MAX_BINDINGS {
+            Err(Error::TooManyLocals(span))
+        } else {
+            self.captures.push(Capture::new(local_index, is_local));
+            Ok(Index::new(capture_index as u32))
+        }
     }
 
     /// Return the [`Index<Local>`] for a local variable with the given name, if
@@ -167,34 +170,38 @@ impl FunctionBuilder {
         None
     }
 
+    // Err means an error occurred, whereas Ok(None) means no error but there's
+    // no capture found.
     pub(crate) fn resolve_capture(
         &mut self,
         name: &str,
+        span: Span,
         enclosing: &mut [FunctionBuilder],
-    ) -> Option<Index<Capture>> {
-        // The top-level has no captures. At least not yet.
-        if enclosing.is_empty() {
-            return None;
+    ) -> Result<Option<Index<Capture>>> {
+        // we just checked if it's empty, so unwrap is safe.
+        if let Some((next, enclosing_next)) = enclosing.split_last_mut() {
+            // If it's a local, turn it into a capture
+            if let Some(local) = next.resolve_local(name) {
+                next.mark_as_captured(local);
+                let index = self.add_capture(local, true, span)?;
+                return Ok(Some(index));
+            }
+
+            // If it's a capture of some enclosing scope, capture that.
+            if let Some(capture) =
+                next.resolve_capture(name, span, enclosing_next)?
+            {
+                // They're different kinds of indexes, but that's okay because a
+                // capture index is a local index relative to it's original call
+                // frame, which is the one that needs to promote it.
+                let local_index = Index::new(capture.into());
+                let capture_index =
+                    self.add_capture(local_index, false, span)?;
+                return Ok(Some(capture_index));
+            }
         }
 
-        let (next, enclosing_next) = enclosing.split_last_mut()?;
-
-        // If it's a local, turn it into a capture
-        if let Some(local) = next.resolve_local(name) {
-            next.mark_as_captured(local);
-            return Some(self.add_capture(local, true));
-        }
-
-        // If it's a capture of some enclosing scope, capture that.
-        if let Some(capture) = next.resolve_capture(name, enclosing_next) {
-            // They're different kinds of indexes, but that's okay because a
-            // capture index is a local index relative to it's original call
-            // frame, which is the one that needs to promote it.
-            let index = Index::new(capture.into());
-            return Some(self.add_capture(index, false));
-        }
-
-        None
+        Ok(None)
     }
 
     pub(crate) fn mark_as_captured(&mut self, local: Index<Local>) {
