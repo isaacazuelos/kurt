@@ -2,7 +2,7 @@
 
 /// Each [`Exit`] is a reason a [`VirtualMachine`][crate::VirtualMachine] may have stopped running (which
 /// isn't an [`Error`]).
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Exit {
     /// The runtime hit the end of it's code.
     Halt,
