@@ -21,12 +21,13 @@ use crate::{
 macro_rules! dispatch {
     ($f: path, $obj: ident, $( $arg: expr, )*) => {
         match $obj.class_id {
+            ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
             ClassId::Closure => $f( $obj.downcast::<Closure>().unwrap(), $( $arg, )*),
             ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
-            ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
-            ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
             ClassId::Module => $f( $obj.downcast::<Module>().unwrap(), $( $arg, )* ),
+            ClassId::Prototype => $f( $obj.downcast::<Prototype>().unwrap(), $( $arg, )* ),
+            ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
         }
     };
 }

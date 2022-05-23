@@ -3,6 +3,7 @@ mod closure;
 mod keyword;
 mod list;
 mod module;
+mod prototype;
 mod string;
 
 pub use self::{
@@ -11,5 +12,6 @@ pub use self::{
     keyword::Keyword,
     list::List,
     module::Module,
+    prototype::Prototype,
     string::String,
 };

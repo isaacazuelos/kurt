@@ -11,9 +11,10 @@ impl WorkList {
     /// Add a [`Gc`] value to the work list.
     ///
     /// The value is only actually added it's not marked.
-    pub fn enqueue(&mut self, ptr: GcAny) {
-        if !ptr.deref().gc_header().is_marked() {
-            self.list.push_back(ptr);
+    pub fn enqueue(&mut self, ptr: impl Into<GcAny>) {
+        let any = ptr.into();
+        if !any.deref().gc_header().is_marked() {
+            self.list.push_back(any);
         }
     }
 

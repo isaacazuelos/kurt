@@ -35,6 +35,12 @@ impl<T: Class> Clone for Gc<T> {
 
 impl<T: Class> Copy for Gc<T> {}
 
+impl<T: PartialEq + Class> PartialEq for Gc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref() == other.deref()
+    }
+}
+
 impl<T: Class> From<Gc<T>> for GcAny {
     #[inline]
     fn from(ptr: Gc<T>) -> Self {

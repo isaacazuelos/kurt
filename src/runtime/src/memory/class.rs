@@ -24,6 +24,7 @@ pub enum ClassId {
     Keyword,
     List,
     Module,
+    Prototype,
     String,
 }
 
@@ -35,6 +36,7 @@ impl ClassId {
             ClassId::Keyword => "Keyword",
             ClassId::List => "List",
             ClassId::Module => "Module",
+            ClassId::Prototype => "Prototype",
             ClassId::String => "String",
         }
     }
