@@ -108,8 +108,8 @@ impl VirtualMachine {
     #[inline]
     fn load_constant(&mut self, index: Index<Constant>) -> Result<()> {
         let constant = self
-            .get(self.pc().module)
-            .ok_or(Error::ModuleIndexOutOfRange)?
+            .pc()
+            .module
             .get(index)
             .ok_or(Error::ConstantIndexOutOfRange)?
             .clone();
@@ -176,17 +176,13 @@ impl VirtualMachine {
             self.value_stack.get(bp).unwrap().as_gc()?;
 
         // now we set up the capture cells
-        let capture_count = self
-            .get(module)
-            .unwrap()
-            .get(index)
-            .unwrap()
-            .capture_count();
+        let capture_count =
+            self.pc().module.get(index).unwrap().capture_count();
 
         for ci in 0..capture_count {
             let capture = self
-                .get(module)
-                .unwrap()
+                .pc()
+                .module
                 .get(index)
                 .unwrap()
                 .get_capture(ci)
@@ -223,19 +219,19 @@ impl VirtualMachine {
     fn call(&mut self, arg_count: u32) -> Result<()> {
         let module = self.pc().module;
 
-        let prototype = self
+        let function = self
             .value_stack
             .get_from_top(arg_count)?
             .as_gc::<Closure>()?
-            .prototype();
+            .function();
 
-        match self.get(prototype) {
+        match module.get(function) {
             Some(p) if p.parameter_count() == arg_count => Ok(()),
             Some(_) => Err(Error::InvalidArgCount),
-            None => Err(Error::PrototypeIndexOutOfRange),
+            None => Err(Error::FunctionIndexOutOfRange),
         }?;
 
-        let pc = Address::new(module, prototype, Index::START);
+        let pc = Address::new(module, function, Index::START);
 
         // base pointer points to the closure, not the first argument.
         let bp = self.value_stack.index_from_top(arg_count + 1);

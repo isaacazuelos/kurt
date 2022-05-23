@@ -19,21 +19,23 @@ use crate::memory::trace::Trace;
 /// [1]: crate::memory::object::dispatch!
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ClassId {
+    CaptureCell,
     Closure,
     Keyword,
     List,
+    Module,
     String,
-    CaptureCell,
 }
 
 impl ClassId {
     pub fn name(&self) -> &'static str {
         match self {
+            ClassId::CaptureCell => "CaptureCell",
             ClassId::Closure => "Closure",
             ClassId::Keyword => "Keyword",
             ClassId::List => "List",
+            ClassId::Module => "Module",
             ClassId::String => "String",
-            ClassId::CaptureCell => "CaptureCell",
         }
     }
 }

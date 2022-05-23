@@ -36,15 +36,7 @@ impl Evaluate {
             return;
         }
 
-        let mut runtime = VirtualMachine::default();
-
-        match runtime.load(main) {
-            Ok(rt) => rt,
-            Err(e) => {
-                eprintln!("{e}");
-                return;
-            }
-        };
+        let mut runtime = VirtualMachine::new(main);
 
         if let Err(e) = runtime.start() {
             runtime.stack_trace(e, &mut diagnostics);

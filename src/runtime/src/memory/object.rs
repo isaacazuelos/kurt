@@ -26,6 +26,7 @@ macro_rules! dispatch {
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
             ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
             ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
+            ClassId::Module => $f( $obj.downcast::<Module>().unwrap(), $( $arg, )* ),
         }
     };
 }

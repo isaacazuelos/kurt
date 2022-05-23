@@ -58,8 +58,8 @@ impl Display for Address {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(
             f,
-            "m{:03}/p{:03}/i{:03}",
-            self.module.as_usize(),
+            "{:?}/p{:03}/i{:03}",
+            self.module,
             self.function.as_usize(),
             self.instruction.as_usize()
         )

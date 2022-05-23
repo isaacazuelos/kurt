@@ -77,14 +77,15 @@ where
 }
 
 impl VirtualMachine {
-    /// Allocate a new [`Object`] and initialize it using it's [`Default`]
-    /// instance.
+    /// Allocate a new [`Object`] and initialize it using a [`Default`]
+    /// value it can be initiated from.
     #[allow(dead_code)]
-    pub(crate) fn make<C>(&mut self) -> Gc<C>
+    pub(crate) fn make<C, A>(&mut self) -> Gc<C>
     where
-        C: Class + Default,
+        C: Class + InitFrom<A>,
+        A: Default,
     {
-        self.make_from::<C, _>(C::default())
+        self.make_from::<C, A>(A::default())
     }
 
     /// Allocate a new [`Object`], initializing it from the given argument.

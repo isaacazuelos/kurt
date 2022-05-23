@@ -2,6 +2,7 @@ mod capture;
 mod closure;
 mod keyword;
 mod list;
+mod module;
 mod string;
 
 pub use self::{
@@ -9,5 +10,6 @@ pub use self::{
     closure::Closure,
     keyword::Keyword,
     list::List,
+    module::Module,
     string::String,
 };

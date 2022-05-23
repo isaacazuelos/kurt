@@ -16,7 +16,10 @@
 //!
 //! [0]: https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 
-use std::marker::PhantomData;
+use std::{
+    fmt::{Display, Formatter},
+    marker::PhantomData,
+};
 
 use crate::u48;
 
@@ -36,6 +39,23 @@ impl<T> Index<T> {
 
     /// The largest any [`Index`] can be.
     pub const MAX: usize = u32::MAX as usize;
+
+    /// Create a new index from a u32.
+    ///
+    /// # Safety
+    ///
+    /// While now marked `unsafe`, this mostly undoes the point. Try not to use
+    /// this if you're not the one consuming the index later.
+    #[inline(always)]
+    pub const fn new(n: u32) -> Index<T> {
+        Index(n as u32, PhantomData)
+    }
+
+    /// Cast the [`Index`] into a [`usize`].
+    #[inline(always)]
+    pub fn as_usize(self) -> usize {
+        self.0 as _
+    }
 
     /// The next index, returns `None` if it would overflow. This _is not_
     /// checking the underlying collection to see if here's actually another
@@ -99,22 +119,9 @@ impl<T> std::fmt::Debug for Index<T> {
     }
 }
 
-impl<T> Index<T> {
-    /// Create a new index from a u32.
-    ///
-    /// # Safety
-    ///
-    /// While now marked `unsafe`, this mostly undoes the point. Try not to use
-    /// this if you're not the one consuming the index later.
-    #[inline(always)]
-    pub const fn new(n: u32) -> Index<T> {
-        Index(n as u32, PhantomData)
-    }
-
-    /// Cast the [`Index`] into a [`usize`].
-    #[inline(always)]
-    pub fn as_usize(self) -> usize {
-        self.0 as _
+impl<T> Display for Index<T> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.0)
     }
 }
 

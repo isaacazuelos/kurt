@@ -1,24 +1,28 @@
 use common::Index;
-use compiler::{Function, Module, Op};
+use compiler::{Function, Op};
 
-use crate::error::{Error, Result};
+use crate::{
+    classes::Module,
+    error::{Error, Result},
+    memory::Gc,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Address {
-    pub(crate) module: Index<Module>,
+    pub(crate) module: Gc<Module>,
     pub(crate) function: Index<Function>,
     pub(crate) instruction: Index<Op>,
 }
 
 impl Address {
     pub(crate) fn new(
-        module: Index<Module>,
-        prototype: Index<Function>,
+        module: Gc<Module>,
+        function: Index<Function>,
         instruction: Index<Op>,
     ) -> Address {
         Address {
             module,
-            function: prototype,
+            function,
             instruction,
         }
     }

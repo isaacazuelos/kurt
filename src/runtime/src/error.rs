@@ -29,7 +29,7 @@ pub enum Error {
     LocalIndexOutOfRange,
     ModuleIndexOutOfRange,
     OpIndexOutOfRange,
-    PrototypeIndexOutOfRange,
+    FunctionIndexOutOfRange,
     CaptureIndexOutOfRange,
     SubscriptIndexOutOfRange,
 
@@ -68,7 +68,7 @@ impl fmt::Display for Error {
             LocalIndexOutOfRange => write!(f, "local is out of range"),
             ModuleIndexOutOfRange => write!(f, "module out of range"),
             OpIndexOutOfRange => write!(f, "op code index is out of range"),
-            PrototypeIndexOutOfRange => {
+            FunctionIndexOutOfRange => {
                 write!(f, "function prototype index is out of range")
             }
             CaptureIndexOutOfRange => {

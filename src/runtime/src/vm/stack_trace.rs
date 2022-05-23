@@ -3,7 +3,7 @@
 use common::Get;
 use diagnostic::{Diagnostic, DiagnosticCoordinator, Level, Span};
 
-use compiler::{Function, Module, ModuleDebug};
+use compiler::{Function, ModuleDebug};
 
 use crate::{
     vm::{address::Address, call_stack::CallFrame, VirtualMachine},
@@ -22,8 +22,9 @@ impl VirtualMachine {
         let mut d = Diagnostic::new(error.to_string());
 
         let id = self
-            .get(pc.module)
-            .and_then(Module::debug_info)
+            .pc()
+            .module
+            .debug_info()
             .and_then(ModuleDebug::input_id);
 
         d.set_input(id);
@@ -42,8 +43,9 @@ impl VirtualMachine {
     }
 
     fn span_of(&self, pc: Address) -> Option<Span> {
-        self.get(pc.module)
-            .and_then(|m| m.get(pc.function))
+        self.pc()
+            .module
+            .get(pc.function)
             .and_then(Function::debug_info)
             .and_then(|i| i.span_of(pc.instruction))
     }
@@ -51,9 +53,10 @@ impl VirtualMachine {
     fn stack_trace_frame_diagnostic(&self, frame: CallFrame) -> Diagnostic {
         let mut message = String::from("called by ");
 
-        let name = self
-            .get(frame.pc.module)
-            .and_then(|m| m.get(frame.pc.function))
+        let name = frame
+            .pc
+            .module
+            .get(frame.pc.function)
             .and_then(Function::debug_info)
             .and_then(|d| d.name())
             .unwrap_or(Function::DEFAULT_NAMELESS_NAME);

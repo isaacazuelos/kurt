@@ -2,7 +2,7 @@
 
 use common::Index;
 
-use crate::vm::Address;
+use crate::{classes::Module, memory::Gc, vm::Address};
 
 use super::ValueStack;
 
@@ -19,15 +19,6 @@ pub struct CallFrame {
     pub(crate) bp: Index<ValueStack>,
 }
 
-impl Default for CallFrame {
-    fn default() -> Self {
-        CallFrame {
-            pc: Address::new(Index::START, Index::START, Index::START),
-            bp: Index::START,
-        }
-    }
-}
-
 impl CallFrame {
     /// Create a new call frame with the given base pointer and program counter.
     pub fn new(pc: Address, bp: Index<ValueStack>) -> CallFrame {
@@ -36,7 +27,7 @@ impl CallFrame {
 }
 
 /// The call stack is a stack of all [`CallFrame`]s in our virtual machine.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CallStack {
     /// The call frame that's currently executing.
     ///
@@ -49,6 +40,40 @@ pub struct CallStack {
 }
 
 impl CallStack {
+    /// # Safety
+    ///
+    /// We have a problem where the call stack can't be empty and we've inlined
+    /// the current frame for performance, but we also can't produce the
+    /// Gc<Module> needed for the initial address until after the VM is
+    /// initialized. So we crate a fake dangling CallStack.
+    pub(crate) unsafe fn new_dangling() -> CallStack {
+        CallStack {
+            current: CallFrame {
+                pc: Address {
+                    module: Gc::dangling(),
+                    function: Index::START,
+                    instruction: Index::START,
+                },
+                bp: Index::START,
+            },
+            stack: Vec::new(),
+        }
+    }
+
+    pub fn new(main: Gc<Module>) -> CallStack {
+        CallStack {
+            current: CallFrame {
+                pc: Address {
+                    module: main,
+                    function: Index::START,
+                    instruction: Index::START,
+                },
+                bp: Index::START,
+            },
+            stack: Vec::new(),
+        }
+    }
+
     /// The currently executing call frame.
     #[inline]
     pub fn frame(&self) -> CallFrame {

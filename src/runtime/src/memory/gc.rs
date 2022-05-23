@@ -13,6 +13,17 @@ pub struct Gc<T: Class> {
     class: PhantomData<T>,
 }
 
+impl<T: Class> Gc<T> {
+    pub(crate) unsafe fn dangling() -> Gc<T> {
+        Gc {
+            any: GcAny {
+                ptr: NonNull::dangling(),
+            },
+            class: PhantomData,
+        }
+    }
+}
+
 impl<T: Class> Clone for Gc<T> {
     fn clone(&self) -> Self {
         Gc {

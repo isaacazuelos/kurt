@@ -26,7 +26,7 @@ impl Repl {
 struct ReplState {
     dump: bool,
     editor: Editor<()>,
-    runtime: VirtualMachine,
+    vm: VirtualMachine,
     module: ModuleBuilder,
     diagnostics: DiagnosticCoordinator,
     inputs: InputCoordinator,
@@ -44,11 +44,13 @@ impl ReplState {
 
         // TODO: Read history here.
 
+        let module = ModuleBuilder::default();
+
         ReplState {
             dump: args.dump,
             editor,
-            runtime: VirtualMachine::default(),
-            module: ModuleBuilder::default(),
+            vm: VirtualMachine::new(module.build()),
+            module,
             diagnostics: DiagnosticCoordinator::default(),
             inputs: InputCoordinator::default(),
         }
@@ -98,25 +100,21 @@ impl ReplState {
             println!("{}", new_main);
         }
 
-        if let Err(error) = self.runtime.reload_main(new_main) {
+        if let Err(error) = self.vm.reload_main(new_main) {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        if let Err(error) = self.runtime.resume() {
+        if let Err(error) = self.vm.resume() {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        println!(
-            "{} {}",
-            ReplState::RESULT_PROMPT,
-            self.runtime.last_result()
-        );
+        println!("{} {}", ReplState::RESULT_PROMPT, self.vm.last_result());
 
         self.flush();
 

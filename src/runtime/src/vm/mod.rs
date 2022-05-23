@@ -1,7 +1,7 @@
 //! The virtual machine is the heart of how the language executes code.
 
 use common::{Get, Index};
-use compiler::{Constant, Function, Module, Op};
+use compiler::{Constant, Op};
 
 mod address;
 mod call_stack;
@@ -11,10 +11,13 @@ mod open_captures;
 mod stack_trace;
 mod value_stack;
 
-use crate::classes::{Closure, Keyword, String};
-use crate::memory::Gc;
-use crate::vm::open_captures::OpenCaptures;
-use crate::{memory::GcAny, value::Value, Error, Result};
+use crate::{
+    classes::{Closure, Keyword, Module, String},
+    memory::{Gc, GcAny},
+    value::Value,
+    vm::open_captures::OpenCaptures,
+    Error, Result,
+};
 
 pub use self::{
     address::Address,
@@ -23,11 +26,10 @@ pub use self::{
     value_stack::ValueStack,
 };
 
-#[derive(Default)]
 /// A struct that manages an instance of the language runtime.
 pub struct VirtualMachine {
     // Loaded code
-    modules: Vec<Module>,
+    modules: Vec<Gc<Module>>,
 
     // VM
     value_stack: ValueStack,
@@ -39,16 +41,39 @@ pub struct VirtualMachine {
 }
 
 impl VirtualMachine {
-    const MAIN: Index<Module> = Index::START;
+    pub fn new(main: compiler::Module) -> VirtualMachine {
+        let mut vm = Self {
+            modules: Default::default(),
+            call_stack: unsafe { CallStack::new_dangling() },
+            value_stack: Default::default(),
+            heap_head: Default::default(),
+            open_captures: Default::default(),
+        };
 
-    pub fn load(&mut self, module: Module) -> Result<()> {
-        let new_index = Index::new(self.modules.len() as u32);
-        self.modules.push(Module::default());
-        self.load_at(module, new_index)
+        let main = vm.make_from(main);
+        vm.modules.push(main);
+        vm.call_stack = CallStack::new(main);
+
+        vm
     }
 
-    pub(crate) fn value_stack(&self) -> &ValueStack {
-        &self.value_stack
+    pub fn load(&mut self, module: compiler::Module) -> Result<()> {
+        let module = self.make_from(module);
+        self.modules.push(module);
+        Ok(())
+    }
+
+    /// Reload the main module specifically.
+    pub fn reload_main(&mut self, main: compiler::Module) -> Result<()> {
+        let main = self.make_from(main);
+
+        if self.modules.is_empty() {
+            self.modules.push(main);
+        } else {
+            self.modules[0] = main;
+        }
+
+        Ok(())
     }
 
     /// Begin running 'Main.main'
@@ -57,26 +82,19 @@ impl VirtualMachine {
             return Err(Error::NoMainModule);
         }
 
+        let main_module = self.modules[0];
+
         let main_closure: Gc<Closure> =
-            self.make_from((VirtualMachine::MAIN, Module::MAIN));
+            self.make_from((main_module, compiler::Module::MAIN));
 
         self.value_stack.push(Value::from(main_closure));
 
         self.call_stack.push(CallFrame::new(
-            Address::new(VirtualMachine::MAIN, Module::MAIN, Index::START),
+            Address::new(main_module, compiler::Module::MAIN, Index::START),
             Index::START,
         ));
 
         self.run()
-    }
-
-    /// Reload the main module specifically.
-    pub fn reload_main(&mut self, main: Module) -> Result<()> {
-        if self.modules.is_empty() {
-            self.modules.push(Module::default());
-        }
-
-        self.load_at(main, VirtualMachine::MAIN)
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
@@ -100,6 +118,10 @@ impl VirtualMachine {
 }
 
 impl VirtualMachine {
+    pub(crate) fn value_stack(&self) -> &ValueStack {
+        &self.value_stack
+    }
+
     /// The base pointer, or the value which indicates where in the stack values
     /// pertaining to the currently executing closure begin.
     ///
@@ -130,11 +152,11 @@ impl VirtualMachine {
     /// The [`Op`] referred to by the program counter.
     pub(crate) fn op(&self) -> Result<Op> {
         let address = self.pc();
-        let op = self
-            .get(address.module)
-            .ok_or(Error::ModuleIndexOutOfRange)?
+        let module = address.module;
+
+        let op = module
             .get(address.function)
-            .ok_or(Error::PrototypeIndexOutOfRange)?
+            .ok_or(Error::FunctionIndexOutOfRange)?
             .get(address.instruction)
             .ok_or(Error::OpIndexOutOfRange)?;
 
@@ -143,16 +165,6 @@ impl VirtualMachine {
 }
 
 impl VirtualMachine {
-    fn load_at(&mut self, module: Module, index: Index<Module>) -> Result<()> {
-        if self.get(index).is_none() {
-            return Err(Error::ModuleIndexOutOfRange);
-        }
-
-        self.modules[index.as_usize()] = module;
-
-        Ok(())
-    }
-
     /// Inflate a [`Constant`] into a full-fledged runtime value.
     fn inflate(&mut self, constant: &Constant) -> Result<Value> {
         match constant {
@@ -167,17 +179,5 @@ impl VirtualMachine {
                 Ok(Value::gc(keyword))
             }
         }
-    }
-}
-
-impl Get<Module> for VirtualMachine {
-    fn get(&self, index: Index<Module>) -> Option<&Module> {
-        self.modules.get(index.as_usize())
-    }
-}
-
-impl Get<Function> for VirtualMachine {
-    fn get(&self, index: Index<Function>) -> Option<&Function> {
-        self.get(self.pc().module)?.get(index)
     }
 }

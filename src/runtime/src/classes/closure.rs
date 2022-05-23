@@ -9,10 +9,13 @@ use std::{
 
 use common::Index;
 
-use compiler::{Capture, Function, Module};
+use compiler::{Capture, Function};
 
 use crate::{
-    classes::CaptureCell, memory::*, primitives::PrimitiveOperations, Error,
+    classes::{CaptureCell, Module},
+    memory::*,
+    primitives::PrimitiveOperations,
+    Error,
 };
 
 #[repr(C, align(8))]
@@ -20,22 +23,17 @@ pub struct Closure {
     /// The base object required to be a [`Class`].
     base: Object,
 
-    module: Index<Module>,
-    prototype: Index<Function>,
+    module: Gc<Module>,
+    function: Index<Function>,
 
     // TODO: We should make this inline since we know the max capacity per-closure.
     captures: RefCell<Vec<Gc<CaptureCell>>>,
 }
 
 impl Closure {
-    /// The module index for the module this closure was defined in.
-    pub fn _module(&self) -> Index<Module> {
-        self.module
-    }
-
-    /// The prototype index for this closure, in it's original module.
-    pub fn prototype(&self) -> Index<Function> {
-        self.prototype
+    /// The function index for this closure, in it's module.
+    pub fn function(&self) -> Index<Function> {
+        self.function
     }
 
     pub fn get_capture(
@@ -98,25 +96,24 @@ impl Debug for Closure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "<closure {}-{} {:?}>",
-            self.module.as_usize(),
-            self.prototype.as_usize(),
+            "<closure {} {:?}>",
+            self.function,
             self.captures.borrow(),
         )
     }
 }
 
-impl InitFrom<(Index<Module>, Index<Function>)> for Closure {
-    fn extra_size((_, _): &(Index<Module>, Index<Function>)) -> usize {
+impl InitFrom<(Gc<Module>, Index<Function>)> for Closure {
+    fn extra_size((_, _): &(Gc<Module>, Index<Function>)) -> usize {
         0
     }
 
     unsafe fn init(
         ptr: *mut Self,
-        (module, prototype): (Index<Module>, Index<Function>),
+        (module, function): (Gc<Module>, Index<Function>),
     ) {
         addr_of_mut!((*ptr).module).write(module);
-        addr_of_mut!((*ptr).prototype).write(prototype);
+        addr_of_mut!((*ptr).function).write(function);
 
         addr_of_mut!((*ptr).captures).write(RefCell::new(Vec::new()));
     }
