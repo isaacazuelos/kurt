@@ -20,7 +20,10 @@ pub enum Error {
     NoMainModule,
     NoMainFunction,
 
-    InvalidArgCount,
+    InvalidArgCount {
+        found: u32,
+        expected: u32,
+    },
     StackIndexBelowZero,
     CanOnlyCallClosures,
     CannotReturnFromTop,
@@ -55,8 +58,10 @@ impl fmt::Display for Error {
             NoMainModule => write!(f, "no main module is loaded"),
             NoMainFunction => write!(f, "no main function"),
 
-            InvalidArgCount => {
-                write!(f, "function call has wrong number of arguments")
+            InvalidArgCount { found, expected } => {
+                write!(f, "a function which expected {} arguments was called with {} arguments",
+                expected, found
+                )
             }
             StackIndexBelowZero => write!(f, "stack indexed below zero"),
             CanOnlyCallClosures => write!(f, "only closures can be called"),

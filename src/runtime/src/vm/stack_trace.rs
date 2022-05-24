@@ -1,12 +1,11 @@
 //! Produce a stack trace diagnostic from an error.
 
-use common::Get;
-use diagnostic::{Diagnostic, DiagnosticCoordinator, Level, Span};
+use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 
 use compiler::{Function, ModuleDebug};
 
 use crate::{
-    vm::{address::Address, call_stack::CallFrame, VirtualMachine},
+    vm::{call_stack::CallFrame, VirtualMachine},
     Error,
 };
 
@@ -16,20 +15,18 @@ impl VirtualMachine {
         error: Error,
         coordinator: &mut DiagnosticCoordinator,
     ) {
-        // this sucks
-        let pc = self.pc();
-
         let mut d = Diagnostic::new(error.to_string());
 
         let id = self
             .pc()
-            .module
+            .closure
+            .module()
             .debug_info()
             .and_then(ModuleDebug::input_id);
 
         d.set_input(id);
 
-        coordinator.register(if let Some(span) = self.span_of(pc) {
+        coordinator.register(if let Some(span) = self.pc().span() {
             d.highlight(span, "this is what caused the error")
         } else {
             d.info("debug info was stripped")
@@ -42,28 +39,20 @@ impl VirtualMachine {
         }
     }
 
-    fn span_of(&self, pc: Address) -> Option<Span> {
-        self.pc()
-            .module
-            .get(pc.function)
-            .and_then(Function::debug_info)
-            .and_then(|i| i.span_of(pc.instruction))
-    }
-
-    fn stack_trace_frame_diagnostic(&self, frame: CallFrame) -> Diagnostic {
+    fn stack_trace_frame_diagnostic(&self, frame: &CallFrame) -> Diagnostic {
         let mut message = String::from("called by ");
 
-        let name = frame
-            .pc
-            .module
-            .get(frame.pc.function)
-            .and_then(Function::debug_info)
-            .and_then(|d| d.name())
-            .unwrap_or(Function::DEFAULT_NAMELESS_NAME);
+        let span = frame.pc().span();
 
-        let span = self.span_of(frame.pc);
-
-        message.push_str(name);
+        message.push_str(
+            frame
+                .pc()
+                .closure
+                .prototype()
+                .debug_info()
+                .and_then(|d| d.name())
+                .unwrap_or(Function::DEFAULT_NAMELESS_NAME),
+        );
 
         if let Some(span) = span {
             message.push_str(&format!(" at {}", span));

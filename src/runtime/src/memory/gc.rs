@@ -1,12 +1,12 @@
 //! Pointers to values managed by the garbage collector.
 
+use std::fmt::{self, Debug, Formatter};
 use std::ops::Deref;
 use std::{marker::PhantomData, ptr::NonNull};
 
 use crate::error::CastError;
 use crate::memory::{Class, Object};
 
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct Gc<T: Class> {
     any: GcAny,
@@ -14,13 +14,10 @@ pub struct Gc<T: Class> {
 }
 
 impl<T: Class> Gc<T> {
-    pub(crate) unsafe fn dangling() -> Gc<T> {
-        Gc {
-            any: GcAny {
-                ptr: NonNull::dangling(),
-            },
-            class: PhantomData,
-        }
+    #[allow(clippy::mut_from_ref)]
+    pub(crate) unsafe fn deref_mut(&self) -> &mut T {
+        // yikes
+        self.any.ptr.cast().as_mut()
     }
 }
 
@@ -30,6 +27,12 @@ impl<T: Class> Clone for Gc<T> {
             any: self.any,
             class: self.class,
         }
+    }
+}
+
+impl<T: Class> Debug for Gc<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.any)
     }
 }
 
@@ -63,8 +66,15 @@ impl<T: Class> TryFrom<GcAny> for Gc<T> {
     }
 }
 
+impl<T: Class> Deref for Gc<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.any.ptr.cast().as_ref() }
+    }
+}
+
 /// A type-erased pointer to a garbage collected value.
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct GcAny {
     ptr: NonNull<Object>,
@@ -106,14 +116,6 @@ impl GcAny {
     }
 }
 
-impl<T: Class> Deref for Gc<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.any.ptr.cast().as_ref() }
-    }
-}
-
 impl Deref for GcAny {
     type Target = Object;
 
@@ -129,3 +131,9 @@ impl Clone for GcAny {
 }
 
 impl Copy for GcAny {}
+
+impl Debug for GcAny {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.deref())
+    }
+}

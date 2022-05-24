@@ -52,20 +52,16 @@ impl GCHeader {
 
 impl VirtualMachine {
     /// Collect garbage, but only if needed.
-    #[inline(always)] // inline the fast check, not slow collection.
+    #[inline(always)] // inline the 'fast' check, not slow collection.
     pub fn collect_garbage(&mut self) {
         if self.garbage_collection_is_needed() {
-            #[cfg(feature = "gc_trace")]
-            eprintln!("starting garbage collection");
-
-            self.force_collect_garbage();
+            // self.force_collect_garbage();
         }
     }
 
     /// Is it time to run a full GC cycle?
-    ///
-    /// We'll want to add some user-configurable knobs to the runtime for this
-    /// eventually.
+    #[inline(always)]
+    // TODO: write something smarter than this!
     pub fn garbage_collection_is_needed(&mut self) -> bool {
         true
     }
@@ -73,6 +69,8 @@ impl VirtualMachine {
     /// Force a full garbage collection cycle, even if it's not needed.
     #[inline(never)] // Collecting is always the slow path
     pub fn force_collect_garbage(&mut self) {
+        #[cfg(feature = "gc_trace")]
+        eprintln!("starting garbage collection");
         self.mark();
         self.sweep();
     }

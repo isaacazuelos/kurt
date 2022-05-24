@@ -1,28 +1,23 @@
 use common::Index;
-use compiler::{Function, Op};
+use compiler::Op;
+use diagnostic::Span;
 
 use crate::{
-    classes::Module,
+    classes::Closure,
     error::{Error, Result},
     memory::Gc,
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Address {
-    pub(crate) module: Gc<Module>,
-    pub(crate) function: Index<Function>,
+    pub(crate) closure: Gc<Closure>,
     pub(crate) instruction: Index<Op>,
 }
 
 impl Address {
-    pub(crate) fn new(
-        module: Gc<Module>,
-        function: Index<Function>,
-        instruction: Index<Op>,
-    ) -> Address {
+    pub(crate) fn new(closure: Gc<Closure>, instruction: Index<Op>) -> Address {
         Address {
-            module,
-            function,
+            closure,
             instruction,
         }
     }
@@ -31,5 +26,14 @@ impl Address {
         self.instruction =
             self.instruction.next().ok_or(Error::OpIndexOutOfRange)?;
         Ok(())
+    }
+
+    pub(crate) fn span(&self) -> Option<Span> {
+        let instruction = self.instruction;
+
+        self.closure
+            .prototype()
+            .debug_info()
+            .and_then(|i| i.span_of(instruction))
     }
 }

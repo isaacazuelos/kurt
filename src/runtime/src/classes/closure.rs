@@ -7,48 +7,51 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use common::Index;
+use common::{Get, Index};
 
-use compiler::{Capture, Function};
+use compiler::{Capture, Op};
 
 use crate::{
     classes::{CaptureCell, Module},
     memory::*,
     primitives::PrimitiveOperations,
-    Error,
 };
+
+use super::Prototype;
 
 #[repr(C, align(8))]
 pub struct Closure {
     /// The base object required to be a [`Class`].
     base: Object,
 
-    module: Gc<Module>,
-    function: Index<Function>,
+    prototype: Gc<Prototype>,
 
     // TODO: We should make this inline since we know the max capacity per-closure.
     captures: RefCell<Vec<Gc<CaptureCell>>>,
 }
 
 impl Closure {
-    /// The function index for this closure, in it's module.
-    pub fn function(&self) -> Index<Function> {
-        self.function
+    pub fn module(&self) -> Gc<Module> {
+        self.prototype.module()
     }
 
-    pub fn get_capture(
+    pub fn prototype(&self) -> Gc<Prototype> {
+        self.prototype
+    }
+
+    pub(crate) fn push_capture_cell(&self, cell: Gc<CaptureCell>) {
+        self.captures.borrow_mut().deref_mut().push(cell);
+    }
+
+    pub fn get_capture_cell(
         &self,
         index: Index<Capture>,
-    ) -> Result<Gc<CaptureCell>, Error> {
-        self.captures
-            .borrow()
-            .get(index.as_usize())
-            .cloned()
-            .ok_or(Error::CaptureIndexOutOfRange)
+    ) -> Option<Gc<CaptureCell>> {
+        self.captures.borrow().get(index.as_usize()).cloned()
     }
 
-    pub(crate) fn push_capture(&self, cell: Gc<CaptureCell>) {
-        self.captures.borrow_mut().deref_mut().push(cell);
+    pub fn get_op(&self, index: Index<Op>) -> Option<Op> {
+        self.prototype().get(index).cloned()
     }
 }
 
@@ -94,27 +97,33 @@ impl PrimitiveOperations for Closure {
 
 impl Debug for Closure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "<closure {} {:?}>",
-            self.function,
-            self.captures.borrow(),
-        )
+        write!(f, "<closure>",)
     }
 }
 
-impl InitFrom<(Gc<Module>, Index<Function>)> for Closure {
-    fn extra_size((_, _): &(Gc<Module>, Index<Function>)) -> usize {
+// impl InitFrom<(Gc<Module>, Index<Function>)> for Closure {
+//     fn extra_size((_, _): &(Gc<Module>, Index<Function>)) -> usize {
+//         0
+//     }
+
+//     unsafe fn init(
+//         ptr: *mut Self,
+//         (module, function): (Gc<Module>, Index<Function>),
+//     ) {
+//         addr_of_mut!((*ptr).module).write(module);
+//         addr_of_mut!((*ptr).function).write(function);
+
+//         addr_of_mut!((*ptr).captures).write(RefCell::new(Vec::new()));
+//     }
+// }
+
+impl InitFrom<Gc<Prototype>> for Closure {
+    fn extra_size(_arg: &Gc<Prototype>) -> usize {
         0
     }
 
-    unsafe fn init(
-        ptr: *mut Self,
-        (module, function): (Gc<Module>, Index<Function>),
-    ) {
-        addr_of_mut!((*ptr).module).write(module);
-        addr_of_mut!((*ptr).function).write(function);
-
+    unsafe fn init(ptr: *mut Self, args: Gc<Prototype>) {
+        addr_of_mut!((*ptr).prototype).write(args);
         addr_of_mut!((*ptr).captures).write(RefCell::new(Vec::new()));
     }
 }

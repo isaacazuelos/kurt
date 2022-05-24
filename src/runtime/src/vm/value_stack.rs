@@ -76,12 +76,16 @@ impl ValueStack {
             .ok_or(Error::LocalIndexOutOfRange)
     }
 
+    /// Return the value `r_index` spots from the top of the stack.
+    ///
+    /// `get_from_top(0)` returns the same things as `pop()` without removing
+    /// the value.
     pub(crate) fn get_from_top(&self, r_index: u32) -> Result<Value> {
-        if self.values.len() <= r_index as _ {
-            Err(Error::StackIndexBelowZero)
-        } else {
-            Ok(self.values[self.values.len() - r_index as usize - 1])
-        }
+        self.values
+            .iter()
+            .nth_back(r_index as usize)
+            .ok_or(Error::StackIndexBelowZero)
+            .cloned()
     }
 
     pub(crate) fn set_from_top(
@@ -127,5 +131,15 @@ mod tests {
         stack.push(Value::from(true));
 
         assert_eq!(stack.last_n(1), [Value::from(true)]);
+    }
+
+    #[test]
+    fn get_from_top() {
+        let mut stack = ValueStack::default();
+        stack.push(Value::from(false));
+        stack.push(Value::from(true));
+
+        assert_eq!(stack.get_from_top(0).unwrap(), Value::from(true));
+        assert_eq!(stack.get_from_top(1).unwrap(), Value::from(false));
     }
 }

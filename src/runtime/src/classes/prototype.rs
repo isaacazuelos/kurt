@@ -11,7 +11,8 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use compiler::FunctionDebug;
+use common::{Get, Index};
+use compiler::{Capture, FunctionDebug, Op};
 
 use crate::{classes::Module, memory::*, primitives::PrimitiveOperations};
 
@@ -26,8 +27,32 @@ pub struct Prototype {
 }
 
 impl Prototype {
-    pub fn _debug_info(&self) -> Option<&FunctionDebug> {
+    pub fn module(&self) -> Gc<Module> {
+        self.module
+    }
+
+    pub fn debug_info(&self) -> Option<&FunctionDebug> {
         self.inner.debug_info()
+    }
+
+    pub(crate) fn capture_count(&self) -> u32 {
+        self.inner.capture_count()
+    }
+
+    pub(crate) fn parameter_count(&self) -> u32 {
+        self.inner.parameter_count()
+    }
+}
+
+impl Get<Op> for Prototype {
+    fn get(&self, index: Index<Op>) -> Option<&Op> {
+        self.inner.get(index)
+    }
+}
+
+impl Get<Capture> for Prototype {
+    fn get(&self, index: Index<Capture>) -> Option<&Capture> {
+        self.inner.get(index)
     }
 }
 

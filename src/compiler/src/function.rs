@@ -1,6 +1,6 @@
 use diagnostic::Span;
 
-use common::Index;
+use common::{Get, Index};
 
 use crate::{Capture, FunctionDebug, Local, Op};
 
@@ -45,24 +45,14 @@ impl Function {
     }
 
     /// The number of variable this closure captures.
-    pub fn capture_count(&self) -> usize {
-        self.captures.len()
+    pub fn capture_count(&self) -> u32 {
+        self.captures.len() as u32
     }
 
     /// A slice containing information about the relative stack positions of all
     /// the values this function captures.
     pub fn captures(&self) -> &[Capture] {
         &self.captures
-    }
-
-    pub fn get_capture(&self, index: usize) -> Option<Capture> {
-        self.captures.get(index).cloned()
-    }
-
-    /// Get the instruction at the given instruction index. Returns `None` if
-    /// the instruction is out of range.
-    pub fn get(&self, index: Index<Op>) -> Option<Op> {
-        self.code.get(index.as_usize()).cloned()
     }
 
     /// The span in the source code where this function was defined.
@@ -92,5 +82,17 @@ impl Function {
                 debug_info.code_spans.last().cloned().unwrap_or_default();
             debug_info.code_spans.push(last_span);
         }
+    }
+}
+
+impl Get<Op> for Function {
+    fn get(&self, index: Index<Op>) -> Option<&Op> {
+        self.code.get(index.as_usize())
+    }
+}
+
+impl Get<Capture> for Function {
+    fn get(&self, index: Index<Capture>) -> Option<&Capture> {
+        self.captures.get(index.as_usize())
     }
 }

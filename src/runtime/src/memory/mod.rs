@@ -36,6 +36,7 @@ pub use self::{
 /// them. This trait helps us do that.
 ///
 /// [dst]: https://doc.rust-lang.org/nomicon/exotic-sizes.html
+// TODO: rename to something else because of Module::init etc,
 pub(crate) trait InitFrom<A>
 where
     Self: Class,

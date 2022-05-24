@@ -229,10 +229,8 @@ impl ModuleBuilder {
                 return Err(Error::TooManyParameters(problem_element.span()));
             }
 
-            {
-                let function = self.active_prototype_mut();
-                function.set_parameter_count(syntax.elements().len() as u32);
-            }
+            self.active_prototype_mut()
+                .set_parameter_count(syntax.elements().len() as u32);
 
             self.active_prototype_mut().set_name(name);
 

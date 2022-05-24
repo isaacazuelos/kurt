@@ -1,6 +1,6 @@
 //! The virtual machine is the heart of how the language executes code.
 
-use common::{Get, Index};
+use common::Index;
 use compiler::{Constant, Op};
 
 mod address;
@@ -27,8 +27,8 @@ pub use self::{
 };
 
 /// A struct that manages an instance of the language runtime.
+#[derive(Default)]
 pub struct VirtualMachine {
-    // Loaded code
     modules: Vec<Gc<Module>>,
 
     // VM
@@ -41,71 +41,39 @@ pub struct VirtualMachine {
 }
 
 impl VirtualMachine {
-    pub fn new(main: compiler::Module) -> VirtualMachine {
-        let mut vm = Self {
-            modules: Default::default(),
-            call_stack: unsafe { CallStack::new_dangling() },
-            value_stack: Default::default(),
-            heap_head: Default::default(),
-            open_captures: Default::default(),
+    /// Load a module into the runtime and execute its top-level code.
+    pub fn load(&mut self, module: compiler::Module) -> Result<Exit> {
+        let live_module: Gc<Module> = self.make_from(());
+
+        self.modules.push(live_module);
+
+        unsafe {
+            // TODO: there are probably crazy GC issues here
+            Module::destructively_set_up_from_compiler_module(
+                live_module,
+                module,
+                self,
+            )
         };
 
-        let main = vm.make_from(main);
-        vm.modules.push(main);
-        vm.call_stack = CallStack::new(main);
+        let main_closure: Gc<Closure> = self.make_from(live_module.main());
 
-        vm
-    }
-
-    pub fn load(&mut self, module: compiler::Module) -> Result<()> {
-        let module = self.make_from(module);
-        self.modules.push(module);
-        Ok(())
-    }
-
-    /// Reload the main module specifically.
-    pub fn reload_main(&mut self, main: compiler::Module) -> Result<()> {
-        let main = self.make_from(main);
-
-        if self.modules.is_empty() {
-            self.modules.push(main);
-        } else {
-            self.modules[0] = main;
-        }
-
-        Ok(())
-    }
-
-    /// Begin running 'Main.main'
-    pub fn start(&mut self) -> Result<Exit> {
-        if self.modules.is_empty() {
-            return Err(Error::NoMainModule);
-        }
-
-        let main_module = self.modules[0];
-
-        let main_closure: Gc<Closure> =
-            self.make_from((main_module, compiler::Module::MAIN));
-
+        let bp = self.value_stack.index_from_top(0);
         self.value_stack.push(Value::from(main_closure));
+        let pc = Address::new(main_closure, Index::START);
 
-        self.call_stack.push(CallFrame::new(
-            Address::new(main_module, compiler::Module::MAIN, Index::START),
-            Index::START,
-        ));
+        self.call_stack.push(CallFrame::new(pc, bp));
 
         self.run()
+    }
+
+    pub fn reload_main(&mut self, _new_main: compiler::Module) -> Result<()> {
+        todo!()
     }
 
     /// Resume the runtime. If it hasn't been started before this will also
     /// start it.
     pub fn resume(&mut self) -> Result<Exit> {
-        // TODO: checks.
-
-        // Since we're resuming, the result of the previous computation is on
-        // the top of the stack, which we need to clean up.
-        self.value_stack.pop();
-
         self.run()
     }
 
@@ -133,14 +101,14 @@ impl VirtualMachine {
 
     /// The program counter is the address of the currently executing piece of
     /// code.
-    pub fn pc(&self) -> Address {
-        self.call_stack.frame().pc
+    pub fn pc(&self) -> &Address {
+        self.call_stack.frame().pc()
     }
 
     /// The program counter is the address of the currently executing piece of
     /// code.
     pub fn pc_mut(&mut self) -> &mut Address {
-        &mut self.call_stack.frame_mut().pc
+        self.call_stack.frame_mut().pc_mut()
     }
 
     /// The values on the stack in the current stack frame.
@@ -152,15 +120,11 @@ impl VirtualMachine {
     /// The [`Op`] referred to by the program counter.
     pub(crate) fn op(&self) -> Result<Op> {
         let address = self.pc();
-        let module = address.module;
 
-        let op = module
-            .get(address.function)
-            .ok_or(Error::FunctionIndexOutOfRange)?
-            .get(address.instruction)
-            .ok_or(Error::OpIndexOutOfRange)?;
-
-        Ok(op)
+        address
+            .closure
+            .get_op(address.instruction)
+            .ok_or(Error::OpIndexOutOfRange)
     }
 }
 

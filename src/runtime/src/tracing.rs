@@ -56,12 +56,6 @@ impl VirtualMachine {
 
 impl Display for Address {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(
-            f,
-            "{:?}/p{:03}/i{:03}",
-            self.module,
-            self.function.as_usize(),
-            self.instruction.as_usize()
-        )
+        write!(f, "{:?}/i{:03}", self.closure, self.instruction.as_usize())
     }
 }

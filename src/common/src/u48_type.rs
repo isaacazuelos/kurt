@@ -14,7 +14,7 @@
 //! don't typically check, and they're undefined either way.
 use std::{convert::TryFrom, num::ParseIntError, str::FromStr};
 
-#[derive(Clone, Copy, Hash)]
+#[derive(Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub struct u48([u8; 6]);
 

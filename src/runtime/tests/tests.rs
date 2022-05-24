@@ -7,8 +7,8 @@ macro_rules! test_eval {
             use compiler::Module;
 
             let module = Module::try_from($input).unwrap();
-            let mut rt = runtime::VirtualMachine::new(module);
-            let exit = rt.start();
+            let mut rt = runtime::VirtualMachine::default();
+            let exit = rt.load(module);
             assert!(exit.is_ok(), "exited with {:?}", exit);
             let actual = rt.last_result();
             assert_eq!($expected, actual, "got {}", actual);

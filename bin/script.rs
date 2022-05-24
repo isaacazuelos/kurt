@@ -59,9 +59,9 @@ impl Script {
             return;
         }
 
-        let mut runtime = VirtualMachine::new(main);
+        let mut runtime = VirtualMachine::default();
 
-        if let Err(e) = runtime.start() {
+        if let Err(e) = runtime.load(main) {
             runtime.stack_trace(e, &mut diagnostics);
             diagnostics.emit(&inputs);
         }

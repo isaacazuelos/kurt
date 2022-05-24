@@ -8,35 +8,70 @@ use std::{
 };
 
 use common::{Get, Index};
-use compiler::{Constant, Function, ModuleDebug};
+use compiler::{Constant, ModuleDebug};
 
 use crate::{
-    memory::{Class, ClassId, InitFrom, Object, Trace},
+    classes::Prototype,
+    memory::{Class, ClassId, Gc, InitFrom, Object, Trace},
     primitives::PrimitiveOperations,
+    VirtualMachine,
 };
 
 #[derive(PartialEq)]
 #[repr(C, align(8))]
 pub struct Module {
     base: Object,
-    inner: compiler::Module,
+
+    constants: Vec<Constant>,
+    prototypes: Vec<Gc<Prototype>>,
+
+    debug_info: Option<ModuleDebug>,
 }
 
 impl Module {
+    /// # Safety
+    ///
+    /// This (unsafely) mutates the object. This should only be called once,
+    /// when the module is first created (and empty) and
+    pub(crate) unsafe fn destructively_set_up_from_compiler_module(
+        gc: Gc<Module>,
+        module: compiler::Module,
+        vm: &mut VirtualMachine,
+    ) {
+        let this = gc.deref_mut();
+
+        this.constants = module.constants().to_owned();
+        this.debug_info = module.debug_info().map(ToOwned::to_owned);
+
+        for function in module.functions() {
+            this.prototypes
+                .push(vm.make_from((gc, function.to_owned())))
+        }
+    }
+
+    pub fn main(&self) -> Gc<Prototype> {
+        debug_assert!(
+            !self.prototypes.is_empty(),
+            "module needs top-level code"
+        );
+
+        self.prototypes[0]
+    }
+
     pub fn debug_info(&self) -> Option<&ModuleDebug> {
-        self.inner.debug_info()
+        self.debug_info.as_ref()
     }
 }
 
-impl Get<Function> for Module {
-    fn get(&self, index: Index<Function>) -> Option<&Function> {
-        self.inner.get(index)
+impl Get<compiler::Function, Gc<Prototype>> for Module {
+    fn get(&self, index: Index<compiler::Function>) -> Option<&Gc<Prototype>> {
+        self.prototypes.get(index.as_usize())
     }
 }
 
 impl Get<Constant> for Module {
     fn get(&self, index: Index<Constant>) -> Option<&Constant> {
-        self.inner.get(index)
+        self.constants.get(index.as_usize())
     }
 }
 
@@ -68,12 +103,14 @@ impl PrimitiveOperations for Module {
     }
 }
 
-impl InitFrom<compiler::Module> for Module {
-    fn extra_size(_arg: &compiler::Module) -> usize {
+impl InitFrom<()> for Module {
+    fn extra_size(_arg: &()) -> usize {
         0 // none
     }
 
-    unsafe fn init(ptr: *mut Self, args: compiler::Module) {
-        addr_of_mut!((*ptr).inner).write(args)
+    unsafe fn init(ptr: *mut Self, _args: ()) {
+        addr_of_mut!((*ptr).debug_info).write(None);
+        addr_of_mut!((*ptr).constants).write(Vec::new());
+        addr_of_mut!((*ptr).prototypes).write(Vec::new());
     }
 }

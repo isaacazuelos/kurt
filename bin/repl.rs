@@ -45,11 +45,15 @@ impl ReplState {
         // TODO: Read history here.
 
         let module = ModuleBuilder::default();
+        let empty_main = module.build();
+
+        let mut vm = VirtualMachine::default();
+        vm.load(empty_main).unwrap();
 
         ReplState {
             dump: args.dump,
             editor,
-            vm: VirtualMachine::new(module.build()),
+            vm,
             module,
             diagnostics: DiagnosticCoordinator::default(),
             inputs: InputCoordinator::default(),

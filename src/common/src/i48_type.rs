@@ -18,7 +18,7 @@ use std::convert::TryFrom;
 
 use crate::u48;
 
-#[derive(Clone, Copy, Hash)]
+#[derive(Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub struct i48([u8; 6]);
 

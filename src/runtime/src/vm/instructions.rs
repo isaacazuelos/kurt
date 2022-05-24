@@ -1,7 +1,5 @@
 //! The virtual machine's big dispatch loop
 
-use std::ops::Deref;
-
 use common::{i48, Get, Index};
 use compiler::{Capture, Constant, Function, Local, Op};
 
@@ -109,7 +107,8 @@ impl VirtualMachine {
     fn load_constant(&mut self, index: Index<Constant>) -> Result<()> {
         let constant = self
             .pc()
-            .module
+            .closure
+            .module()
             .get(index)
             .ok_or(Error::ConstantIndexOutOfRange)?
             .clone();
@@ -141,8 +140,8 @@ impl VirtualMachine {
             .get(self.bp())
             .ok_or(Error::StackIndexBelowZero)?
             .as_gc::<Closure>()?
-            .deref()
-            .get_capture(index)?
+            .get_capture_cell(index)
+            .ok_or(Error::CaptureIndexOutOfRange)?
             .contents();
 
         let value = contents.get(self.value_stack())?;
@@ -165,28 +164,20 @@ impl VirtualMachine {
     /// module, and leaves it on the stack.
     #[inline]
     fn load_closure(&mut self, index: Index<Function>) -> Result<()> {
-        let module = self.pc().module;
+        let current_closure: Gc<Closure> = self.pc().closure;
+        let current_module = current_closure.module();
 
-        let new_closure: Gc<Closure> = self.make_from((module, index));
+        let prototype = *current_module.get(index).unwrap();
+        let new_closure: Gc<Closure> = self.make_from(prototype);
         self.value_stack.push(Value::from(new_closure));
 
-        let bp = self.bp();
-
-        let current_closure: Gc<Closure> =
-            self.value_stack.get(bp).unwrap().as_gc()?;
-
         // now we set up the capture cells
-        let capture_count =
-            self.pc().module.get(index).unwrap().capture_count();
+        let capture_count = prototype.capture_count();
 
-        for ci in 0..capture_count {
-            let capture = self
-                .pc()
-                .module
-                .get(index)
-                .unwrap()
-                .get_capture(ci)
-                .unwrap();
+        for i in 0..capture_count {
+            let capture_index: Index<compiler::Capture> = Index::new(i);
+
+            let capture = prototype.get(capture_index).unwrap();
 
             let capture_cell = if capture.is_local() {
                 let local: Index<ValueStack> = Index::new(
@@ -198,12 +189,15 @@ impl VirtualMachine {
 
                 cell
             } else {
-                // TODO: what's going on here?
-                let ci = Index::new(capture.index().into());
-                current_closure.get_capture(ci)?
+                current_closure
+                    .get_capture_cell({
+                        // TODO: What's going on here?
+                        Index::new(capture.index().as_usize() as u32)
+                    })
+                    .ok_or(Error::CaptureIndexOutOfRange)?
             };
 
-            new_closure.push_capture(capture_cell);
+            new_closure.push_capture_cell(capture_cell);
         }
 
         Ok(())
@@ -213,25 +207,26 @@ impl VirtualMachine {
     /// indicated number of arguments. This is done by creating and pushing a
     /// new frame on the [`CallStack`][crate::call_stack::CallStack].
     ///
-    /// The target of the function call is the value that's just 'below' the
-    /// arguments on the stack.
+    /// The target of the function call is the value before the arguments on
+    /// the stack.
     #[inline]
     fn call(&mut self, arg_count: u32) -> Result<()> {
-        let module = self.pc().module;
-
-        let function = self
+        let target = self
             .value_stack
+            // TODO: overflows
             .get_from_top(arg_count)?
-            .as_gc::<Closure>()?
-            .function();
+            .as_gc::<Closure>()?;
 
-        match module.get(function) {
-            Some(p) if p.parameter_count() == arg_count => Ok(()),
-            Some(_) => Err(Error::InvalidArgCount),
-            None => Err(Error::FunctionIndexOutOfRange),
-        }?;
+        let parameter_count = target.prototype().parameter_count();
 
-        let pc = Address::new(module, function, Index::START);
+        if parameter_count != arg_count {
+            return Err(Error::InvalidArgCount {
+                expected: parameter_count,
+                found: arg_count,
+            });
+        }
+
+        let pc = Address::new(target, Index::START);
 
         // base pointer points to the closure, not the first argument.
         let bp = self.value_stack.index_from_top(arg_count + 1);

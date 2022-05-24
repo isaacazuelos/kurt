@@ -37,6 +37,14 @@ impl Module {
     pub fn strip_debug(&mut self) {
         self.debug_info = None;
     }
+
+    pub fn constants(&self) -> &[Constant] {
+        &self.constants
+    }
+
+    pub fn functions(&self) -> &[Function] {
+        &self.functions
+    }
 }
 
 impl Get<Function> for Module {
