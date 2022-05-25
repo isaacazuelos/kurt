@@ -9,7 +9,7 @@ use std::{
 
 use common::{Get, Index};
 
-use compiler::{Capture, Op};
+use compiler::{Capture, FunctionDebug, Op};
 
 use crate::{
     classes::{CaptureCell, Module},
@@ -43,15 +43,24 @@ impl Closure {
         self.captures.borrow_mut().deref_mut().push(cell);
     }
 
-    pub fn get_capture_cell(
-        &self,
-        index: Index<Capture>,
-    ) -> Option<Gc<CaptureCell>> {
-        self.captures.borrow().get(index.as_usize()).cloned()
+    pub fn get_capture_cell(&self, index: Index<Capture>) -> Gc<CaptureCell> {
+        *self
+            .captures
+            .borrow()
+            .get(index.as_usize())
+            .expect("capture index out of range")
     }
 
     pub fn get_op(&self, index: Index<Op>) -> Option<Op> {
         self.prototype().get(index).cloned()
+    }
+
+    pub fn capture_count(&self) -> u32 {
+        debug_assert!(
+            self.captures.borrow().len() <= u32::MAX as usize,
+            "LoadCapture takes a u32, so the compiler can't allow more"
+        );
+        self.captures.borrow().len() as u32
     }
 }
 
@@ -97,25 +106,34 @@ impl PrimitiveOperations for Closure {
 
 impl Debug for Closure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<closure>",)
+        if let Some(name) =
+            self.prototype().debug_info().and_then(FunctionDebug::name)
+        {
+            write!(f, "<{}", name)?;
+        } else {
+            write!(f, "<closure")?;
+        }
+
+        if self.capture_count() != 0 {
+            write!(f, " [")?;
+            for capture in self.captures.borrow().iter() {
+                if capture
+                    .inline_value()
+                    .and_then(|v| v.as_gc::<Closure>().ok())
+                    .map(|v| v.identity() == self.identity())
+                    .unwrap_or(false)
+                {
+                    write!(f, "<self>,")?;
+                } else {
+                    write!(f, "{:?},", capture.contents())?;
+                }
+            }
+            write!(f, "]")?;
+        }
+
+        write!(f, ">")
     }
 }
-
-// impl InitFrom<(Gc<Module>, Index<Function>)> for Closure {
-//     fn extra_size((_, _): &(Gc<Module>, Index<Function>)) -> usize {
-//         0
-//     }
-
-//     unsafe fn init(
-//         ptr: *mut Self,
-//         (module, function): (Gc<Module>, Index<Function>),
-//     ) {
-//         addr_of_mut!((*ptr).module).write(module);
-//         addr_of_mut!((*ptr).function).write(function);
-
-//         addr_of_mut!((*ptr).captures).write(RefCell::new(Vec::new()));
-//     }
-// }
 
 impl InitFrom<Gc<Prototype>> for Closure {
     fn extra_size(_arg: &Gc<Prototype>) -> usize {

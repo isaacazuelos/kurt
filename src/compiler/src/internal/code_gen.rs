@@ -212,7 +212,7 @@ impl ModuleBuilder {
         }
     }
 
-    /// Compile a function that doesn't have a name.
+    /// Compile a function, including it's name if known.
     fn function(
         &mut self,
         syntax: &syntax::Function,

@@ -12,22 +12,41 @@ use common::Index;
 
 use crate::{
     memory::*, primitives::PrimitiveOperations, value::Value, vm::ValueStack,
-    Error,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum CaptureCellContents {
+    /// The value of the cell is kept inside the cell.
+    ///
+    /// This is what lua would call a 'closed upvalue'.
     Inline(Value),
+
+    /// The value of the cell is on the stack at the given index.
+    ///
+    /// This is what lua would call an 'open upvalue'.
     Stack(Index<ValueStack>),
 }
 
 impl CaptureCellContents {
-    pub fn get(&self, stack: &ValueStack) -> Result<Value, Error> {
+    pub fn get(&self, stack: &ValueStack) -> Value {
         match self {
             CaptureCellContents::Stack(stack_index) => {
-                stack.get(*stack_index).ok_or(Error::StackIndexBelowZero)
+                stack.get(*stack_index).expect(
+                    "an open capture referred to past the top of the stack",
+                )
             }
-            CaptureCellContents::Inline(v) => Ok(*v),
+            CaptureCellContents::Inline(v) => *v,
+        }
+    }
+}
+
+impl Debug for CaptureCellContents {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CaptureCellContents::Inline(v) => write!(f, "closed {:?}", v),
+            CaptureCellContents::Stack(s) => {
+                write!(f, "open {:?}", s)
+            }
         }
     }
 }
@@ -40,6 +59,27 @@ pub struct CaptureCell {
 }
 
 impl CaptureCell {
+    pub fn is_open(&self) -> bool {
+        match self.contents.get() {
+            CaptureCellContents::Inline(_) => true,
+            CaptureCellContents::Stack(_) => false,
+        }
+    }
+
+    pub fn stack_index(&self) -> Option<Index<ValueStack>> {
+        match self.contents.get() {
+            CaptureCellContents::Inline(_) => None,
+            CaptureCellContents::Stack(i) => Some(i),
+        }
+    }
+
+    pub fn inline_value(&self) -> Option<Value> {
+        match self.contents.get() {
+            CaptureCellContents::Inline(v) => Some(v),
+            CaptureCellContents::Stack(_) => None,
+        }
+    }
+
     pub fn contents(&self) -> CaptureCellContents {
         self.contents.get()
     }
@@ -90,14 +130,7 @@ impl PrimitiveOperations for CaptureCell {
 
 impl Debug for CaptureCell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.contents.get() {
-            CaptureCellContents::Inline(v) => {
-                write!(f, "<upvalue inline {:?}>", v)
-            }
-            CaptureCellContents::Stack(i) => {
-                write!(f, "<upvalue stack {:?}>", i)
-            }
-        }
+        write!(f, "<capture {:?}>", self.contents.get())
     }
 }
 

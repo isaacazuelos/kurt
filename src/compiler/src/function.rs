@@ -24,6 +24,15 @@ impl Function {
 
     pub const MAX_OPS: usize = Index::<Op>::MAX;
 
+    pub const MAX_CAPTURES: usize = Index::<Capture>::MAX;
+
+    /// The max number of opcodes we can put in a function _before_ the ones
+    /// reserved for closing a function that's being compiled.
+    ///
+    /// We do this so that [`FunctionBuilder::build_as_main`] will never fail
+    /// due to running out of space for it's closing op codes.
+    pub(crate) const MAX_OPS_BEFORE_CLOSE: usize = Index::<Op>::MAX - 2;
+
     /// The maximum number of parameters allowed in a function definition
     pub const MAX_PARAMETERS: usize = Index::<Local>::MAX;
 
@@ -68,20 +77,6 @@ impl Function {
     /// Throw away the extra debug info this function carries.
     pub fn strip_debug(&mut self) {
         self.debug_info = None;
-    }
-
-    /// Kind of a gross hack.
-    ///
-    /// Main needs to end with a Halt, so this pushes that halt, and updates teh
-    /// debug info's spans to match the last instructions span.
-    pub(crate) fn close_with_halt_for_main(&mut self) {
-        self.code.push(Op::Halt);
-
-        if let Some(debug_info) = &mut self.debug_info {
-            let last_span =
-                debug_info.code_spans.last().cloned().unwrap_or_default();
-            debug_info.code_spans.push(last_span);
-        }
     }
 }
 

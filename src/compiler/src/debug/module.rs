@@ -96,15 +96,30 @@ impl Function {
             }
 
             match op {
-                Op::LoadConstant(constant_index) => {
+                Op::LoadConstant(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
-                    if let Some(constant) = module.get(*constant_index) {
+                    if let Some(constant) = module.get(*index) {
                         writeln!(f, "{}", constant)
                     } else {
                         writeln!(f, "???")
                     }
                 }
+
+                Op::LoadClosure(index) => {
+                    write!(f, "{:<20} // ", format!("{op}"))?;
+
+                    if let Some(name) = module
+                        .get(*index)
+                        .and_then(Function::debug_info)
+                        .and_then(|d| d.name())
+                    {
+                        writeln!(f, "{}", name)
+                    } else {
+                        writeln!(f, "???")
+                    }
+                }
+
                 op => writeln!(f, "{}", op),
             }?;
         }

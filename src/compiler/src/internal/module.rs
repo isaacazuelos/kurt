@@ -53,9 +53,7 @@ impl ModuleBuilder {
 
         let mut functions = self.functions.clone();
 
-        let mut main = self.compiling[ModuleBuilder::MAIN].build();
-
-        main.close_with_halt_for_main();
+        let main = self.compiling[ModuleBuilder::MAIN].build_as_main();
 
         functions[Module::MAIN.as_usize()] = main;
 
@@ -216,7 +214,7 @@ impl ModuleBuilder {
 
         let result = inner(self);
 
-        self.active_prototype_mut().end_scope(span);
+        self.active_prototype_mut().end_scope(span)?;
 
         result
     }

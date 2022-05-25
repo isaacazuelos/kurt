@@ -65,4 +65,12 @@ impl ClassId {
 pub trait Class: 'static + Debug + Sized + Trace {
     /// The [`ClassId`] that's unique to objects of this class.
     const ID: ClassId;
+
+    /// The address of this object as usize, like [python's `id`][id]. The same
+    /// caveat applies about object lifetimes.
+    ///
+    /// [id]: https://docs.python.org/2/library/functions.html#id
+    fn identity(&self) -> usize {
+        self as *const Self as usize
+    }
 }

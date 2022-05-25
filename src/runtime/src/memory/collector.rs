@@ -55,7 +55,7 @@ impl VirtualMachine {
     #[inline(always)] // inline the 'fast' check, not slow collection.
     pub fn collect_garbage(&mut self) {
         if self.garbage_collection_is_needed() {
-            // self.force_collect_garbage();
+            self.force_collect_garbage();
         }
     }
 
@@ -63,7 +63,8 @@ impl VirtualMachine {
     #[inline(always)]
     // TODO: write something smarter than this!
     pub fn garbage_collection_is_needed(&mut self) -> bool {
-        true
+        // true
+        false
     }
 
     /// Force a full garbage collection cycle, even if it's not needed.
@@ -141,9 +142,8 @@ impl Trace for VirtualMachine {
             value.enqueue_gc_references(worklist);
         }
 
-        // And all the open captures too
-        for capture in self.open_captures.iter() {
-            capture.enqueue_gc_references(worklist);
-        }
+        // Notice that we don't need to traverse open captures, since they're
+        // open, i.e. on the stack. The CaptureCells themselves are always
+        // retained by their Closures as well.
     }
 }

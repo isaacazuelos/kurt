@@ -1,8 +1,7 @@
 //! The call stack and call frames.
 
 use common::Index;
-
-use crate::vm::Address;
+use compiler::Op;
 
 use super::ValueStack;
 
@@ -12,7 +11,7 @@ use super::ValueStack;
 pub struct CallFrame {
     /// The 'Program Counter' tells us where in some code our VM is currently
     /// executing instructions from.
-    pc: Address,
+    pub(crate) pc: Index<Op>,
 
     /// The 'Base Pointer' is the stack index which is the first slot in the
     /// current call frame.
@@ -21,15 +20,15 @@ pub struct CallFrame {
 
 impl CallFrame {
     /// Create a new call frame with the given base pointer and program counter.
-    pub fn new(pc: Address, bp: Index<ValueStack>) -> CallFrame {
+    pub fn new(pc: Index<Op>, bp: Index<ValueStack>) -> CallFrame {
         CallFrame { pc, bp }
     }
 
-    pub fn pc(&self) -> &Address {
-        &self.pc
+    pub fn pc(&self) -> Index<Op> {
+        self.pc
     }
 
-    pub fn pc_mut(&mut self) -> &mut Address {
+    pub fn pc_mut(&mut self) -> &mut Index<Op> {
         &mut self.pc
     }
 }
@@ -97,10 +96,10 @@ impl CallStack {
     ///
     /// Note that this _doesn't_ clean up the value [`Stack`].
     #[inline]
-    pub fn pop(&mut self) -> Option<CallFrame> {
-        let previous = self.current.take()?;
+    pub fn pop(&mut self) -> CallFrame {
+        let previous = self.current.take().expect("no call frames to pop");
         self.current = self.stack.pop();
-        Some(previous)
+        previous
     }
 
     /// Iterate over the call stack, from the most recent frame to the oldest.

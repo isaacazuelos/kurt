@@ -23,6 +23,11 @@ pub enum Op {
     /// Discard the value on the top of the stack, if there is one.
     Pop,
 
+    /// Discard the given number of values from the top of the stack, closing
+    /// all upvalues in that range, and preserving the value on teh top of the
+    /// stack.
+    Close(u32),
+
     // ## Loading constant values
 
     /// Push a `true` to the top of the stack.
@@ -73,8 +78,6 @@ pub enum Op {
     /// being that far from the top of the stack.
     Call(u32),
 
-    /// Close a the most recent open capture.
-    CloseCapture,
 
     /// Return from the currently executing function.
     Return,

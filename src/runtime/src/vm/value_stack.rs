@@ -3,10 +3,7 @@
 use common::Index;
 use compiler::Local;
 
-use crate::{
-    error::{Error, Result},
-    value::Value,
-};
+use crate::value::Value;
 
 #[derive(Debug, Default)]
 pub struct ValueStack {
@@ -14,6 +11,10 @@ pub struct ValueStack {
 }
 
 impl ValueStack {
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
     pub fn as_slice(&self) -> &[Value] {
         &self.values
     }
@@ -62,50 +63,63 @@ impl ValueStack {
         }
     }
 
+    // Set the value at `index` to `new`.
+    pub(crate) fn set(&mut self, index: Index<ValueStack>, new: Value) {
+        if let Some(value) = self.values.get_mut(index.as_usize()) {
+            *value = new;
+        }
+    }
+
     /// Get a local by it's index (with respect to the frame's base pointer).
     pub(crate) fn get_local(
         &self,
         base: Index<ValueStack>,
         local: Index<Local>,
-    ) -> Result<Value> {
+    ) -> Value {
         // base points to the current closure, so local 0 is at base + 1
-        let index = base.as_usize() + 1 + local.as_usize();
-        self.values
-            .get(index)
-            .cloned()
-            .ok_or(Error::LocalIndexOutOfRange)
+        let index = ValueStack::as_absolute_index(base, local);
+
+        *self
+            .values
+            .get(index.as_usize())
+            .expect("local index past end of stack")
     }
 
     /// Return the value `r_index` spots from the top of the stack.
     ///
     /// `get_from_top(0)` returns the same things as `pop()` without removing
     /// the value.
-    pub(crate) fn get_from_top(&self, r_index: u32) -> Result<Value> {
-        self.values
-            .iter()
-            .nth_back(r_index as usize)
-            .ok_or(Error::StackIndexBelowZero)
-            .cloned()
+    pub(crate) fn get_from_top(&self, r_index: u32) -> Value {
+        let index = self.index_from_top(r_index);
+        self.get(index).expect("indexed past end of stack")
     }
 
-    pub(crate) fn set_from_top(
-        &mut self,
-        r_index: u32,
-        new_value: Value,
-    ) -> Result<()> {
-        if self.values.len() <= r_index as _ {
-            Err(Error::StackIndexBelowZero)
-        } else {
-            let index = self.values.len() - r_index as usize - 1;
-            self.values[index] = new_value;
-            Ok(())
-        }
+    pub(crate) fn set_from_top(&mut self, r_index: u32, new_value: Value) {
+        let index = self
+            .values
+            .len()
+            .checked_sub(r_index as usize + 1)
+            .expect("cannot set below start of stack");
+
+        self.values[index] = new_value;
     }
 
-    pub(crate) fn index_from_top(&self, arg_count: u32) -> Index<ValueStack> {
-        let i = self.values.len() - arg_count as usize;
+    /// The index of the value `count` spaces from the top of the stack.
+    ///
+    /// index_from_top(0) is the index of the top of the stack.
+    pub(crate) fn index_from_top(&self, count: u32) -> Index<ValueStack> {
+        let i = self
+            .values
+            .len()
+            .checked_sub(count as usize + 1)
+            .expect("index from top would be below bottom of stack");
 
-        assert!(i <= u32::MAX as usize);
+        // TODO: When would this happen?
+        assert!(
+            i <= u32::MAX as usize,
+            "stack index {} from top is too big",
+            count
+        );
 
         Index::new(i as u32)
     }
@@ -117,6 +131,19 @@ impl ValueStack {
     pub(crate) fn last_n(&self, n: usize) -> &[Value] {
         let start = self.values.len().saturating_sub(n);
         &self.values[start..]
+    }
+
+    pub(crate) fn as_absolute_index(
+        bp: Index<ValueStack>,
+        index: Index<Local>,
+    ) -> Index<ValueStack> {
+        let big = bp.as_usize() + index.as_usize() + 1;
+
+        if big > u32::MAX as usize {
+            panic!("stack index too big");
+        }
+
+        Index::new(big as _)
     }
 }
 
@@ -134,12 +161,35 @@ mod tests {
     }
 
     #[test]
+    fn index_from_top() {
+        let mut stack = ValueStack::default();
+        stack.push(Value::from(false));
+        stack.push(Value::from(true));
+
+        assert_eq!(stack.index_from_top(0), Index::new(1));
+        assert_eq!(stack.index_from_top(1), Index::new(0));
+    }
+
+    #[test]
     fn get_from_top() {
         let mut stack = ValueStack::default();
         stack.push(Value::from(false));
         stack.push(Value::from(true));
 
-        assert_eq!(stack.get_from_top(0).unwrap(), Value::from(true));
-        assert_eq!(stack.get_from_top(1).unwrap(), Value::from(false));
+        assert_eq!(stack.get_from_top(0), Value::from(true));
+        assert_eq!(stack.get_from_top(1), Value::from(false));
+    }
+
+    #[test]
+    fn get_index_from_top() {
+        let mut stack = ValueStack::default();
+        stack.push(Value::from(false));
+        stack.push(Value::from(true));
+
+        assert_eq!(stack.get(stack.index_from_top(0)), Some(Value::from(true)));
+        assert_eq!(
+            stack.get(stack.index_from_top(1)),
+            Some(Value::from(false))
+        );
     }
 }

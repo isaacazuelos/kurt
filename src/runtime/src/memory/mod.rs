@@ -118,7 +118,7 @@ impl VirtualMachine {
             self.register_gc_ptr(gc);
 
             #[cfg(feature = "gc_trace")]
-            eprintln!("initialized {:?} as {:?}", gc, gc.deref());
+            eprintln!("initialized {:?} as {:?}", raw, gc.deref());
 
             gc.cast_unchecked()
         }

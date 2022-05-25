@@ -7,6 +7,7 @@ use common::{Get, Index};
 use crate::{
     error::{Error, Result},
     opcode::Op,
+    Function,
 };
 
 /// A listing of opcodes for our VM in order.
@@ -19,7 +20,7 @@ pub(crate) struct Code {
 impl Code {
     /// Push an [`Op`] to the of the code segment.
     pub fn emit(&mut self, op: Op, span: Span) -> Result<()> {
-        if self.opcodes.len() >= Index::<Op>::MAX {
+        if self.opcodes.len() >= Function::MAX_OPS_BEFORE_CLOSE {
             Err(Error::TooManyOps(span))
         } else {
             self.opcodes.push(op);

@@ -2,7 +2,9 @@
 
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{vm::Address, VirtualMachine};
+use compiler::FunctionDebug;
+
+use crate::VirtualMachine;
 
 impl VirtualMachine {
     pub(crate) fn trace(&self) {
@@ -23,13 +25,23 @@ impl Display for VirtualMachine {
 
 impl VirtualMachine {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
-        if let Ok(op) = self.op() {
-            write!(f, "{} op: {:16}", self.pc(), format!("{op}"))?;
+        let op = if let Some(op) = self.op() {
+            format!("{op}")
         } else {
-            write!(f, "op: <none>          ")?;
-        }
+            String::from("<none>")
+        };
 
-        Ok(())
+        write!(
+            f,
+            "{:>12} {:<4} {:16}",
+            self.current_closure()
+                .prototype()
+                .debug_info()
+                .and_then(FunctionDebug::name)
+                .unwrap_or("<unknown>"),
+            self.pc().as_usize(),
+            op,
+        )
     }
 
     #[allow(dead_code)] // useful, but rarely
@@ -44,18 +56,14 @@ impl VirtualMachine {
     }
 
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
-        write!(f, "[ ... | ",)?;
+        let omitted = self.value_stack().len() - self.stack_frame().len();
+
+        write!(f, "[ ...{} | ", omitted)?;
 
         for v in self.stack_frame() {
             write!(f, "{:?}, ", v)?;
         }
 
         write!(f, "]")
-    }
-}
-
-impl Display for Address {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{:?}/i{:03}", self.closure, self.instruction.as_usize())
     }
 }

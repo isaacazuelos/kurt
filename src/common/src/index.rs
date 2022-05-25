@@ -57,33 +57,36 @@ impl<T> Index<T> {
         self.0 as _
     }
 
-    /// The next index, returns `None` if it would overflow. This _is not_
-    /// checking the underlying collection to see if here's actually another
-    /// opcode.
+    /// The next index, returning `None` if it would overflow.
     pub fn next(self) -> Option<Self> {
-        if self.0 == u32::MAX {
-            None
-        } else {
-            Some(Index(self.0 + 1, PhantomData))
-        }
+        let n = self.0.checked_add(1)?;
+        Some(Index::new(n))
     }
 
-    /// The previous index.
-    ///
-    /// However, if the index is already at 0, it returns None.
+    /// The next index, returning the same value if it would overflow.
+    pub fn saturating_next(self) -> Self {
+        Index(self.0.saturating_add(1), PhantomData)
+    }
+
+    /// The previous index, returning `None` if it would underflow.
     pub fn previous(self) -> Option<Index<T>> {
-        if self.0 == 0 {
-            None
-        } else {
-            Some(Index(self.0 - 1, PhantomData))
-        }
+        let n = self.0.checked_sub(1)?;
+        Some(Index::new(n))
     }
 
-    /// The previous index.
-    ///
-    /// However if the index is 0, it remains 0.
+    /// The previous index, returning the same value if it would underflow.
     pub fn saturating_previous(self) -> Self {
         Index(self.0.saturating_sub(1), PhantomData)
+    }
+
+    /// Increment the index in-place if doing so does not overflow.
+    pub fn saturating_increment(&mut self) {
+        *self = self.saturating_next();
+    }
+
+    /// Decrement the index in-place if doing so does not underflow.
+    pub fn saturating_decrement(&mut self) {
+        *self = self.saturating_previous();
     }
 }
 

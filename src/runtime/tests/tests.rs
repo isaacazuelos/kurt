@@ -44,7 +44,8 @@ mod scope {
     test_eval! { scope_empty, "{ ; }", "()" }
     test_eval! { scope_with_value, "{ 1 }", "1" }
     test_eval! { scope_with_trailing, "{ 1; }", "()" }
-    test_eval! { scope_with_bindings, "{ let x = 1; x }", "1" }
+    test_eval! { scope_with_binding, "{ let x = 1; x }", "1" }
+    test_eval! { scope_with_bindings, "{let a = 1; let b = 2; let c = 3; 4; b}", "2" }
 }
 
 mod functions {
@@ -98,16 +99,18 @@ mod indexing {
 }
 
 mod closures {
-    test_eval! { capture, "(() => { let x = 1; () => x })()", "1"}
+    test_eval! { capture, "let a = () => { let b = 1; let c = () => b; c }; a()()", "1"}
 
-    test_eval! { capture2, "
-        let getter = () => {
-            let a = 1;
-            let g = () => a;
-            g
-        }; 
-        let g = getter(); 
-        g()", 
+    test_eval! {
+        capture_2,
+        "let a = () => { let b = 1; let c = () => b; c }; let d = a(); d()",
+        "1"
+    }
 
-    "1" }
+    // you might recognize this from http://craftinginterpreters.com/closures.html
+    test_eval! {
+        capture_dance,
+        include_str!("inputs/dance.k"),
+        "7"
+    }
 }

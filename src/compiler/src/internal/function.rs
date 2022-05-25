@@ -37,6 +37,29 @@ impl FunctionBuilder {
         }
     }
 
+    /// Like [`FunctionBuilder::build`], but it closes the function assuming it's a module's `main`.
+    ///
+    /// This special cases empty modules and emits a `()` before the halt.
+    pub fn build_as_main(&self) -> Function {
+        let span = self.code.spans().last().cloned().unwrap_or_default();
+
+        let mut function = self.build();
+
+        if let Some(ref mut debug) = &mut function.debug_info {
+            debug.code_spans.push(span);
+        }
+
+        if self.code.ops().is_empty() {
+            function.code.push(Op::Unit);
+        } else {
+            function.code.push(Op::Nop);
+        }
+
+        function.code.push(Op::Halt);
+
+        function
+    }
+
     /// Throw out all the extra context we kept around for compiling and
     /// compress this into a finalized [`Function`].
     pub fn build(&self) -> Function {
@@ -95,9 +118,12 @@ impl FunctionBuilder {
         self.scopes.push(0);
     }
 
-    pub(crate) fn end_scope(&mut self, span: Span) -> usize {
+    pub(crate) fn end_scope(&mut self, span: Span) -> Result<usize> {
         let total_in_scope = self.locals.len();
-        let going_out_of_scope = self.scopes.pop().unwrap();
+        let going_out_of_scope = self
+            .scopes
+            .pop()
+            .expect("compiler cannot end scope with no open scopes");
 
         debug_assert!(
             !self.scopes.is_empty(),
@@ -106,18 +132,17 @@ impl FunctionBuilder {
 
         debug_assert!(total_in_scope >= going_out_of_scope);
 
-        // self.locals.truncate(total_in_scope - going_out_of_scope);
-        for _ in 0..going_out_of_scope {
-            let local = self.locals.pop().unwrap();
+        debug_assert!(
+            Function::MAX_BINDINGS <= u32::MAX as usize,
+            "a scope cannot contain more than max_bindings, \
+            so we won't have going_out_of_scope exceed that"
+        );
 
-            if local.is_captured() {
-                self.emit(Op::CloseCapture, span).unwrap();
-            } else {
-                self.emit(Op::Pop, span).unwrap();
-            }
-        }
+        self.locals.truncate(total_in_scope - going_out_of_scope);
 
-        going_out_of_scope
+        self.emit(Op::Close(going_out_of_scope as u32), span)?;
+
+        Ok(going_out_of_scope)
     }
 
     /// Bind a [`Local`] in the current scope.
@@ -133,24 +158,25 @@ impl FunctionBuilder {
 
     pub(crate) fn add_capture(
         &mut self,
-        local_index: Index<Local>,
-        is_local: bool,
+        capture: Capture,
         span: Span,
     ) -> Result<Index<Capture>> {
         // reuse if already captured
-        for (i, capture) in self.captures.iter().enumerate() {
-            if capture.index() == local_index && capture.is_local() == is_local
-            {
-                // We only add things to self.captures below, and check it there.
+        for (i, cap) in self.captures.iter().enumerate() {
+            if &capture == cap {
+                debug_assert!(
+                    i <= Function::MAX_CAPTURES as usize,
+                    "attempted to add too many captures"
+                );
                 return Ok(Index::new(i as u32));
             }
         }
 
         let capture_index = self.captures.len();
-        if capture_index >= Function::MAX_BINDINGS {
+        if capture_index >= Function::MAX_CAPTURES {
             Err(Error::TooManyLocals(span))
         } else {
-            self.captures.push(Capture::new(local_index, is_local));
+            self.captures.push(capture);
             Ok(Index::new(capture_index as u32))
         }
     }
@@ -183,7 +209,7 @@ impl FunctionBuilder {
             // If it's a local, turn it into a capture
             if let Some(local) = next.resolve_local(name) {
                 next.mark_as_captured(local);
-                let index = self.add_capture(local, true, span)?;
+                let index = self.add_capture(Capture::Local(local), span)?;
                 return Ok(Some(index));
             }
 
@@ -194,9 +220,9 @@ impl FunctionBuilder {
                 // They're different kinds of indexes, but that's okay because a
                 // capture index is a local index relative to it's original call
                 // frame, which is the one that needs to promote it.
-                let local_index = Index::new(capture.into());
+
                 let capture_index =
-                    self.add_capture(local_index, false, span)?;
+                    self.add_capture(Capture::Recapture(capture), span)?;
                 return Ok(Some(capture_index));
             }
         }

@@ -5,6 +5,7 @@ use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 use compiler::{Function, ModuleDebug};
 
 use crate::{
+    classes::Closure,
     vm::{call_stack::CallFrame, VirtualMachine},
     Error,
 };
@@ -18,15 +19,14 @@ impl VirtualMachine {
         let mut d = Diagnostic::new(error.to_string());
 
         let id = self
-            .pc()
-            .closure
+            .current_closure()
             .module()
             .debug_info()
             .and_then(ModuleDebug::input_id);
 
         d.set_input(id);
 
-        coordinator.register(if let Some(span) = self.pc().span() {
+        coordinator.register(if let Some(span) = self.last_op_span() {
             d.highlight(span, "this is what caused the error")
         } else {
             d.info("debug info was stripped")
@@ -42,19 +42,21 @@ impl VirtualMachine {
     fn stack_trace_frame_diagnostic(&self, frame: &CallFrame) -> Diagnostic {
         let mut message = String::from("called by ");
 
-        let span = frame.pc().span();
+        let prototype = self
+            .value_stack()
+            .get(frame.bp)
+            .expect("every frame base pointers is valid")
+            .as_gc::<Closure>()
+            .expect("every frame base pointer is a closure")
+            .prototype();
 
-        message.push_str(
-            frame
-                .pc()
-                .closure
-                .prototype()
-                .debug_info()
-                .and_then(|d| d.name())
-                .unwrap_or(Function::DEFAULT_NAMELESS_NAME),
-        );
+        let debug = prototype.debug_info();
 
-        if let Some(span) = span {
+        let name = debug.and_then(|d| d.name());
+
+        message.push_str(name.unwrap_or(Function::DEFAULT_NAMELESS_NAME));
+
+        if let Some(span) = debug.and_then(|d| d.span_of(frame.pc())) {
             message.push_str(&format!(" at {}", span));
         }
 

@@ -24,16 +24,8 @@ pub enum Error {
         found: u32,
         expected: u32,
     },
-    StackIndexBelowZero,
-    CanOnlyCallClosures,
-    CannotReturnFromTop,
 
-    ConstantIndexOutOfRange,
-    LocalIndexOutOfRange,
-    ModuleIndexOutOfRange,
-    OpIndexOutOfRange,
-    FunctionIndexOutOfRange,
-    CaptureIndexOutOfRange,
+    CanOnlyCallClosures,
     SubscriptIndexOutOfRange,
 
     OperationNotSupported {
@@ -63,22 +55,8 @@ impl fmt::Display for Error {
                 expected, found
                 )
             }
-            StackIndexBelowZero => write!(f, "stack indexed below zero"),
             CanOnlyCallClosures => write!(f, "only closures can be called"),
-            CannotReturnFromTop => write!(f, "cannot return from top"),
 
-            ConstantIndexOutOfRange => {
-                write!(f, "a constant index was out of range")
-            }
-            LocalIndexOutOfRange => write!(f, "local is out of range"),
-            ModuleIndexOutOfRange => write!(f, "module out of range"),
-            OpIndexOutOfRange => write!(f, "op code index is out of range"),
-            FunctionIndexOutOfRange => {
-                write!(f, "function prototype index is out of range")
-            }
-            CaptureIndexOutOfRange => {
-                write!(f, "capture index is out of range")
-            }
             SubscriptIndexOutOfRange => {
                 write!(f, "subscript index out of range")
             }

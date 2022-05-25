@@ -45,3 +45,13 @@ test_resume!(bindings, "let x = 1;", "x");
 test_recover!(constants, "1; 2; 3; missing");
 test_recover!(scope, "{ let x = true; }; x");
 test_recover!(function_scoping, "() => { missing }; ");
+
+#[test]
+fn empty_build_idempotent() {
+    let builder = ModuleBuilder::default();
+
+    let empty = builder.build();
+    let second = builder.build();
+
+    assert_eq!(empty, second);
+}

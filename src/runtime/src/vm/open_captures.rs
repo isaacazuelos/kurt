@@ -4,31 +4,54 @@ use crate::{classes::CaptureCell, memory::Gc, vm::value_stack::ValueStack};
 
 #[derive(Default)]
 pub(crate) struct OpenCaptures {
-    pub(crate) open: Vec<(Index<ValueStack>, Gc<CaptureCell>)>,
+    cells: Vec<Gc<CaptureCell>>,
 }
 
 impl OpenCaptures {
-    // /// Closes all open upvalues which occur in the open list with a stack index
-    // /// above `top`.
-    // pub(crate) fn close_above(
-    //     &mut self,
-    //     top: Index<ValueStack>,
-    //     stack: &mut ValueStack,
-    // ) {
-    //     while let Some((index, cell)) = self.open.last().cloned() {
-    //         if index > top {
-    //             let value = stack
-    //                 .get(index)
-    //                 .expect("open capture cell past end of stack");
+    pub(crate) fn push(&mut self, cell: Gc<CaptureCell>) {
+        match cell.contents() {
+            crate::classes::CaptureCellContents::Inline(_) => {
+                panic!("attempted to add a closed capture to the open list")
+            }
+            crate::classes::CaptureCellContents::Stack(i) => {
+                debug_assert!(
+                    if let Some(last) = self.last_index() {
+                        last < i
+                    } else {
+                        true
+                    },
+                    "open captures list must remain sorted"
+                );
 
-    //             cell.close(value);
-    //             self.open.pop();
-    //         }
-    //     }
-    // }
+                self.cells.push(cell)
+            }
+        }
+    }
+
+    pub(crate) fn last_index(&self) -> Option<Index<ValueStack>> {
+        let cell = self.cells.last()?;
+        let index = cell
+            .stack_index()
+            .expect("all cells in the open list should be open");
+
+        Some(index)
+    }
+
+    /// Pop an open cell if it's stack index is above the given `top` index.
+    pub(crate) fn pop_up_to(
+        &mut self,
+        top: Index<ValueStack>,
+    ) -> Option<Gc<CaptureCell>> {
+        if self.last_index()? >= top {
+            self.cells.pop()
+        } else {
+            None
+        }
+    }
 
     /// Iterator over all the open capture cells, from most recent to least recent.
+    #[cfg(feature = "trace")]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Gc<CaptureCell>> {
-        self.open.iter().rev().map(|(_, cell)| cell)
+        self.cells.iter().rev()
     }
 }
