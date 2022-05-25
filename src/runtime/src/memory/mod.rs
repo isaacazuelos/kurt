@@ -6,9 +6,6 @@
 //! Right now any GC value that's allocated is actually just a leaked `*mut`
 //! pointer.
 
-// TODO: We might want to make some of the [`Managed`] methods not public.
-//       https://jack.wrenn.fyi/blog/private-trait-methods/
-
 // TODO: How does allocation fail? Probably just adding a `-> Result<()>` to a
 //       bunch of these. Look at Rust's [Allocator][1].
 //
@@ -36,7 +33,6 @@ pub use self::{
 /// them. This trait helps us do that.
 ///
 /// [dst]: https://doc.rust-lang.org/nomicon/exotic-sizes.html
-// TODO: rename to something else because of Module::init etc,
 pub(crate) trait InitFrom<A>
 where
     Self: Class,

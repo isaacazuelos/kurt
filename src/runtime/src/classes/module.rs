@@ -31,20 +31,30 @@ pub struct Module {
 impl Module {
     /// # Safety
     ///
-    /// This (unsafely) mutates the object. This should only be called once,
-    /// when the module is first created (and empty) and
+    /// This (unsafely) mutates the [`Module`] object.
     pub(crate) unsafe fn destructively_set_up_from_compiler_module(
         gc: Gc<Module>,
         module: compiler::Module,
         vm: &mut VirtualMachine,
     ) {
-        let this = gc.deref_mut();
+        let live_module = gc.deref_mut();
 
-        this.constants = module.constants().to_owned();
-        this.debug_info = module.debug_info().map(ToOwned::to_owned);
+        debug_assert!(
+            live_module.prototypes.is_empty(),
+            "modules should only be set up once"
+        );
+
+        debug_assert!(
+            live_module.constants.is_empty(),
+            "modules should only be set up once"
+        );
+
+        live_module.constants = module.constants().to_owned();
+        live_module.debug_info = module.debug_info().map(ToOwned::to_owned);
 
         for function in module.functions() {
-            this.prototypes
+            live_module
+                .prototypes
                 .push(vm.make_from((gc, function.to_owned())))
         }
     }

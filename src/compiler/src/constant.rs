@@ -41,7 +41,6 @@ impl From<String> for Constant {
     }
 }
 
-// TODO: is this really where this should happen? Maybe in the syntax crate instead?
 impl Constant {
     /// Parse the value out of a character literal.
     ///

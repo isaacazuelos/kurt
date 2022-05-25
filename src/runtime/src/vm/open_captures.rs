@@ -1,6 +1,6 @@
 use common::Index;
 
-use crate::{classes::CaptureCell, memory::Gc, vm::value_stack::ValueStack};
+use crate::{classes::CaptureCell, memory::Gc, vm::stack::Stack};
 
 #[derive(Default)]
 pub(crate) struct OpenCaptures {
@@ -28,7 +28,7 @@ impl OpenCaptures {
         }
     }
 
-    pub(crate) fn last_index(&self) -> Option<Index<ValueStack>> {
+    pub(crate) fn last_index(&self) -> Option<Index<Stack>> {
         let cell = self.cells.last()?;
         let index = cell
             .stack_index()
@@ -40,7 +40,7 @@ impl OpenCaptures {
     /// Pop an open cell if it's stack index is above the given `top` index.
     pub(crate) fn pop_up_to(
         &mut self,
-        top: Index<ValueStack>,
+        top: Index<Stack>,
     ) -> Option<Gc<CaptureCell>> {
         if self.last_index()? >= top {
             self.cells.pop()

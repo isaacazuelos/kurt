@@ -242,7 +242,7 @@ impl ModuleBuilder {
         }
     }
 
-    pub(crate) fn bind_local(&mut self, id: &Identifier) {
+    pub(crate) fn bind_local(&mut self, id: &Identifier) -> Result<(), Error> {
         self.active_prototype_mut()
             .bind_local(Local::new(id.as_str(), id.span()))
     }

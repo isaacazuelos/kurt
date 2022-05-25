@@ -42,8 +42,6 @@ impl ReplState {
     fn new(args: &Args) -> ReplState {
         let editor = Editor::<()>::new();
 
-        // TODO: Read history here.
-
         let module = ModuleBuilder::default();
         let empty_main = module.build();
 
@@ -126,9 +124,6 @@ impl ReplState {
     }
 
     fn read(&mut self) -> Result<InputId, ReplError> {
-        // TODO: We want to have a continuation prompt when the block of code on
-        //       that line could continue.
-
         let line = self.editor.readline(ReplState::PROMPT);
         match line {
             Ok(line) => Ok(self.inputs.repl_input(line)),

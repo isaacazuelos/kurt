@@ -21,9 +21,7 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::u48;
-
-/// An index which refers to a specific opcode.
+/// A 32-bit index.
 ///
 /// This is a 'newtype' wrapper since we don't want people creating new
 /// arbitrary indices or carelessly doing math on them.
@@ -131,12 +129,6 @@ impl<T> Display for Index<T> {
 impl<T> From<Index<T>> for u32 {
     fn from(n: Index<T>) -> Self {
         n.0
-    }
-}
-
-impl<T> From<Index<T>> for u48 {
-    fn from(n: Index<T>) -> Self {
-        u48::from(n.0)
     }
 }
 

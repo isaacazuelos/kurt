@@ -24,9 +24,10 @@ pub struct Closure {
     /// The base object required to be a [`Class`].
     base: Object,
 
+    /// The function's prototype, which contains its code and some other metadata.
     prototype: Gc<Prototype>,
 
-    // TODO: We should make this inline since we know the max capacity per-closure.
+    /// The captured values this closure relies on.
     captures: RefCell<Vec<Gc<CaptureCell>>>,
 }
 

@@ -37,10 +37,6 @@
 //! after it. Otherwise it's lexed as a `.` in a method call. Something like `0
 //! . 0` is an (invalid) method call.
 
-// TODO: I'd like to support literal suffixes the way rust does with `47u32` but
-//       I think it's wiser to wait until we have a better idea of what the type
-//       names will be.
-
 use diagnostic::Span;
 
 use crate::lexer::{Error, Lexer, TokenKind};

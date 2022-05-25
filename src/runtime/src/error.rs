@@ -1,4 +1,4 @@
-//! Lexer errors
+//! Runtime errors
 
 use std::{error, fmt};
 

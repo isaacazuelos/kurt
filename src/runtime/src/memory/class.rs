@@ -45,10 +45,6 @@ impl ClassId {
 /// Each of our runtime types must implement this trait to allow for proper
 /// resource management by the runtime.
 ///
-/// # Note
-///
-/// TODO: Why do we need the 'static here?
-///
 /// # Safety
 ///
 /// Each type which implements [`Class`] must do the following:
@@ -62,7 +58,7 @@ impl ClassId {
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub trait Class: 'static + Debug + Sized + Trace {
+pub trait Class: Debug + Sized + Trace {
     /// The [`ClassId`] that's unique to objects of this class.
     const ID: ClassId;
 

@@ -11,7 +11,7 @@ use std::{
 use common::Index;
 
 use crate::{
-    memory::*, primitives::PrimitiveOperations, value::Value, vm::ValueStack,
+    memory::*, primitives::PrimitiveOperations, value::Value, vm::Stack,
 };
 
 #[derive(Clone, Copy)]
@@ -24,11 +24,11 @@ pub enum CaptureCellContents {
     /// The value of the cell is on the stack at the given index.
     ///
     /// This is what lua would call an 'open upvalue'.
-    Stack(Index<ValueStack>),
+    Stack(Index<Stack>),
 }
 
 impl CaptureCellContents {
-    pub fn get(&self, stack: &ValueStack) -> Value {
+    pub fn get(&self, stack: &Stack) -> Value {
         match self {
             CaptureCellContents::Stack(stack_index) => {
                 stack.get(*stack_index).expect(
@@ -66,7 +66,7 @@ impl CaptureCell {
         }
     }
 
-    pub fn stack_index(&self) -> Option<Index<ValueStack>> {
+    pub fn stack_index(&self) -> Option<Index<Stack>> {
         match self.contents.get() {
             CaptureCellContents::Inline(_) => None,
             CaptureCellContents::Stack(i) => Some(i),
@@ -145,12 +145,12 @@ impl InitFrom<Value> for CaptureCell {
     }
 }
 
-impl InitFrom<Index<ValueStack>> for CaptureCell {
-    fn extra_size(_: &Index<ValueStack>) -> usize {
+impl InitFrom<Index<Stack>> for CaptureCell {
+    fn extra_size(_: &Index<Stack>) -> usize {
         0
     }
 
-    unsafe fn init(ptr: *mut Self, index: Index<ValueStack>) {
+    unsafe fn init(ptr: *mut Self, index: Index<Stack>) {
         addr_of_mut!((*ptr).contents)
             .write(Cell::new(CaptureCellContents::Stack(index)));
     }

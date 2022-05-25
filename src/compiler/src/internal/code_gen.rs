@@ -64,7 +64,7 @@ impl ModuleBuilder {
             self.expression(syntax.body())?;
         }
 
-        self.bind_local(name);
+        self.bind_local(name)?;
 
         // We're keeping this slot on the stack.
         self.emit(Op::DefineLocal, syntax.span())?;
@@ -235,7 +235,7 @@ impl ModuleBuilder {
             self.active_prototype_mut().set_name(name);
 
             for parameter in syntax.elements() {
-                self.bind_local(parameter.name());
+                self.bind_local(parameter.name())?;
             }
 
             self.expression(syntax.body())?;

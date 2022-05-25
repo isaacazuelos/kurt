@@ -23,12 +23,6 @@ use crate::{Diagnostic, InputCoordinator};
 use super::code_window::CodeWindow;
 use super::Emitter;
 
-// TODO: We could probably do a lot here to abstract this into a more general
-//       trait that's more user-configurable.
-
-// TODO: How should we handle aligning highlights with source code across weird
-//       unicode lengths?
-
 /// A printer.
 pub struct FancyEmitter {
     /// Output stream.

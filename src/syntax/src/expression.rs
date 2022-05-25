@@ -57,8 +57,6 @@ impl<'a> Parse<'a> for Expression<'a> {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
-        // TODO: When we have operators, here's where we'll being precedence
-        //       climbing, ending with `base`.
         parser.depth_track(|parser| Expression::infix(parser, Precedence::MIN))
     }
 }

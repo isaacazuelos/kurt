@@ -3,7 +3,7 @@
 use common::Index;
 use compiler::Op;
 
-use super::ValueStack;
+use super::Stack;
 
 /// A call frame is information about a specific function call that's either
 /// currently running, or could be returned to.
@@ -15,12 +15,12 @@ pub struct CallFrame {
 
     /// The 'Base Pointer' is the stack index which is the first slot in the
     /// current call frame.
-    pub(crate) bp: Index<ValueStack>,
+    pub(crate) bp: Index<Stack>,
 }
 
 impl CallFrame {
     /// Create a new call frame with the given base pointer and program counter.
-    pub fn new(pc: Index<Op>, bp: Index<ValueStack>) -> CallFrame {
+    pub fn new(pc: Index<Op>, bp: Index<Stack>) -> CallFrame {
         CallFrame { pc, bp }
     }
 

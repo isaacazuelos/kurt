@@ -8,8 +8,8 @@ mod call_stack;
 mod exit;
 mod instructions;
 mod open_captures;
+mod stack;
 mod stack_trace;
-mod value_stack;
 
 use crate::{
     classes::{Closure, Keyword, Module, String},
@@ -22,7 +22,7 @@ use crate::{
 pub use self::{
     call_stack::{CallFrame, CallStack},
     exit::Exit,
-    value_stack::ValueStack,
+    stack::Stack,
 };
 
 /// A struct that manages an instance of the language runtime.
@@ -31,7 +31,7 @@ pub struct VirtualMachine {
     modules: Vec<Gc<Module>>,
 
     // VM
-    value_stack: ValueStack,
+    stack: Stack,
     call_stack: CallStack,
 
     // Heap
@@ -44,16 +44,15 @@ impl VirtualMachine {
     pub fn load(&mut self, module: compiler::Module) -> Result<Exit> {
         self.load_without_running(module)?;
 
-        let new_module = self
+        let new_module = *self
             .modules
             .last()
-            .expect("load_without_running left a module for us")
-            .clone();
+            .expect("load_without_running left a module for us");
 
         let main_closure: Gc<Closure> = self.make_from(new_module.main());
 
-        self.value_stack.push(Value::from(main_closure));
-        let bp = self.value_stack.index_from_top(0);
+        self.stack.push(Value::from(main_closure));
+        let bp = self.stack.index_from_top(0);
 
         self.call_stack.push(CallFrame::new(Index::START, bp));
 
@@ -94,7 +93,7 @@ impl VirtualMachine {
         let bp = frame.bp;
 
         self.call_stack.push(frame);
-        self.value_stack.set(bp, Value::from(new_main));
+        self.stack.set(bp, Value::from(new_main));
 
         Ok(())
     }
@@ -104,7 +103,7 @@ impl VirtualMachine {
     ///
     /// See the implementation note on [`last_result`] for details.
     pub fn resume(&mut self) -> Result<Exit> {
-        self.value_stack.pop();
+        self.stack.pop();
         self.run()
     }
 
@@ -112,7 +111,7 @@ impl VirtualMachine {
     ///
     /// This is useful for the `repl` and `eval` subcommands.
     pub fn last_result(&self) -> std::string::String {
-        format!("{:?}", self.value_stack.last())
+        format!("{:?}", self.stack.last())
     }
 }
 
@@ -126,7 +125,6 @@ impl VirtualMachine {
         self.modules.push(live_module);
 
         unsafe {
-            // TODO: there are probably crazy GC issues here
             Module::destructively_set_up_from_compiler_module(
                 live_module,
                 module,
@@ -137,8 +135,8 @@ impl VirtualMachine {
         Ok(())
     }
 
-    pub(crate) fn value_stack(&self) -> &ValueStack {
-        &self.value_stack
+    pub(crate) fn value_stack(&self) -> &Stack {
+        &self.stack
     }
 
     /// The base pointer, or the value which indicates where in the stack values
@@ -146,7 +144,7 @@ impl VirtualMachine {
     ///
     /// The value below the base pointer is the closure that's currently
     /// executing.
-    pub fn bp(&self) -> Index<ValueStack> {
+    pub fn bp(&self) -> Index<Stack> {
         self.call_stack.frame().bp
     }
 
@@ -173,7 +171,7 @@ impl VirtualMachine {
     /// The values on the stack in the current stack frame.
     pub fn stack_frame(&self) -> &[Value] {
         let start = self.bp().as_usize();
-        &self.value_stack.as_slice()[start..]
+        &self.stack.as_slice()[start..]
     }
 
     pub fn current_closure(&self) -> Gc<Closure> {

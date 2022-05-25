@@ -1,4 +1,7 @@
 //! Some helpers for tracing execution.
+//!
+//! This is all behind the "trace" feature gates, and useful for debugging the
+//! runtime, but isn't really fit for any other use.
 
 use std::fmt::{Display, Formatter, Result};
 

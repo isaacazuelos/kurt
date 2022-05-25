@@ -146,14 +146,16 @@ impl FunctionBuilder {
     }
 
     /// Bind a [`Local`] in the current scope.
-    pub(crate) fn bind_local(&mut self, local: Local) {
-        // TODO: Error::TooManyLocals
-
+    pub(crate) fn bind_local(&mut self, local: Local) -> Result<()> {
         if let Some(count) = self.scopes.last_mut() {
             *count += 1;
+            if *count == Function::MAX_BINDINGS {
+                return Err(Error::TooManyLocals(local.span()));
+            }
         }
 
         self.locals.push(local);
+        Ok(())
     }
 
     pub(crate) fn add_capture(

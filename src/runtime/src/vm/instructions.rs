@@ -9,7 +9,7 @@ use crate::{
     memory::Gc,
     primitives::PrimitiveOperations,
     value::Value,
-    vm::{CallFrame, Exit, ValueStack},
+    vm::{CallFrame, Exit, Stack},
     Error, VirtualMachine,
 };
 
@@ -26,17 +26,17 @@ impl VirtualMachine {
                 Op::Nop => continue,
 
                 // stack
-                Op::Pop => self.value_stack.pop(),
+                Op::Pop => self.stack.pop(),
                 Op::Close(n) => self.close(n)?,
 
                 // values
-                Op::True => self.value_stack.push(Value::TRUE),
-                Op::False => self.value_stack.push(Value::FALSE),
-                Op::Unit => self.value_stack.push(Value::UNIT),
-                Op::U48(n) => self.value_stack.push(Value::int(
+                Op::True => self.stack.push(Value::TRUE),
+                Op::False => self.stack.push(Value::FALSE),
+                Op::Unit => self.stack.push(Value::UNIT),
+                Op::U48(n) => self.stack.push(Value::int(
                     i48::try_from(n).map_err(|_| Error::NumberTooBig)?,
                 )),
-                Op::I48(n) => self.value_stack.push(Value::from(n)),
+                Op::I48(n) => self.stack.push(Value::from(n)),
 
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
@@ -96,10 +96,10 @@ impl VirtualMachine {
     /// Closes any open upvalues which occur in the open list with a stack index
     /// above or at `top`.
     #[inline]
-    fn close_captures_up_to(&mut self, top: Index<ValueStack>) {
+    fn close_captures_up_to(&mut self, top: Index<Stack>) {
         while let Some(cell) = self.open_captures.pop_up_to(top) {
             let value = self
-                .value_stack
+                .stack
                 .get(
                     cell.stack_index()
                         .expect("must be open, just got from open list"),
@@ -131,8 +131,8 @@ impl VirtualMachine {
         self.close_captures_up_to(new_top);
 
         let kept = self.value_stack().last();
-        self.value_stack.set_from_top(n, kept);
-        self.value_stack.truncate_by(n);
+        self.stack.set_from_top(n, kept);
+        self.stack.truncate_by(n);
 
         Ok(())
     }
@@ -151,7 +151,7 @@ impl VirtualMachine {
 
         let value = self.inflate(&constant)?;
 
-        self.value_stack.push(value);
+        self.stack.push(value);
         Ok(())
     }
 
@@ -161,8 +161,8 @@ impl VirtualMachine {
     /// Local variables are indexed up from the base pointer.
     #[inline]
     fn load_local(&mut self, index: Index<Local>) -> Result<()> {
-        let local = self.value_stack.get_local(self.bp(), index);
-        self.value_stack.push(local);
+        let local = self.stack.get_local(self.bp(), index);
+        self.stack.push(local);
         Ok(())
     }
 
@@ -177,7 +177,7 @@ impl VirtualMachine {
             .contents()
             .get(self.value_stack());
 
-        self.value_stack.push(value);
+        self.stack.push(value);
         Ok(())
     }
 
@@ -186,7 +186,7 @@ impl VirtualMachine {
     /// previous on the top of the stack around.
     #[inline]
     fn define_local(&mut self) -> Result<()> {
-        self.value_stack.push(Value::UNIT);
+        self.stack.push(Value::UNIT);
         Ok(())
     }
 
@@ -200,7 +200,7 @@ impl VirtualMachine {
 
         let prototype = *current_module.get(index).unwrap();
         let new_closure: Gc<Closure> = self.make_from(prototype);
-        self.value_stack.push(Value::from(new_closure));
+        self.stack.push(Value::from(new_closure));
 
         // now we set up the capture cells
         let capture_count = prototype.capture_count();
@@ -213,7 +213,7 @@ impl VirtualMachine {
             let cell = match capture {
                 Capture::Local(local_index) => {
                     let index =
-                        ValueStack::as_absolute_index(self.bp(), *local_index);
+                        Stack::as_absolute_index(self.bp(), *local_index);
                     let new_cell = self.make_from(index);
                     self.open_captures.push(new_cell);
                     new_cell
@@ -238,10 +238,10 @@ impl VirtualMachine {
     /// the stack.
     #[inline]
     fn call(&mut self, arg_count: u32) -> Result<()> {
-        let bp = self.value_stack.index_from_top(arg_count);
+        let bp = self.stack.index_from_top(arg_count);
 
         let target = self
-            .value_stack
+            .stack
             .get(bp)
             .expect("call target must be in range on the stack")
             .as_gc::<Closure>()?;
@@ -270,9 +270,9 @@ impl VirtualMachine {
         self.close_captures_up_to(self.bp().saturating_next());
 
         let frame = self.call_stack.pop();
-        let result = self.value_stack.last();
-        self.value_stack.set(frame.bp, result);
-        self.value_stack.truncate_to(frame.bp.next().unwrap());
+        let result = self.stack.last();
+        self.stack.set(frame.bp, result);
+        self.stack.truncate_to(frame.bp.next().unwrap());
         Ok(())
     }
 
@@ -281,7 +281,7 @@ impl VirtualMachine {
     /// of the stack.
     #[inline]
     fn list(&mut self, n: u32) -> Result<()> {
-        let slice = self.value_stack().last_n(n as usize);
+        let slice = self.value_stack().last_n(n);
 
         debug_assert_eq!(slice.len(), n as usize);
 
@@ -290,10 +290,10 @@ impl VirtualMachine {
         let value = Value::gc(list);
 
         if n > 0 {
-            self.value_stack.set_from_top(n - 1, value);
-            self.value_stack.truncate_by(n - 1);
+            self.stack.set_from_top(n - 1, value);
+            self.stack.truncate_by(n - 1);
         } else {
-            self.value_stack.push(value);
+            self.stack.push(value);
         }
 
         Ok(())
@@ -312,8 +312,8 @@ impl VirtualMachine {
     /// continues on. If it's not, then it jumps to `i`.
     #[inline]
     fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
-        let truthy = self.value_stack.last().is_truthy();
-        self.value_stack.pop();
+        let truthy = self.stack.last().is_truthy();
+        self.stack.pop();
 
         if !truthy {
             self.jump(i)
@@ -330,10 +330,10 @@ impl VirtualMachine {
         F: Fn(&Value, &mut VirtualMachine) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
-        let arg = self.value_stack.last();
+        let arg = self.stack.last();
 
         let result = op(&arg, self).map_err(Into::into)?;
-        self.value_stack.set_from_top(0, result);
+        self.stack.set_from_top(0, result);
         Ok(())
     }
 
@@ -353,13 +353,13 @@ impl VirtualMachine {
         // the stack (and the GC root set) until after we have the result of
         // `op`.
 
-        let rhs = self.value_stack.get_from_top(0);
-        let lhs = self.value_stack.get_from_top(1);
+        let rhs = self.stack.get_from_top(0);
+        let lhs = self.stack.get_from_top(1);
 
         let result = op(&lhs, rhs, self).map_err(Into::into)?;
 
-        self.value_stack.set_from_top(1, result);
-        self.value_stack.pop();
+        self.stack.set_from_top(1, result);
+        self.stack.pop();
 
         Ok(())
     }
