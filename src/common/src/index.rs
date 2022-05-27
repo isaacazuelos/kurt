@@ -38,6 +38,9 @@ impl<T> Index<T> {
     /// The largest any [`Index`] can be.
     pub const MAX: usize = u32::MAX as usize;
 
+    /// The largest [`Index`].
+    pub const MAX_INDEX: Index<T> = Index::new(u32::MAX);
+
     /// Create a new index from a u32.
     ///
     /// # Safety

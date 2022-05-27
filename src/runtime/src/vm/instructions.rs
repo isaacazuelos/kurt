@@ -9,7 +9,7 @@ use crate::{
     memory::Gc,
     primitives::PrimitiveOperations,
     value::Value,
-    vm::{CallFrame, Exit, Stack},
+    vm::{stack::StackTop, CallFrame, Exit, Stack},
     Error, VirtualMachine,
 };
 
@@ -20,7 +20,7 @@ impl VirtualMachine {
             #[cfg(feature = "trace")]
             self.trace();
 
-            match self.fetch()? {
+            match self.fetch() {
                 // control
                 Op::Halt => return self.halt(),
                 Op::Nop => continue,
@@ -86,26 +86,23 @@ impl VirtualMachine {
         }
     }
 
+    /// Get the op at the program counter, and then increments the counter.
     #[inline]
-    fn fetch(&mut self) -> Result<Op> {
-        let op = self.op().expect("op code not in range");
+    fn fetch(&mut self) -> Op {
+        let op = self.op();
         self.pc_mut().saturating_increment();
-        Ok(op)
+        op
     }
 
     /// Closes any open upvalues which occur in the open list with a stack index
-    /// above or at `top`.
+    /// above `top`.
     #[inline]
-    fn close_captures_up_to(&mut self, top: Index<Stack>) {
-        while let Some(cell) = self.open_captures.pop_up_to(top) {
-            let value = self
-                .stack
-                .get(
-                    cell.stack_index()
-                        .expect("must be open, just got from open list"),
-                )
-                .expect("open capture cell past end of stack");
-
+    fn close_captures_above(&mut self, top: Index<Stack>) {
+        while let Some(cell) = self.open_captures.pop_if_above(top) {
+            let index = cell
+                .stack_index()
+                .expect("cells in the open list should be open, and therefor have a stack index");
+            let value = self.stack[index];
             cell.close(value);
         }
     }
@@ -124,15 +121,16 @@ impl VirtualMachine {
     /// stack back `n` spaces, and closes any open captures along the way.
     #[inline]
     fn close(&mut self, n: u32) -> Result<()> {
-        // We need to add one to this index since we're keeping the current top
-        // of the stack and sliding it down.
-        let new_top = self.value_stack().index_from_top(n);
+        let new_top: Index<Stack> = self.stack.from_top(Index::new(n));
+        self.close_captures_above(new_top);
 
-        self.close_captures_up_to(new_top);
+        let kept = self
+            .stack()
+            .last()
+            .expect("when executing Close, the stack cannot be empty");
 
-        let kept = self.value_stack().last();
-        self.stack.set_from_top(n, kept);
-        self.stack.truncate_by(n);
+        self.stack[new_top] = *kept;
+        self.stack.truncate_above(new_top);
 
         Ok(())
     }
@@ -161,7 +159,7 @@ impl VirtualMachine {
     /// Local variables are indexed up from the base pointer.
     #[inline]
     fn load_local(&mut self, index: Index<Local>) -> Result<()> {
-        let local = self.stack.get_local(self.bp(), index);
+        let local = self.stack[(self.bp(), index)];
         self.stack.push(local);
         Ok(())
     }
@@ -175,7 +173,7 @@ impl VirtualMachine {
             .current_closure()
             .get_capture_cell(index)
             .contents()
-            .get(self.value_stack());
+            .get(self.stack());
 
         self.stack.push(value);
         Ok(())
@@ -212,8 +210,7 @@ impl VirtualMachine {
 
             let cell = match capture {
                 Capture::Local(local_index) => {
-                    let index =
-                        Stack::as_absolute_index(self.bp(), *local_index);
+                    let index = Stack::from_local(self.bp(), *local_index);
                     let new_cell = self.make_from(index);
                     self.open_captures.push(new_cell);
                     new_cell
@@ -238,14 +235,8 @@ impl VirtualMachine {
     /// the stack.
     #[inline]
     fn call(&mut self, arg_count: u32) -> Result<()> {
-        let bp = self.stack.index_from_top(arg_count);
-
-        let target = self
-            .stack
-            .get(bp)
-            .expect("call target must be in range on the stack")
-            .as_gc::<Closure>()?;
-
+        let bp = self.stack.from_top(Index::new(arg_count));
+        let target: Gc<Closure> = self.stack[bp].try_into()?;
         let parameter_count = target.prototype().parameter_count();
 
         if parameter_count != arg_count {
@@ -267,34 +258,43 @@ impl VirtualMachine {
     /// stack.
     #[inline]
     fn r#return(&mut self) -> Result<()> {
-        self.close_captures_up_to(self.bp().saturating_next());
+        self.close_captures_above(self.bp().saturating_previous());
 
         let frame = self.call_stack.pop();
-        let result = self.stack.last();
-        self.stack.set(frame.bp, result);
-        self.stack.truncate_to(frame.bp.next().unwrap());
+        let result = self.stack.last().expect("return on empty stack");
+        self.stack[frame.bp()] = *result;
+
+        self.stack.truncate_above(frame.bp());
         Ok(())
     }
 
-    /// The [`List(n)`][Op::List] instruction takes the top `n` values on the
-    /// stack and makes them the elements of a new list which is let on the top
-    /// of the stack.
+    /// The [`List(n)`][Op::List] instruction takes the top `len` values on the
+    /// stack and makes them the elements of a new list which is left on top of
+    /// the stack.
     #[inline]
-    fn list(&mut self, n: u32) -> Result<()> {
-        let slice = self.value_stack().last_n(n);
-
-        debug_assert_eq!(slice.len(), n as usize);
-
-        let vec = Vec::from(slice);
-        let list: Gc<List> = self.make_from(vec);
-        let value = Value::gc(list);
-
-        if n > 0 {
-            self.stack.set_from_top(n - 1, value);
-            self.stack.truncate_by(n - 1);
-        } else {
-            self.stack.push(value);
+    fn list(&mut self, len: u32) -> Result<()> {
+        // Empty lists don't have on-stack values to pop, so we have to do
+        // things a bit differently.
+        if len == 0 {
+            let empty_list: Gc<List> = self.make_from(Vec::new());
+            self.stack.push(Value::from(empty_list));
+            return Ok(());
         }
+
+        let under_elements = Index::<StackTop>::new(len);
+
+        let value = {
+            let values = self.stack().above(under_elements).to_vec();
+            debug_assert_eq!(values.len(), len as usize);
+            let list: Gc<List> = self.make_from(values);
+            Value::from(list)
+        };
+
+        // We already handled empty lists, so there's a first element.
+        let first_element =
+            self.stack.from_top(under_elements.saturating_previous());
+        self.stack[first_element] = value;
+        self.stack.truncate_above(first_element);
 
         Ok(())
     }
@@ -312,7 +312,12 @@ impl VirtualMachine {
     /// continues on. If it's not, then it jumps to `i`.
     #[inline]
     fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
-        let truthy = self.stack.last().is_truthy();
+        let truthy = self
+            .stack
+            .last()
+            .expect("the stack should not be empty when executing BranchFalse")
+            .is_truthy();
+
         self.stack.pop();
 
         if !truthy {
@@ -330,10 +335,13 @@ impl VirtualMachine {
         F: Fn(&Value, &mut VirtualMachine) -> std::result::Result<Value, E>,
         E: Into<Error>,
     {
-        let arg = self.stack.last();
+        let arg = *self
+            .stack
+            .last()
+            .expect("unary operator expected a value on the stack");
 
         let result = op(&arg, self).map_err(Into::into)?;
-        self.stack.set_from_top(0, result);
+        self.stack[Index::<StackTop>::START] = result;
         Ok(())
     }
 
@@ -353,12 +361,15 @@ impl VirtualMachine {
         // the stack (and the GC root set) until after we have the result of
         // `op`.
 
-        let rhs = self.stack.get_from_top(0);
-        let lhs = self.stack.get_from_top(1);
+        let top = Index::<StackTop>::new(0);
+        let one_below = Index::<StackTop>::new(1);
+
+        let rhs = self.stack[top];
+        let lhs = self.stack[one_below];
 
         let result = op(&lhs, rhs, self).map_err(Into::into)?;
 
-        self.stack.set_from_top(1, result);
+        self.stack[one_below] = result;
         self.stack.pop();
 
         Ok(())

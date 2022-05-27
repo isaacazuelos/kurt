@@ -11,23 +11,35 @@ use super::Stack;
 pub struct CallFrame {
     /// The 'Program Counter' tells us where in some code our VM is currently
     /// executing instructions from.
-    pub(crate) pc: Index<Op>,
+    pc: Index<Op>,
 
     /// The 'Base Pointer' is the stack index which is the first slot in the
     /// current call frame.
-    pub(crate) bp: Index<Stack>,
+    bp: Index<Stack>,
 }
 
 impl CallFrame {
     /// Create a new call frame with the given base pointer and program counter.
+    #[inline]
     pub fn new(pc: Index<Op>, bp: Index<Stack>) -> CallFrame {
         CallFrame { pc, bp }
     }
 
+    /// The base pointer, which points to this frame's closure.
+    #[inline]
+    pub fn bp(&self) -> Index<Stack> {
+        self.bp
+    }
+
+    /// The current program counter, the index into the current closure (at
+    /// [`CallFrame.bp`]).
+    /// #[inline]
     pub fn pc(&self) -> Index<Op> {
         self.pc
     }
 
+    /// A mutable reference to the program counter.
+    #[inline]
     pub fn pc_mut(&mut self) -> &mut Index<Op> {
         &mut self.pc
     }
@@ -110,6 +122,7 @@ impl CallStack {
         }
     }
 
+    /// Get a specific
     pub fn get(&self, index: usize) -> Option<&CallFrame> {
         if index == 0 {
             self.current.as_ref()

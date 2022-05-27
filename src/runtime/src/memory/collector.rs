@@ -138,7 +138,7 @@ impl VirtualMachine {
 impl Trace for VirtualMachine {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         // Values on th stack are reachable.
-        for value in self.value_stack().as_slice().iter() {
+        for value in self.stack().as_slice().iter() {
             value.enqueue_gc_references(worklist);
         }
 

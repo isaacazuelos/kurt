@@ -38,7 +38,7 @@ impl OpenCaptures {
     }
 
     /// Pop an open cell if it's stack index is above the given `top` index.
-    pub(crate) fn pop_up_to(
+    pub(crate) fn pop_if_above(
         &mut self,
         top: Index<Stack>,
     ) -> Option<Gc<CaptureCell>> {

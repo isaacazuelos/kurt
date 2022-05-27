@@ -42,10 +42,7 @@ impl VirtualMachine {
     fn stack_trace_frame_diagnostic(&self, frame: &CallFrame) -> Diagnostic {
         let mut message = String::from("called by ");
 
-        let prototype = self
-            .value_stack()
-            .get(frame.bp)
-            .expect("every frame base pointers is valid")
+        let prototype = self.stack[frame.bp()]
             .as_gc::<Closure>()
             .expect("every frame base pointer is a closure")
             .prototype();

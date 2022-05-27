@@ -15,6 +15,7 @@ use crate::{
     classes::{CaptureCell, Module},
     memory::*,
     primitives::PrimitiveOperations,
+    Value,
 };
 
 use super::Prototype;
@@ -120,7 +121,7 @@ impl Debug for Closure {
             for capture in self.captures.borrow().iter() {
                 if capture
                     .inline_value()
-                    .and_then(|v| v.as_gc::<Closure>().ok())
+                    .and_then(|v| Value::as_gc::<Closure>(&v))
                     .map(|v| v.identity() == self.identity())
                     .unwrap_or(false)
                 {

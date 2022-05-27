@@ -4,7 +4,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::Deref;
 use std::{marker::PhantomData, ptr::NonNull};
 
-use crate::error::CastError;
 use crate::memory::{Class, Object};
 
 #[repr(transparent)]
@@ -51,21 +50,6 @@ impl<T: Class> From<Gc<T>> for GcAny {
     }
 }
 
-impl<T: Class> TryFrom<GcAny> for Gc<T> {
-    type Error = CastError;
-
-    fn try_from(any: GcAny) -> Result<Self, Self::Error> {
-        if any.is_a::<T>() {
-            Ok(unsafe { std::mem::transmute(any) })
-        } else {
-            Err(CastError {
-                from: any.deref().class_id().name(),
-                to: T::ID.name(),
-            })
-        }
-    }
-}
-
 impl<T: Class> Deref for Gc<T> {
     type Target = T;
 
@@ -109,6 +93,15 @@ impl GcAny {
     #[inline]
     pub fn is_a<T: Class>(self) -> bool {
         self.deref().class_id() == T::ID
+    }
+
+    #[inline]
+    pub fn as_a<T: Class>(self) -> Option<Gc<T>> {
+        if self.is_a::<T>() {
+            Some(unsafe { std::mem::transmute(self) })
+        } else {
+            None
+        }
     }
 
     pub(crate) unsafe fn cast_unchecked<T: Class>(self) -> Gc<T> {

@@ -52,7 +52,7 @@ impl VirtualMachine {
         let main_closure: Gc<Closure> = self.make_from(new_module.main());
 
         self.stack.push(Value::from(main_closure));
-        let bp = self.stack.index_from_top(0);
+        let bp = self.stack.from_top(Index::START);
 
         self.call_stack.push(CallFrame::new(Index::START, bp));
 
@@ -74,8 +74,7 @@ impl VirtualMachine {
         // To replace main, we want to stash the instruction index, swap out
         // the closure, and keep any captures it has.
 
-        let old_main: Gc<Closure> =
-            self.value_stack().get(self.bp()).unwrap().as_gc().unwrap();
+        let old_main: Gc<Closure> = self.stack[self.bp()].as_gc().unwrap();
 
         let new_main: Gc<Closure> =
             self.make_from(self.modules.last().unwrap().main());
@@ -88,12 +87,12 @@ impl VirtualMachine {
 
         let mut frame = self.call_stack.pop();
 
-        frame.pc.saturating_decrement();
+        frame.pc_mut().saturating_decrement();
 
-        let bp = frame.bp;
+        let bp = frame.bp();
 
         self.call_stack.push(frame);
-        self.stack.set(bp, Value::from(new_main));
+        self.stack[bp] = Value::from(new_main);
 
         Ok(())
     }
@@ -111,7 +110,11 @@ impl VirtualMachine {
     ///
     /// This is useful for the `repl` and `eval` subcommands.
     pub fn last_result(&self) -> std::string::String {
-        format!("{:?}", self.stack.last())
+        if let Some(value) = self.stack.last() {
+            format!("{:?}", value)
+        } else {
+            "<stack empty>".into()
+        }
     }
 }
 
@@ -135,7 +138,8 @@ impl VirtualMachine {
         Ok(())
     }
 
-    pub(crate) fn value_stack(&self) -> &Stack {
+    /// A reference to the [`VirtualMachine`]'s [`Stack`].
+    pub(crate) fn stack(&self) -> &Stack {
         &self.stack
     }
 
@@ -145,7 +149,7 @@ impl VirtualMachine {
     /// The value below the base pointer is the closure that's currently
     /// executing.
     pub fn bp(&self) -> Index<Stack> {
-        self.call_stack.frame().bp
+        self.call_stack.frame().bp()
     }
 
     /// The program counter is the address of the currently executing piece of
@@ -154,11 +158,19 @@ impl VirtualMachine {
         self.call_stack.frame().pc()
     }
 
-    pub fn op(&self) -> Option<Op> {
-        let index = self.pc();
-        self.current_closure().get_op(index)
+    /// The next opcode in the current closure, if there is one.
+    pub fn op(&self) -> Op {
+        self.stack()[self.bp()]
+            .as_gc::<Closure>()
+            .expect("base pointer wasn't a closure")
+            .get_op(self.pc())
+            .expect("program counter out of range")
     }
 
+    /// The span of the [`Op`] before, the current frame's program counter.
+    ///
+    /// Note that this won't unwind calls, so if this is called at the start of
+    /// a closure, it still just returns the first op of that closure.
     pub fn last_op_span(&self) -> Option<Span> {
         let index = self.pc().saturating_previous();
 
@@ -174,13 +186,15 @@ impl VirtualMachine {
         &self.stack.as_slice()[start..]
     }
 
+    /// The currently executing closure.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if there's no call frame (so no base pointer), or if the
+    /// base pointer isn't pointing to a closure.
     pub fn current_closure(&self) -> Gc<Closure> {
         let bp = self.bp();
-        self.value_stack()
-            .get(bp)
-            .expect("no current closure")
-            .as_gc()
-            .expect("bp not pointing to closure")
+        self.stack[bp].as_gc().expect("bp not pointing to closure")
     }
 
     /// The program counter is the address of the currently executing piece of

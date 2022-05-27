@@ -313,15 +313,8 @@ impl Value {
 
     /// View this value as an opaque [`Gc<T>`] reference to an [`Object`].
     #[inline]
-    pub fn as_gc<T: Class>(&self) -> Result<Gc<T>, CastError> {
-        if let Some(any) = self.as_gc_any() {
-            Gc::try_from(any)
-        } else {
-            Err(CastError {
-                from: self.type_name(),
-                to: T::ID.name(),
-            })
-        }
+    pub fn as_gc<T: Class>(&self) -> Option<Gc<T>> {
+        self.as_gc_any().and_then(GcAny::as_a)
     }
 }
 
@@ -511,6 +504,17 @@ impl TryInto<f64> for Value {
 
     fn try_into(self) -> Result<f64, Self::Error> {
         self.as_float().ok_or_else(|| CastError {
+            from: self.type_name(),
+            to: 0f64.type_name(),
+        })
+    }
+}
+
+impl<T: Class> TryInto<Gc<T>> for Value {
+    type Error = CastError;
+
+    fn try_into(self) -> Result<Gc<T>, Self::Error> {
+        self.as_gc().ok_or_else(|| CastError {
             from: self.type_name(),
             to: 0f64.type_name(),
         })

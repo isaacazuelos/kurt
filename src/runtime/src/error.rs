@@ -13,7 +13,6 @@ pub struct CastError {
 #[derive(Debug)]
 pub enum Error {
     NumberTooBig,
-    EndOfCode,
 
     CastError,
 
@@ -43,7 +42,6 @@ impl fmt::Display for Error {
         use Error::*;
         match self {
             NumberTooBig => write!(f, "number too big"),
-            EndOfCode => write!(f, "code ended unexpectedly"),
 
             CastError => write!(f, "cannot cast value as requested"),
 

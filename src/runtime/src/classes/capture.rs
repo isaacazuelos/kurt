@@ -30,11 +30,7 @@ pub enum CaptureCellContents {
 impl CaptureCellContents {
     pub fn get(&self, stack: &Stack) -> Value {
         match self {
-            CaptureCellContents::Stack(stack_index) => {
-                stack.get(*stack_index).expect(
-                    "an open capture referred to past the top of the stack",
-                )
-            }
+            CaptureCellContents::Stack(stack_index) => stack[*stack_index],
             CaptureCellContents::Inline(v) => *v,
         }
     }

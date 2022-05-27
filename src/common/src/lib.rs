@@ -11,11 +11,3 @@ pub use crate::{
     u48_type::u48,
 };
 
-/// The usual [`Ord::min`] isn't `const`, but this should behave the same.
-pub const fn min(lhs: usize, rhs: usize) -> usize {
-    if lhs > rhs {
-        lhs
-    } else {
-        rhs
-    }
-}

@@ -18,21 +18,15 @@ impl VirtualMachine {
 impl Display for VirtualMachine {
     fn fmt(&self, f: &mut Formatter) -> Result {
         self.fmt_where(f)?;
-        write!(f, " stack: ")?;
+        write!(f, " ")?;
         self.fmt_stack(f)?;
-        // write!(f, "\nopen captures: ")?;
-        // self.fmt_open_captures(f)?;
         Ok(())
     }
 }
 
 impl VirtualMachine {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
-        let op = if let Some(op) = self.op() {
-            format!("{op}")
-        } else {
-            String::from("<none>")
-        };
+        let op = format!("{}", self.op());
 
         write!(
             f,
@@ -59,7 +53,7 @@ impl VirtualMachine {
     }
 
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
-        let omitted = self.value_stack().len() - self.stack_frame().len();
+        let omitted = self.stack().len() - self.stack_frame().len();
 
         write!(f, "[ ...{} | ", omitted)?;
 
