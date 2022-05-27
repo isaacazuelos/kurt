@@ -143,6 +143,10 @@ impl VirtualMachine {
         &self.stack
     }
 
+    pub(crate) fn modules(&self) -> &[Gc<Module>] {
+        &self.modules
+    }
+
     /// The base pointer, or the value which indicates where in the stack values
     /// pertaining to the currently executing closure begin.
     ///

@@ -99,10 +99,10 @@ mod indexing {
 }
 
 mod closures {
-    test_eval! { capture, "let a = () => { let b = 1; let c = () => b; c }; a()()", "1"}
+    test_eval! { capture_local, "let a = () => { let b = 1; let c = () => b; c }; a()()", "1"}
 
     test_eval! {
-        capture_2,
+        capture_closure,
         "let a = () => { let b = 1; let c = () => b; c }; let d = a(); d()",
         "1"
     }

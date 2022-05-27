@@ -68,7 +68,11 @@ impl Class for Prototype {
 
 impl Debug for Prototype {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "<prototype>")
+        if let Some(name) = self.debug_info().and_then(|d| d.name()) {
+            write!(f, "<prototype {}>", name)
+        } else {
+            write!(f, "<prototype>")
+        }
     }
 }
 

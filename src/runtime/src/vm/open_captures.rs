@@ -50,7 +50,6 @@ impl OpenCaptures {
     }
 
     /// Iterator over all the open capture cells, from most recent to least recent.
-    #[cfg(feature = "trace")]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Gc<CaptureCell>> {
         self.cells.iter().rev()
     }

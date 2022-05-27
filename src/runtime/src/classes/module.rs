@@ -12,7 +12,7 @@ use compiler::{Constant, ModuleDebug};
 
 use crate::{
     classes::Prototype,
-    memory::{Class, ClassId, Gc, InitFrom, Object, Trace},
+    memory::{Class, ClassId, Gc, InitFrom, GcAny, Object, Trace},
     primitives::PrimitiveOperations,
     VirtualMachine,
 };
@@ -98,8 +98,10 @@ impl PartialOrd for Module {
 }
 
 impl Trace for Module {
-    fn enqueue_gc_references(&self, _worklist: &mut crate::memory::WorkList) {
-        // No gc values, yet.
+    fn enqueue_gc_references(&self, worklist: &mut crate::memory::WorkList) {
+        for p in self.prototypes.iter() {
+            worklist.enqueue(GcAny::from(*p));
+        }
     }
 }
 
