@@ -16,6 +16,7 @@ use super::*;
 #[derive(Debug)]
 pub struct Binding<'a> {
     keyword: Token<'a>,
+    rec: Option<Token<'a>>,
     name: Identifier,
     equals: Span,
     body: Expression<'a>,
@@ -35,6 +36,11 @@ impl Binding<'_> {
     /// Is this a `let` binding?
     pub fn is_let(&self) -> bool {
         self.keyword.kind() == Kind::Reserved(Reserved::Let)
+    }
+
+    // Is this binding recursive, i.e. did it have a `rec` keyword?
+    pub fn is_rec(&self) -> bool {
+        self.rec.is_some()
     }
 
     /// The expression on the right of the `=` which is evaluated and bound.
@@ -74,6 +80,8 @@ impl<'a> Parse<'a> for Binding<'a> {
                 SyntaxError::BindingNoReserved(parser.next_span())
             })?;
 
+        let rec = parser.consume(TokenKind::Reserved(Reserved::Rec));
+
         let name = parser.parse()?;
 
         let equals = parser
@@ -91,6 +99,7 @@ impl<'a> Parse<'a> for Binding<'a> {
 
         Ok(Binding {
             keyword,
+            rec,
             name,
             equals,
             body,
@@ -113,6 +122,14 @@ mod parser_tests {
     #[test]
     fn test_var() {
         let mut parser = Parser::new("let x = x").unwrap();
+        let binding = parser.parse::<Binding>();
+        assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn test_let_rec() {
+        let mut parser = Parser::new("let rec x = x").unwrap();
         let binding = parser.parse::<Binding>();
         assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
         assert!(parser.is_empty());

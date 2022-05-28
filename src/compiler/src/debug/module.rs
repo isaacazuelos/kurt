@@ -70,7 +70,7 @@ impl Function {
     }
 
     fn display_name(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(name) = self.debug_info().and_then(|d| d.name()) {
+        if let Some(name) = self.name() {
             write!(f, "{name}")
         } else {
             write!(f, "{}", Function::DEFAULT_NAMELESS_NAME)
@@ -109,10 +109,8 @@ impl Function {
                 Op::LoadClosure(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
-                    if let Some(name) = module
-                        .get(*index)
-                        .and_then(Function::debug_info)
-                        .and_then(|d| d.name())
+                    if let Some(name) =
+                        module.get(*index).and_then(|f| f.name())
                     {
                         writeln!(f, "{}", name)
                     } else {

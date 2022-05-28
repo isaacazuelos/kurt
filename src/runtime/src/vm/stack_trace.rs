@@ -2,7 +2,7 @@
 
 use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 
-use compiler::{Function, ModuleDebug};
+use compiler::ModuleDebug;
 
 use crate::{
     classes::Closure,
@@ -49,9 +49,9 @@ impl VirtualMachine {
 
         let debug = prototype.debug_info();
 
-        let name = debug.and_then(|d| d.name());
+        let name = prototype.name();
 
-        message.push_str(name.unwrap_or(Function::DEFAULT_NAMELESS_NAME));
+        message.push_str(&format!("{:?}", name));
 
         if let Some(span) = debug.and_then(|d| d.span_of(frame.pc())) {
             message.push_str(&format!(" at {}", span));

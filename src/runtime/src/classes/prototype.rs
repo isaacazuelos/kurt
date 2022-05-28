@@ -14,7 +14,9 @@ use std::{
 use common::{Get, Index};
 use compiler::{Capture, FunctionDebug, Op};
 
-use crate::{classes::Module, memory::*, primitives::PrimitiveOperations};
+use crate::{
+    classes::Module, memory::*, primitives::PrimitiveOperations, Value,
+};
 
 #[derive(PartialEq)]
 #[repr(C, align(8))]
@@ -29,6 +31,13 @@ pub struct Prototype {
 impl Prototype {
     pub fn module(&self) -> Gc<Module> {
         self.module
+    }
+
+    pub fn name(&self) -> Value {
+        self.inner
+            .name()
+            .and_then(|i| self.module.constant(i))
+            .unwrap_or_default()
     }
 
     pub fn debug_info(&self) -> Option<&FunctionDebug> {
@@ -68,8 +77,8 @@ impl Class for Prototype {
 
 impl Debug for Prototype {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(name) = self.debug_info().and_then(|d| d.name()) {
-            write!(f, "<prototype {}>", name)
+        if self.name() != Value::UNIT {
+            write!(f, "<prototype {:?}>", self.name())
         } else {
             write!(f, "<prototype>")
         }

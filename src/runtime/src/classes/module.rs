@@ -12,9 +12,9 @@ use compiler::{Constant, ModuleDebug};
 
 use crate::{
     classes::Prototype,
-    memory::{Class, ClassId, Gc, InitFrom, GcAny, Object, Trace},
+    memory::{Class, ClassId, Gc, GcAny, InitFrom, Object, Trace},
     primitives::PrimitiveOperations,
-    VirtualMachine,
+    Value, VirtualMachine,
 };
 
 #[derive(PartialEq)]
@@ -22,7 +22,7 @@ use crate::{
 pub struct Module {
     base: Object,
 
-    constants: Vec<Constant>,
+    constants: Vec<Value>,
     prototypes: Vec<Gc<Prototype>>,
 
     debug_info: Option<ModuleDebug>,
@@ -31,7 +31,8 @@ pub struct Module {
 impl Module {
     /// # Safety
     ///
-    /// This (unsafely) mutates the [`Module`] object.
+    /// This (unsafely) mutates the [`Module`] object. The [`Module`] must be
+    /// rooted when this is called.
     pub(crate) unsafe fn destructively_set_up_from_compiler_module(
         gc: Gc<Module>,
         module: compiler::Module,
@@ -49,7 +50,11 @@ impl Module {
             "modules should only be set up once"
         );
 
-        live_module.constants = module.constants().to_owned();
+        for constant in module.constants() {
+            let value = vm.inflate(constant);
+            live_module.constants.push(value);
+        }
+
         live_module.debug_info = module.debug_info().map(ToOwned::to_owned);
 
         for function in module.functions() {
@@ -71,17 +76,15 @@ impl Module {
     pub fn debug_info(&self) -> Option<&ModuleDebug> {
         self.debug_info.as_ref()
     }
+
+    pub fn constant(&self, index: Index<Constant>) -> Option<Value> {
+        self.constants.get(index.as_usize()).copied()
+    }
 }
 
 impl Get<compiler::Function, Gc<Prototype>> for Module {
     fn get(&self, index: Index<compiler::Function>) -> Option<&Gc<Prototype>> {
         self.prototypes.get(index.as_usize())
-    }
-}
-
-impl Get<Constant> for Module {
-    fn get(&self, index: Index<Constant>) -> Option<&Constant> {
-        self.constants.get(index.as_usize())
     }
 }
 
@@ -101,6 +104,10 @@ impl Trace for Module {
     fn enqueue_gc_references(&self, worklist: &mut crate::memory::WorkList) {
         for p in self.prototypes.iter() {
             worklist.enqueue(GcAny::from(*p));
+        }
+
+        for v in self.constants.iter() {
+            v.enqueue_gc_references(worklist);
         }
     }
 }

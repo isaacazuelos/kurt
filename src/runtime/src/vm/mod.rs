@@ -210,17 +210,17 @@ impl VirtualMachine {
 
 impl VirtualMachine {
     /// Inflate a [`Constant`] into a full-fledged runtime value.
-    fn inflate(&mut self, constant: &Constant) -> Result<Value> {
+    pub(crate) fn inflate(&mut self, constant: &Constant) -> Value {
         match constant {
-            Constant::Character(c) => Ok(Value::char(*c)),
-            Constant::Float(bits) => Ok(Value::float(f64::from_bits(*bits))),
+            Constant::Character(c) => Value::char(*c),
+            Constant::Float(bits) => Value::float(f64::from_bits(*bits)),
             Constant::String(s) => {
                 let string: Gc<String> = self.make_from(s.as_str());
-                Ok(Value::gc(string))
+                Value::gc(string)
             }
             Constant::Keyword(kw) => {
                 let keyword: Gc<Keyword> = self.make_from(kw.as_str());
-                Ok(Value::gc(keyword))
+                Value::gc(keyword)
             }
         }
     }

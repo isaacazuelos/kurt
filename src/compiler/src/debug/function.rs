@@ -7,7 +7,6 @@ use crate::{internal::FunctionBuilder, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct FunctionDebug {
-    pub(crate) name: Option<String>,
     pub(crate) parameter_names: Vec<String>,
     pub(crate) code_spans: Vec<Span>,
 }
@@ -21,7 +20,6 @@ impl FunctionDebug {
             .collect();
 
         Some(FunctionDebug {
-            name: builder.name().map(ToOwned::to_owned),
             parameter_names,
             code_spans: builder.code().spans().to_owned(),
         })
@@ -29,10 +27,6 @@ impl FunctionDebug {
 
     pub fn parameter_names(&self) -> &[String] {
         &self.parameter_names
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
     }
 
     pub fn span_of(&self, index: Index<Op>) -> Option<Span> {

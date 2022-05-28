@@ -9,12 +9,12 @@ use crate::{
     error::{Error, Result},
     internal::{capture::Capture, code::Code, local::Local},
     opcode::Op,
-    Function, FunctionDebug,
+    Constant, Function, FunctionDebug,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct FunctionBuilder {
-    name: Option<String>,
+    name: Option<Index<Constant>>,
     span: Span,
     parameter_count: u32,
     captures: Vec<Capture>,
@@ -37,7 +37,8 @@ impl FunctionBuilder {
         }
     }
 
-    /// Like [`FunctionBuilder::build`], but it closes the function assuming it's a module's `main`.
+    /// Like [`FunctionBuilder::build`], but it closes the function assuming
+    /// it's a module's `main`.
     ///
     /// This special cases empty modules and emits a `()` before the halt.
     pub fn build_as_main(&self) -> Function {
@@ -66,6 +67,7 @@ impl FunctionBuilder {
         let debug_info = FunctionDebug::new(self);
 
         Function {
+            name: self.name,
             span: self.span,
             parameter_count: self.parameter_count,
             captures: self.captures.clone(),
@@ -75,14 +77,9 @@ impl FunctionBuilder {
         }
     }
 
-    /// Get teh function's name, if known.
-    pub(crate) fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
     /// Set the functions's name.
-    pub(crate) fn set_name(&mut self, name: Option<&str>) {
-        self.name = name.map(ToOwned::to_owned)
+    pub(crate) fn set_name(&mut self, name: Option<Index<Constant>>) {
+        self.name = name
     }
 
     /// The number of parameters this function

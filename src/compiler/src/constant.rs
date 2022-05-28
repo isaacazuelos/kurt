@@ -35,6 +35,12 @@ impl From<f64> for Constant {
     }
 }
 
+impl From<&str> for Constant {
+    fn from(s: &str) -> Constant {
+        Constant::String(String::from(s))
+    }
+}
+
 impl From<String> for Constant {
     fn from(s: String) -> Constant {
         Constant::String(s)

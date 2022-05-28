@@ -143,13 +143,10 @@ impl VirtualMachine {
         let constant = self
             .current_closure()
             .module()
-            .get(index)
-            .expect("constant index out of range")
-            .clone();
+            .constant(index)
+            .expect("constant index out of range");
 
-        let value = self.inflate(&constant)?;
-
-        self.stack.push(value);
+        self.stack.push(constant);
         Ok(())
     }
 

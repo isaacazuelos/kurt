@@ -9,7 +9,7 @@ use std::{
 
 use common::{Get, Index};
 
-use compiler::{Capture, FunctionDebug, Op};
+use compiler::{Capture, Op};
 
 use crate::{
     classes::{CaptureCell, Module},
@@ -39,6 +39,10 @@ impl Closure {
 
     pub fn prototype(&self) -> Gc<Prototype> {
         self.prototype
+    }
+
+    pub fn name(&self) -> Value {
+        self.prototype().name()
     }
 
     pub(crate) fn push_capture_cell(&self, cell: Gc<CaptureCell>) {
@@ -108,10 +112,8 @@ impl PrimitiveOperations for Closure {
 
 impl Debug for Closure {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(name) =
-            self.prototype().debug_info().and_then(FunctionDebug::name)
-        {
-            write!(f, "<{}", name)?;
+        if self.name() == Value::UNIT {
+            write!(f, "<{:?}", self.name())?;
         } else {
             write!(f, "<closure")?;
         }

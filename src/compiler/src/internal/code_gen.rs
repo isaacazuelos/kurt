@@ -59,7 +59,7 @@ impl ModuleBuilder {
 
         // if it's a function, we want to let that function know it's name.
         if let syntax::Expression::Function(f) = syntax.body() {
-            self.function(f, Some(name.as_str()))?;
+            self.function(f, Some(name), syntax.is_rec())?;
         } else {
             self.expression(syntax.body())?;
         }
@@ -110,7 +110,7 @@ impl ModuleBuilder {
             syntax::Expression::Binary(b) => self.binary(b),
             syntax::Expression::Block(b) => self.block(b),
             syntax::Expression::Call(c) => self.call(c),
-            syntax::Expression::Function(f) => self.function(f, None),
+            syntax::Expression::Function(f) => self.function(f, None, false),
             syntax::Expression::Grouping(g) => self.grouping(g),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
             syntax::Expression::If(i) => self.if_else(i),
@@ -216,7 +216,8 @@ impl ModuleBuilder {
     fn function(
         &mut self,
         syntax: &syntax::Function,
-        name: Option<&str>,
+        name: Option<&syntax::Identifier>,
+        recursive: bool,
     ) -> Result<()> {
         self.begin_function(syntax.span())?;
 
@@ -232,7 +233,16 @@ impl ModuleBuilder {
             self.active_prototype_mut()
                 .set_parameter_count(syntax.elements().len() as u32);
 
-            self.active_prototype_mut().set_name(name);
+            if let Some(name) = name {
+                let index = self.insert_constant(name.as_str());
+                self.active_prototype_mut().set_name(index);
+            }
+
+            if let Some(name) = name {
+                if recursive {
+                    self.bind_local(name)?
+                }
+            }
 
             for parameter in syntax.elements() {
                 self.bind_local(parameter.name())?;

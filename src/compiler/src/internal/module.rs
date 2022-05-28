@@ -159,7 +159,10 @@ impl ModuleBuilder {
         );
 
         let mut main = FunctionBuilder::new(Span::default());
-        main.set_name(Some(Self::MAIN_NAME));
+
+        let main_name = self.insert_constant(Self::MAIN_NAME);
+
+        main.set_name(main_name);
 
         self.compiling.push(main);
 

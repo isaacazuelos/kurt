@@ -2,11 +2,13 @@ use diagnostic::Span;
 
 use common::{Get, Index};
 
-use crate::{Capture, FunctionDebug, Local, Op};
+use crate::{Capture, Constant, FunctionDebug, Local, Op};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Function {
+    pub(crate) name: Option<Index<Constant>>,
     pub(crate) span: Span,
+
     pub(crate) parameter_count: u32,
     pub(crate) captures: Vec<Capture>,
     pub(crate) code: Vec<Op>,
@@ -62,6 +64,11 @@ impl Function {
     /// the values this function captures.
     pub fn captures(&self) -> &[Capture] {
         &self.captures
+    }
+
+    /// The function's name, if known.
+    pub fn name(&self) -> Option<Index<Constant>> {
+        self.name
     }
 
     /// The span in the source code where this function was defined.
