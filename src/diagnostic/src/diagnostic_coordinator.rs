@@ -1,7 +1,7 @@
 //! Diagnostic Coordinator handles collecting any diagnostics produced, and
 //! emitting them at the right times, and in the right formats.
 
-use crate::emitter::{Emitter, FancyEmitter};
+use crate::emitter::{self, Emitter};
 use crate::{diagnostic::Diagnostic, InputCoordinator};
 
 pub struct DiagnosticCoordinator {
@@ -13,10 +13,19 @@ pub struct DiagnosticCoordinator {
 }
 
 impl Default for DiagnosticCoordinator {
+    #[cfg(not(target_os = "windows"))]
     fn default() -> Self {
         DiagnosticCoordinator {
             diagnostics: Vec::new(),
-            emitter: Box::new(FancyEmitter::full()),
+            emitter: Box::new(emitter::FancyEmitter::full()),
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn default() -> Self {
+        DiagnosticCoordinator {
+            diagnostics: Vec::new(),
+            emitter: Box::new(emitter::ASCIIEmitter::default()),
         }
     }
 }

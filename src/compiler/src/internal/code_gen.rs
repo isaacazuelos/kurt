@@ -6,12 +6,12 @@ use syntax::{self, Expression, Sequence, Statement, Syntax};
 use crate::{
     constant::Constant,
     error::{Error, Result},
+    internal::ModuleBuilder,
     opcode::Op,
-    prototype::Prototype,
-    Compiler,
+    Function,
 };
 
-impl Compiler {
+impl ModuleBuilder {
     /// Compile a sequence of statements.
     ///
     /// If it's empty or if it has a trailing semicolon, a `()` is left on the
@@ -64,7 +64,7 @@ impl Compiler {
             self.expression(syntax.body())?;
         }
 
-        self.bind_local(name);
+        self.bind_local(name)?;
 
         // We're keeping this slot on the stack.
         self.emit(Op::DefineLocal, syntax.span())?;
@@ -204,7 +204,7 @@ impl Compiler {
         self.expression_sequence(syntax)?;
 
         let count = syntax.elements().len();
-        if count >= Prototype::MAX_ARGUMENTS {
+        if count >= Function::MAX_ARGUMENTS {
             let problem_arg = &syntax.elements()[u32::MAX as usize - 1];
             Err(Error::TooManyArguments(problem_arg.span()))
         } else {
@@ -212,34 +212,37 @@ impl Compiler {
         }
     }
 
-    /// Compile a function that doesn't have a name.
+    /// Compile a function, including it's name if known.
     fn function(
         &mut self,
         syntax: &syntax::Function,
         name: Option<&str>,
     ) -> Result<()> {
-        let i = self.with_prototype(syntax.span(), |compiler| {
-            if syntax.elements().len() > Prototype::MAX_PARAMETERS {
+        self.begin_function(syntax.span())?;
+
+        // with that new function as the target of compilation
+        {
+            let parameter_count = syntax.elements().len();
+
+            if parameter_count > Function::MAX_PARAMETERS {
                 let problem_element = &syntax.elements()[u32::MAX as usize];
                 return Err(Error::TooManyParameters(problem_element.span()));
             }
 
-            {
-                let proto = compiler.active_prototype_mut();
-                proto.set_parameter_count(syntax.elements().len() as u32);
+            self.active_prototype_mut()
+                .set_parameter_count(syntax.elements().len() as u32);
 
-                if let Some(n) = name {
-                    proto.set_name(n)
-                }
-            }
+            self.active_prototype_mut().set_name(name);
 
             for parameter in syntax.elements() {
-                compiler.bind_local(parameter.name());
+                self.bind_local(parameter.name())?;
             }
 
-            compiler.expression(syntax.body())?;
-            compiler.emit(Op::Return, syntax.body().span())
-        })?;
+            self.expression(syntax.body())?;
+            self.emit(Op::Return, syntax.body().span())?;
+        }
+
+        let i = self.end_function()?;
 
         self.emit(Op::LoadClosure(i), syntax.span())
     }
@@ -256,11 +259,9 @@ impl Compiler {
         &mut self,
         syntax: &syntax::Identifier,
     ) -> Result<()> {
-        let name = syntax.as_str();
-
-        if let Some(index) = self.resolve_local(name) {
+        if let Some(index) = self.resolve_local(syntax.as_str()) {
             self.emit(Op::LoadLocal(index), syntax.span())
-        } else if let Some(index) = self.resolve_capture(name) {
+        } else if let Some(index) = self.resolve_capture(syntax)? {
             self.emit(Op::LoadCapture(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
@@ -325,11 +326,7 @@ impl Compiler {
     fn binary_literal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 2)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .constants
-            .insert(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     /// Compile a boolean literal.
@@ -348,8 +345,7 @@ impl Compiler {
         let c = Constant::parse_char(syntax.body())
             .map_err(|_| Error::ParseChar(syntax.span()))?;
         let index = self
-            .constants
-            .insert(c)
+            .insert_constant(c)
             .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
@@ -358,19 +354,14 @@ impl Compiler {
     fn decimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_int(syntax.body())
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .constants
-            .insert(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     fn float(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let f = Constant::parse_float(syntax.body())
             .map_err(|_| Error::ParseFloat(syntax.span()))?;
         let index = self
-            .constants
-            .insert(f)
+            .insert_constant(f)
             .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
@@ -379,19 +370,14 @@ impl Compiler {
     fn octal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 8)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .constants
-            .insert(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     /// Compile a keyword literal
     fn keyword(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let kw = Constant::parse_keyword(syntax.body());
         let index = self
-            .constants
-            .insert(kw)
+            .insert_constant(kw)
             .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }
@@ -400,18 +386,13 @@ impl Compiler {
     fn hexadecimal(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let n = Constant::parse_radix(syntax.body(), 16)
             .map_err(|e| Error::ParseInt(syntax.span(), e))?;
-        let index = self
-            .constants
-            .insert(n)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+        self.emit(Op::U48(n), syntax.span())
     }
 
     fn string(&mut self, syntax: &syntax::Literal) -> Result<()> {
         let s = Constant::parse_string(syntax.body())?;
         let index = self
-            .constants
-            .insert(s)
+            .insert_constant(s)
             .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
         self.emit(Op::LoadConstant(index), syntax.span())
     }

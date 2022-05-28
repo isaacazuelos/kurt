@@ -1,12 +1,9 @@
 //! Code windows are previews into the source code presented when displaying
 //! diagnostic messages to help the user locate problems.
 
-// TODO: A lot of this code is (badly) shoved into it's current from from an
-//       older project. This could use a lot of refactoring, it's basically just
-//       a method on FancyEmitter at this point.
-//
-//       If you're cleaning this up, we might want to add a [`Level`] to
-//       highlight.
+// A lot of this code is (badly) shoved into it's current from from an older
+// project. This could use a lot of refactoring, it's basically just a method on
+// FancyEmitter at this point.
 
 use crate::{
     caret::Caret, emitter::terminal::FancyEmitter, highlight::Highlight,
@@ -46,9 +43,9 @@ impl<'i, 'd> CodeWindow<'i, 'd> {
             lines: Vec::new(),
         };
 
-        // TODO: This should probably be cleaned up. The design here is a little
-        //       weird. In an older version of this CodeWindows were made when
-        //       the diagnostic was, instead of created when emitting.
+        // This should probably be cleaned up. The design here is a little
+        // weird. In an older version of this CodeWindows were made when the
+        // diagnostic was, instead of created when emitting.
         window.save_lines_offset(input, 0)?;
 
         Some(window)

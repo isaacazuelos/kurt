@@ -7,29 +7,27 @@ use std::{
 };
 
 use crate::{
+    classes::*,
     memory::{
         class::{Class, ClassId},
-        closure::Closure,
         collector::GCHeader,
-        keyword::Keyword,
-        list::List,
-        string::String,
         trace::{Trace, WorkList},
-        upvalue::Upvalue,
     },
-    primitives::{Error, PrimitiveOperations},
+    primitives::PrimitiveOperations,
     value::Value,
-    Runtime,
+    Error, VirtualMachine,
 };
 
 macro_rules! dispatch {
     ($f: path, $obj: ident, $( $arg: expr, )*) => {
         match $obj.class_id {
+            ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
             ClassId::Closure => $f( $obj.downcast::<Closure>().unwrap(), $( $arg, )*),
             ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
+            ClassId::Module => $f( $obj.downcast::<Module>().unwrap(), $( $arg, )* ),
+            ClassId::Prototype => $f( $obj.downcast::<Prototype>().unwrap(), $( $arg, )* ),
             ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
-            ClassId::Upvalue => $f( $obj.downcast::<Upvalue>().unwrap(), $( $arg, )*),
         }
     };
 }
@@ -46,7 +44,7 @@ macro_rules! dispatch {
 /// There's deliberately no way to create an [`Object`] that's not some other
 /// concrete [`Class`] (using the [`Runtime::make`][Runtime::make])
 #[repr(C, align(8))]
-pub(crate) struct Object {
+pub struct Object {
     /// The size (in bytes) of the allocation belonging to this [`Object`].
     size: usize,
 
@@ -63,14 +61,14 @@ impl Object {
     pub const ALIGN: usize = 8; // Must keep in sync with repr directive.
 
     /// The specific [`Class`] of this object.
-    pub(crate) fn class_id(&self) -> ClassId {
+    pub fn class_id(&self) -> ClassId {
         self.class_id
     }
 
     /// Attempt to cast the object as an reference to a specific [`Class`].
     ///
     /// This return's `None` if the object is not the right class.
-    pub fn downcast<C: Class>(&self) -> Option<&C> {
+    fn downcast<C: Class>(&self) -> Option<&C> {
         if self.class_id() == C::ID {
             Some(unsafe { std::mem::transmute::<_, _>(self) })
         } else {
@@ -89,7 +87,7 @@ impl Object {
     /// There's no `gc_header_mut` method, instead we use interior mutability
     /// and the required access to those methods is kept private inside the
     /// collector.
-    pub fn gc_header(&self) -> &GCHeader {
+    pub(crate) fn gc_header(&self) -> &GCHeader {
         &self.gc_header
     }
 
@@ -116,26 +114,6 @@ impl Object {
     /// The size of the object's underlying allocation, in bytes.
     pub(crate) fn size(&self) -> usize {
         self.size
-    }
-}
-
-impl Value {
-    /// Use a value as an instance of some [`Class`] `C`, if it is one.
-    pub(crate) fn use_as<C, F, R>(&self, inner: F) -> Result<R, Error>
-    where
-        C: Class,
-        F: FnOnce(&C) -> Result<R, Error>,
-    {
-        if let Some(object) = self.as_object() {
-            if let Some(instance) = object.deref().downcast() {
-                return inner(instance);
-            }
-        }
-
-        Err(Error::Cast {
-            from: self.type_name(),
-            to: C::ID.name(),
-        })
     }
 }
 
@@ -172,19 +150,27 @@ impl PrimitiveOperations for Object {
         dispatch!(PrimitiveOperations::type_name, self,)
     }
 
-    fn neg(&self, rt: &mut Runtime) -> Result<Value, Error> {
+    fn neg(&self, rt: &mut VirtualMachine) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::neg, self, rt,)
     }
 
-    fn not(&self, rt: &mut Runtime) -> Result<Value, Error> {
+    fn not(&self, rt: &mut VirtualMachine) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::not, self, rt,)
     }
 
-    fn add(&self, other: Value, rt: &mut Runtime) -> Result<Value, Error> {
+    fn add(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::add, self, other, rt,)
     }
 
-    fn index(&self, key: Value, rt: &mut Runtime) -> Result<Value, Error> {
+    fn index(
+        &self,
+        key: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         dispatch!(PrimitiveOperations::index, self, key, rt,)
     }
 

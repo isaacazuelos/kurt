@@ -2,15 +2,7 @@
 
 use std::fmt::{self, Debug};
 
-use crate::{
-    memory::{
-        class::{Class, ClassId},
-        string::String,
-        trace::{Trace, WorkList},
-        InitFrom,
-    },
-    primitives::PrimitiveOperations,
-};
+use crate::{classes::String, memory::*, primitives::PrimitiveOperations};
 
 /// In many dynamic languages, strings are used both to represent text and also
 /// to serve as token values for things like enumerations and dictionaries.

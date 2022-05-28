@@ -8,13 +8,13 @@
 //! We'll want to come back in and expand on the [`Error`] type here once we
 //! have runtime support for handling these types of errors.
 
-use crate::{
-    primitives::{Error, PrimitiveOperations},
-    value::Value,
-    Runtime,
-};
+use common::{i48, u48};
 
-use super::{i48_type::i48, u48_type::u48, Tag};
+use crate::{
+    primitives::PrimitiveOperations,
+    value::{Tag, Value},
+    Error, VirtualMachine,
+};
 
 macro_rules! basic_impl {
     ( $op: path, $t: ty, $lhs: ident, $rhs: ident ) => {{
@@ -33,7 +33,7 @@ macro_rules! dispatch {
             Tag::Int => $f( &$value.as_int().unwrap(), $( $arg, )* ),
             Tag::Nat => $f( &$value.as_nat().unwrap(), $( $arg, )* ),
             Tag::Object => {
-                $f( $value.as_object().unwrap().deref(), $( $arg, )* )
+                $f( $value.as_gc_any().unwrap().deref(), $( $arg, )* )
             },
             Tag::_Reserved0 | Tag::_Reserved1 => {
                 unreachable!("cannot use value with reserved tag")
@@ -62,19 +62,31 @@ impl PrimitiveOperations for bool {
         "Bool"
     }
 
-    fn not(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn not(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Ok(Value::bool(!self))
     }
 
-    fn bitand(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitand(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitAnd::bitand, bool, self, other)
     }
 
-    fn bitor(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitor(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitOr::bitor, bool, self, other)
     }
 
-    fn bitxor(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitxor(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitXor::bitxor, bool, self, other)
     }
 
@@ -107,27 +119,47 @@ impl PrimitiveOperations for f64 {
         "Float"
     }
 
-    fn neg(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn neg(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Ok(Value::float(-self))
     }
 
-    fn add(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn add(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Add::add, f64, self, other)
     }
 
-    fn sub(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn sub(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Sub::sub, f64, self, other)
     }
 
-    fn mul(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn mul(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Mul::mul, f64, self, other)
     }
 
-    fn div(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn div(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Div::div, f64, self, other)
     }
 
-    fn rem(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn rem(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Rem::rem, f64, self, other)
     }
 
@@ -151,55 +183,99 @@ impl PrimitiveOperations for i48 {
         "Int"
     }
 
-    fn neg(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn neg(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Ok(Value::int(-*self))
     }
 
-    fn not(&self, _: &mut Runtime) -> Result<Value, Error> {
+    fn not(&self, _: &mut VirtualMachine) -> Result<Value, Error> {
         Ok(Value::int(!*self))
     }
 
-    fn add(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn add(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Add::add, i48, self, other)
     }
 
-    fn sub(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn sub(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Sub::sub, i48, self, other)
     }
 
-    fn mul(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn mul(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Mul::mul, i48, self, other)
     }
 
-    fn div(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn div(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Div::div, i48, self, other)
     }
 
-    fn rem(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn rem(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Rem::rem, i48, self, other)
     }
 
-    fn pow(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn pow(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(i48::pow, i48, self, other)
     }
 
-    fn bitand(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitand(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitAnd::bitand, i48, self, other)
     }
 
-    fn bitor(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitor(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitOr::bitor, i48, self, other)
     }
 
-    fn bitxor(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn bitxor(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::BitXor::bitxor, i48, self, other)
     }
 
-    fn shl(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn shl(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Shl::shl, i48, self, other)
     }
 
-    fn shr(&self, other: Value, _: &mut Runtime) -> Result<Value, Error> {
+    fn shr(
+        &self,
+        other: Value,
+        _: &mut VirtualMachine,
+    ) -> Result<Value, Error> {
         basic_impl!(std::ops::Shr::shr, i48, self, other)
     }
 
@@ -217,64 +293,112 @@ impl PrimitiveOperations for Value {
             Tag::Float => 1f64.type_name(),
             Tag::Int => i48::MAX.type_name(),
             Tag::Nat => u48::MAX.type_name(),
-            Tag::Object => self.as_object().unwrap().deref().type_name(),
+            Tag::Object => self.as_gc_any().unwrap().deref().type_name(),
             Tag::_Reserved0 | Tag::_Reserved1 => "<invalid value>",
         }
     }
 
-    fn neg(&self, rt: &mut Runtime) -> Result<Self, Error> {
+    fn neg(&self, rt: &mut VirtualMachine) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::neg, self, rt,)
     }
 
-    fn not(&self, rt: &mut Runtime) -> Result<Self, Error> {
+    fn not(&self, rt: &mut VirtualMachine) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::not, self, rt,)
     }
 
-    fn add(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn add(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::add, self, other, rt,)
     }
 
-    fn sub(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn sub(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::sub, self, other, rt,)
     }
 
-    fn mul(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn mul(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::mul, self, other, rt,)
     }
 
-    fn div(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn div(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::div, self, other, rt,)
     }
 
-    fn rem(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn rem(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::rem, self, other, rt,)
     }
 
-    fn pow(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn pow(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::pow, self, other, rt,)
     }
 
-    fn bitand(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn bitand(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::bitand, self, other, rt,)
     }
 
-    fn bitor(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn bitor(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::bitor, self, other, rt,)
     }
 
-    fn bitxor(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn bitxor(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::bitxor, self, other, rt,)
     }
 
-    fn shl(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn shl(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::shl, self, other, rt,)
     }
 
-    fn shr(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn shr(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::shr, self, other, rt,)
     }
 
-    fn index(&self, other: Value, rt: &mut Runtime) -> Result<Self, Error> {
+    fn index(
+        &self,
+        other: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<Self, Error> {
         dispatch!(PrimitiveOperations::index, self, other, rt,)
     }
 
@@ -309,10 +433,10 @@ impl PrimitiveOperations for Value {
                 .unwrap()
                 .partial_cmp(&other.as_float().unwrap()),
             Tag::Object => self
-                .as_object()
+                .as_gc_any()
                 .unwrap()
                 .deref()
-                .partial_cmp(other.as_object().unwrap().deref()),
+                .partial_cmp(other.as_gc_any().unwrap().deref()),
 
             _ => None,
         }

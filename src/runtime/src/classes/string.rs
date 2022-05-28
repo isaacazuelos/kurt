@@ -3,14 +3,7 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use crate::{
-    memory::{
-        class::{Class, ClassId},
-        trace::{Trace, WorkList},
-        InitFrom, Object,
-    },
-    primitives::PrimitiveOperations,
-};
+use crate::{memory::*, primitives::PrimitiveOperations};
 
 #[repr(C, align(8))]
 pub struct String {
@@ -116,8 +109,9 @@ impl String {
     /// This doesn't include the null-terminating byte mentioned in the docs for
     /// [`String`] itself.
     pub fn len(&self) -> usize {
-        // We compute it from the base object's allocation size.
-        self.upcast().size() - std::mem::size_of::<String>()
+        // We compute it from the base object's allocation size. This saves us a
+        // word compared to tracking the in String too
+        self.base.size() - std::mem::size_of::<String>()
     }
 
     /// View the underlying UTF-8 bytes of the string as a slice.

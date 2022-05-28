@@ -1,29 +1,30 @@
 use std::collections::VecDeque;
 
-use super::Gc;
+use super::GcAny;
 
 #[derive(Default)]
-pub(crate) struct WorkList {
-    list: VecDeque<Gc>,
+pub struct WorkList {
+    list: VecDeque<GcAny>,
 }
 
 impl WorkList {
     /// Add a [`Gc`] value to the work list.
     ///
     /// The value is only actually added it's not marked.
-    pub fn enqueue(&mut self, ptr: Gc) {
-        if !ptr.deref().gc_header().is_marked() {
-            self.list.push_back(ptr);
+    pub fn enqueue(&mut self, ptr: impl Into<GcAny>) {
+        let any = ptr.into();
+        if !any.deref().gc_header().is_marked() {
+            self.list.push_back(any);
         }
     }
 
     /// Remove an object from the worklist (if any are left) to work on it.
-    pub fn pop(&mut self) -> Option<Gc> {
+    pub fn pop(&mut self) -> Option<GcAny> {
         self.list.pop_front()
     }
 }
 
-pub(crate) trait Trace {
+pub trait Trace {
     /// This is used by the garbage collector to visit every gc pointer retained
     /// by this class.
     ///

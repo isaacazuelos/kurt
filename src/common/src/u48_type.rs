@@ -12,7 +12,7 @@
 //!
 //! Overflow is _weird_ and might not wrap around the way you expect. Operations
 //! don't typically check, and they're undefined either way.
-use std::convert::TryFrom;
+use std::{convert::TryFrom, num::ParseIntError, str::FromStr};
 
 #[derive(Clone, Copy)]
 #[allow(non_camel_case_types)]
@@ -58,6 +58,20 @@ impl u48 {
     pub const fn as_u64(self: u48) -> u64 {
         let [a, b, c, d, e, f] = self.0;
         u64::from_ne_bytes([a, b, c, d, e, f, 0, 0])
+    }
+
+    /// See the documentation for [`std::u64::from_str_radix`] for what
+    pub fn from_str_radix(
+        src: &str,
+        radix: u32,
+    ) -> Result<Self, ParseIntError> {
+        let n64 = u64::from_str_radix(src, radix)?;
+        u48::from_u64(n64).ok_or_else(u48::force_pos_overflow_error)
+    }
+
+    fn force_pos_overflow_error() -> ParseIntError {
+        // we force a positive overflow error, hacky
+        unsafe { u8::from_str("256").unwrap_err_unchecked() }
     }
 }
 
@@ -121,6 +135,16 @@ impl PartialOrd for u48 {
 impl Ord for u48 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.as_u64().cmp(&other.as_u64())
+    }
+}
+
+impl FromStr for u48 {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let n: u64 = s.parse()?;
+
+        u48::from_u64(n).ok_or_else(u48::force_pos_overflow_error)
     }
 }
 

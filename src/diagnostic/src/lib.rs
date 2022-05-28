@@ -15,6 +15,7 @@ pub use self::{
     diagnostic::Diagnostic,
     diagnostic_coordinator::DiagnosticCoordinator,
     input_coordinator::{InputCoordinator, InputId},
+    level::Level,
     span::Span,
 };
 

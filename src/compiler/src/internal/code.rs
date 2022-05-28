@@ -1,13 +1,13 @@
 //! Code listings
 
-use std::iter::Iterator;
-
 use diagnostic::Span;
+
+use common::{Get, Index};
 
 use crate::{
     error::{Error, Result},
-    index::{Get, Index},
     opcode::Op,
+    Function,
 };
 
 /// A listing of opcodes for our VM in order.
@@ -18,12 +18,9 @@ pub(crate) struct Code {
 }
 
 impl Code {
-    /// The maximum number of opcodes that can be in a single code block.
-    pub const MAX_OPS: usize = (u32::MAX) as usize;
-
     /// Push an [`Op`] to the of the code segment.
     pub fn emit(&mut self, op: Op, span: Span) -> Result<()> {
-        if self.opcodes.len() == Self::MAX_OPS {
+        if self.opcodes.len() >= Function::MAX_OPS_BEFORE_CLOSE {
             Err(Error::TooManyOps(span))
         } else {
             self.opcodes.push(op);
@@ -32,26 +29,17 @@ impl Code {
         }
     }
 
-    /// The span which produced some op code.
-    pub fn get_span(&self, index: Index<Op>) -> Option<Span> {
-        self.spans.get(index.as_usize()).cloned()
+    pub(crate) fn spans(&self) -> &[Span] {
+        &self.spans
     }
 
-    /// Does this code block have no opcodes?
-    pub fn is_empty(&self) -> bool {
-        self.opcodes.is_empty()
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&Op, &Span)> {
-        self.opcodes.iter().zip(self.spans.iter())
+    pub(crate) fn ops(&self) -> &[Op] {
+        &self.opcodes
     }
 
     pub(crate) fn next_index(&self) -> Index<Op> {
+        // len was checked in emit, so this cast is safe.
         Index::new(self.opcodes.len() as u32)
-    }
-
-    pub(crate) fn last(&self) -> Option<Op> {
-        self.opcodes.last().cloned()
     }
 
     /// Patch an existing instruction with another given instruction, at a
@@ -70,6 +58,12 @@ impl Code {
 impl Get<Op> for Code {
     fn get(&self, index: Index<Op>) -> Option<&Op> {
         self.opcodes.get(index.as_usize())
+    }
+}
+
+impl From<Code> for Vec<Op> {
+    fn from(val: Code) -> Self {
+        val.opcodes
     }
 }
 

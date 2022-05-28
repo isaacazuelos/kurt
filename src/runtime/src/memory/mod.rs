@@ -6,9 +6,6 @@
 //! Right now any GC value that's allocated is actually just a leaked `*mut`
 //! pointer.
 
-// TODO: We might want to make some of the [`Managed`] methods not public.
-//       https://jack.wrenn.fyi/blog/private-trait-methods/
-
 // TODO: How does allocation fail? Probably just adding a `-> Result<()>` to a
 //       bunch of these. Look at Rust's [Allocator][1].
 //
@@ -21,20 +18,15 @@ mod collector;
 mod gc;
 mod object;
 
-pub mod closure;
-pub mod keyword;
-pub mod list;
-pub mod string;
-pub mod trace;
-pub mod upvalue;
+mod trace;
 
-use crate::Runtime;
+use crate::VirtualMachine;
 
-pub use self::gc::Gc;
-
-pub(crate) use self::{
+pub use self::{
     class::{Class, ClassId},
+    gc::{Gc, GcAny},
     object::Object,
+    trace::{Trace, WorkList},
 };
 
 /// Since our [`Class`] values can be [DSTs][dst], we need a way to initialize
@@ -81,25 +73,26 @@ where
     }
 }
 
-impl Runtime {
-    /// Allocate a new [`Object`] and initialize it using it's [`Default`]
-    /// instance.
+impl VirtualMachine {
+    /// Allocate a new [`Object`] and initialize it using a [`Default`]
+    /// value it can be initiated from.
     #[allow(dead_code)]
-    pub(crate) fn make<C>(&mut self) -> Gc
+    pub(crate) fn make<C, A>(&mut self) -> Gc<C>
     where
-        C: Class + Default,
+        C: Class + InitFrom<A>,
+        A: Default,
     {
-        self.make_from::<C, _>(C::default())
+        self.make_from::<C, A>(A::default())
     }
 
     /// Allocate a new [`Object`], initializing it from the given argument.
-    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> Gc
+    pub(crate) fn make_from<C, A>(&mut self, arg: A) -> Gc<C>
     where
         C: Class + InitFrom<A>,
     {
         // find the layout needed for the object.
         let extra = C::extra_size(&arg);
-        let layout = Runtime::object_layout_with_extra::<C>(extra);
+        let layout = VirtualMachine::object_layout_with_extra::<C>(extra);
 
         unsafe {
             let raw = self.allocate(layout);
@@ -115,15 +108,15 @@ impl Runtime {
             let ptr = NonNull::new_unchecked(raw);
 
             // SAFETY: We know it's initialized because we just initialized it.
-            let gc = Gc::from_non_null(ptr);
+            let gc = GcAny::from_non_null(ptr);
 
             // SAFETY: We just made the GC, so we know it's not tracked.
             self.register_gc_ptr(gc);
 
             #[cfg(feature = "gc_trace")]
-            eprintln!("initialized {:?} as {:?}", gc, gc.deref());
+            eprintln!("initialized {:?} as {:?}", raw, gc.deref());
 
-            gc
+            gc.cast_unchecked()
         }
     }
 
@@ -169,7 +162,7 @@ impl Runtime {
     /// # Safety
     ///
     /// The pointer must not be reachable. Good luck!
-    pub(crate) unsafe fn deallocate(&mut self, gc: Gc) {
+    pub(crate) unsafe fn deallocate(&mut self, gc: GcAny) {
         #[cfg(feature = "gc_trace")]
         eprintln!("deallocating {:?}: {:?}", gc, gc.deref());
 

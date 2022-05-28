@@ -7,11 +7,9 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
+use common::u48;
+
 use crate::error::Error;
-
-mod pool;
-
-pub use self::pool::Pool;
 
 /// A constant value (or part of value in the case of closures) which occurs in
 /// some code. Some values like `true` don't need to be turned into constants
@@ -22,19 +20,12 @@ pub enum Constant {
     // stored with `to_bits` for hash/eq reasons
     Float(u64),
     Keyword(String),
-    Number(u64),
     String(String),
 }
 
 impl From<char> for Constant {
     fn from(c: char) -> Constant {
         Constant::Character(c)
-    }
-}
-
-impl From<u64> for Constant {
-    fn from(n: u64) -> Constant {
-        Constant::Number(n)
     }
 }
 
@@ -50,7 +41,6 @@ impl From<String> for Constant {
     }
 }
 
-// TODO: is this really where this should happen? Maybe in the syntax crate instead?
 impl Constant {
     /// Parse the value out of a character literal.
     ///
@@ -83,7 +73,7 @@ impl Constant {
     ///
     /// This is weird, but it means the runtime can support different precisions
     /// for numbers or have multiple representations for other constants.
-    pub fn parse_int(input: &str) -> Result<u64, ParseIntError> {
+    pub fn parse_int(input: &str) -> Result<u48, ParseIntError> {
         let digits: String = input.chars().filter(|c| *c != '_').collect();
 
         let n = digits.parse()?;
@@ -94,11 +84,10 @@ impl Constant {
     ///
     /// See the note on [`parse_int`][Constant::parse_int] for why we use
     /// [`u64`] as the return type.
-    pub fn parse_radix(input: &str, radix: u32) -> Result<u64, ParseIntError> {
+    pub fn parse_radix(input: &str, radix: u32) -> Result<u48, ParseIntError> {
         // slice off the 0 and radix letter.
         let digits: String = input[2..].chars().filter(|c| *c != '_').collect();
-        let n = u64::from_str_radix(&digits, radix)?;
-        Ok(n)
+        u48::from_str_radix(&digits, radix)
     }
 
     /// Parse a floating point number into an [`f64`].
@@ -141,7 +130,6 @@ impl Display for Constant {
             Constant::Character(c) => write!(f, "char {c}"),
             Constant::Float(n) => write!(f, "float {}", f64::from_bits(*n)),
             Constant::Keyword(s) => write!(f, "keyword :{s}"),
-            Constant::Number(n) => write!(f, "number {n}"),
             Constant::String(s) => write!(f, "string {s}"),
         }
     }

@@ -17,14 +17,14 @@ use std::cell::Cell;
 use crate::{
     memory::{
         trace::{Trace, WorkList},
-        Gc,
+        GcAny,
     },
-    Runtime,
+    VirtualMachine,
 };
 
 pub(crate) struct GCHeader {
     /// The next GC object in our all-objects linked list.
-    next: Cell<Option<Gc>>,
+    next: Cell<Option<GcAny>>,
 
     /// Was this object marked as reachable by the last mark phase?
     mark: Cell<bool>,
@@ -50,22 +50,18 @@ impl GCHeader {
     }
 }
 
-impl Runtime {
+impl VirtualMachine {
     /// Collect garbage, but only if needed.
-    #[inline(always)] // inline the fast check, not slow collection.
+    #[inline(always)] // inline the 'fast' check, not slow collection.
     pub fn collect_garbage(&mut self) {
         if self.garbage_collection_is_needed() {
-            #[cfg(feature = "gc_trace")]
-            eprintln!("starting garbage collection");
-
             self.force_collect_garbage();
         }
     }
 
     /// Is it time to run a full GC cycle?
-    ///
-    /// We'll want to add some user-configurable knobs to the runtime for this
-    /// eventually.
+    #[inline(always)]
+    // TODO: write something smarter than this!
     pub fn garbage_collection_is_needed(&mut self) -> bool {
         true
     }
@@ -73,6 +69,8 @@ impl Runtime {
     /// Force a full garbage collection cycle, even if it's not needed.
     #[inline(never)] // Collecting is always the slow path
     pub fn force_collect_garbage(&mut self) {
+        #[cfg(feature = "gc_trace")]
+        eprintln!("starting garbage collection");
         self.mark();
         self.sweep();
     }
@@ -83,7 +81,7 @@ impl Runtime {
     ///
     /// The GC must not be tracked by any runtime yet. This should only be
     /// called as part of object creation, after initialization.
-    pub(crate) unsafe fn register_gc_ptr(&mut self, ptr: Gc) {
+    pub(crate) unsafe fn register_gc_ptr(&mut self, ptr: GcAny) {
         let header = ptr.deref().gc_header();
 
         let old_heap_head = self.heap_head;
@@ -136,23 +134,19 @@ impl Runtime {
     }
 }
 
-impl Trace for Runtime {
+impl Trace for VirtualMachine {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         // Values on th stack are reachable.
-        for value in self.stack.as_slice() {
+        for value in self.stack().as_slice().iter() {
             value.enqueue_gc_references(worklist);
         }
 
-        // Anything in a module's constant pool is reachable.
-        for module in &self.modules {
-            for value in &module.constants {
-                value.enqueue_gc_references(worklist);
-            }
+        for module in self.modules() {
+            worklist.enqueue(GcAny::from(*module));
         }
 
-        // And all the open captures too
-        for capture in &self.open_captures {
-            capture.enqueue_gc_references(worklist);
+        for cell in self.open_captures.iter() {
+            worklist.enqueue(GcAny::from(*cell));
         }
     }
 }

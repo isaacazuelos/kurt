@@ -2,10 +2,9 @@
 
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{
-    capture::Capture, constant::Constant, index::Index, local::Local,
-    prototype::Prototype,
-};
+use common::{i48, u48, Index};
+
+use crate::{Capture, Constant, Function, Local};
 
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +23,11 @@ pub enum Op {
     /// Discard the value on the top of the stack, if there is one.
     Pop,
 
+    /// Discard the given number of values from the top of the stack, closing
+    /// all upvalues in that range, and preserving the value on teh top of the
+    /// stack.
+    Close(u32),
+
     // ## Loading constant values
 
     /// Push a `true` to the top of the stack.
@@ -34,6 +38,12 @@ pub enum Op {
 
     /// Push a `()` to the top of the stack.
     Unit,
+
+    /// An immediate 48-bit signed integer value.
+    U48(u48),
+
+    /// An immediate 48-bit signed integer value.
+    I48(i48),
 
     /// Load the constant at the specified index to the top of the stack. 
     /// 
@@ -52,7 +62,7 @@ pub enum Op {
     DefineLocal,
 
     /// Load a prototype and make a closure from it, placing it on the stack.
-    LoadClosure(Index<Prototype>),
+    LoadClosure(Index<Function>),
 
     // ## Accessing
 
@@ -68,8 +78,6 @@ pub enum Op {
     /// being that far from the top of the stack.
     Call(u32),
 
-    /// Close a the most recent open capture.
-    CloseCapture,
 
     /// Return from the currently executing function.
     Return,
@@ -165,12 +173,12 @@ impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             // We only need to match the ones with embedded arguments
-            Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_u32()),
-            Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_u32()),
-            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_u32()),
+            Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_usize()),
+            Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_usize()),
+            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_usize()),
             Op::Call(i) => write!(f, "Call {}", i),
-            Op::Jump(i) => write!(f, "Jump {}", i.as_u32()),
-            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_u32()),
+            Op::Jump(i) => write!(f, "Jump {}", i.as_usize()),
+            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_usize()),
             Op::List(n) => write!(f, "List {n}"),
 
             // Everything else is the same as what is derived for Debug.

@@ -8,7 +8,7 @@
 
 use std::fmt::Debug;
 
-use crate::memory::{trace::Trace, Object};
+use crate::memory::trace::Trace;
 
 /// Class IDs are used as type tags.
 ///
@@ -18,32 +18,32 @@ use crate::memory::{trace::Trace, Object};
 ///
 /// [1]: crate::memory::object::dispatch!
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub(crate) enum ClassId {
+pub enum ClassId {
+    CaptureCell,
     Closure,
     Keyword,
     List,
+    Module,
+    Prototype,
     String,
-    Upvalue,
 }
 
 impl ClassId {
     pub fn name(&self) -> &'static str {
         match self {
+            ClassId::CaptureCell => "CaptureCell",
             ClassId::Closure => "Closure",
             ClassId::Keyword => "Keyword",
             ClassId::List => "List",
+            ClassId::Module => "Module",
+            ClassId::Prototype => "Prototype",
             ClassId::String => "String",
-            ClassId::Upvalue => "Upvalue",
         }
     }
 }
 
 /// Each of our runtime types must implement this trait to allow for proper
 /// resource management by the runtime.
-///
-/// # Note
-///
-/// TODO: Why do we need the 'static here?
 ///
 /// # Safety
 ///
@@ -58,12 +58,15 @@ impl ClassId {
 /// metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
-pub(crate) trait Class: 'static + Debug + Sized + Trace {
+pub trait Class: Debug + Sized + Trace {
     /// The [`ClassId`] that's unique to objects of this class.
     const ID: ClassId;
 
-    /// View our value as an [`Object`].
-    fn upcast(&self) -> &Object {
-        unsafe { std::mem::transmute(self) }
+    /// The address of this object as usize, like [python's `id`][id]. The same
+    /// caveat applies about object lifetimes.
+    ///
+    /// [id]: https://docs.python.org/2/library/functions.html#id
+    fn identity(&self) -> usize {
+        self as *const Self as usize
     }
 }

@@ -6,14 +6,9 @@ use std::{
     ptr::addr_of_mut,
 };
 
-use crate::{
-    memory::{
-        trace::{Trace, WorkList},
-        Class, ClassId, InitFrom, Object,
-    },
-    primitives::{Error, PrimitiveOperations},
-    value::{i48_type::i48, Value},
-};
+use common::i48;
+
+use crate::{memory::*, primitives::PrimitiveOperations, value::Value, Error};
 
 #[repr(C, align(8))]
 pub struct List {
@@ -122,7 +117,7 @@ impl PrimitiveOperations for List {
     fn index(
         &self,
         key: Value,
-        _: &mut crate::Runtime,
+        _: &mut crate::VirtualMachine,
     ) -> Result<Value, Error> {
         self.index(key)
     }

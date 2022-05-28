@@ -4,18 +4,11 @@ macro_rules! test_eval {
     ($name: ident, $input: expr, $expected: expr) => {
         #[test]
         fn $name() {
-            use compiler::Compiler;
+            use compiler::Module;
 
-            use syntax::Parse;
-            let syntax = syntax::Module::parse($input).unwrap();
-            let mut compiler = Compiler::default();
-
-            compiler.push(&syntax).unwrap();
-
-            let obj = compiler.build().unwrap();
-            let mut rt = runtime::Runtime::new();
-            assert!(rt.load(obj).is_ok());
-            let exit = rt.start();
+            let module = Module::try_from($input).unwrap();
+            let mut rt = runtime::VirtualMachine::default();
+            let exit = rt.load(module);
             assert!(exit.is_ok(), "exited with {:?}", exit);
             let actual = rt.last_result();
             assert_eq!($expected, actual, "got {}", actual);
@@ -51,7 +44,8 @@ mod scope {
     test_eval! { scope_empty, "{ ; }", "()" }
     test_eval! { scope_with_value, "{ 1 }", "1" }
     test_eval! { scope_with_trailing, "{ 1; }", "()" }
-    test_eval! { scope_with_bindings, "{ let x = 1; x }", "1" }
+    test_eval! { scope_with_binding, "{ let x = 1; x }", "1" }
+    test_eval! { scope_with_bindings, "{let a = 1; let b = 2; let c = 3; 4; b}", "2" }
 }
 
 mod functions {
@@ -105,5 +99,18 @@ mod indexing {
 }
 
 mod closures {
-    test_eval! { capture, "(() => { let x = 1; () => x })()", "1"}
+    test_eval! { capture_local, "let a = () => { let b = 1; let c = () => b; c }; a()()", "1"}
+
+    test_eval! {
+        capture_closure,
+        "let a = () => { let b = 1; let c = () => b; c }; let d = a(); d()",
+        "1"
+    }
+
+    // you might recognize this from http://craftinginterpreters.com/closures.html
+    test_eval! {
+        capture_dance,
+        include_str!("inputs/dance.k"),
+        "7"
+    }
 }

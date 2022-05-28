@@ -1,7 +1,5 @@
 //! Emitters are things which output the diagnostics.
 
-// TODO: feature gate all the fancy stuff with external dependencies?
-
 mod code_window;
 mod line_art;
 mod simple;

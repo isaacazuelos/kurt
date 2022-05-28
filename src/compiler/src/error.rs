@@ -4,7 +4,7 @@ use std::{error, fmt};
 
 use diagnostic::{Diagnostic, Span};
 
-use crate::{code::Code, constant::Pool, object::Object, prototype::Prototype};
+use crate::{Function, Module};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -25,6 +25,7 @@ pub enum Error {
     TooManyOps(Span),
     TooManyParameters(Span),
     TooManyPrototypes(Span),
+    TooManyLocals(Span),
 }
 
 impl fmt::Display for Error {
@@ -70,6 +71,9 @@ impl fmt::Display for Error {
             TooManyPrototypes(_) => {
                 write!(f, "this module has too many functions")
             }
+            TooManyLocals(_) => {
+                write!(f, "this function has too many local bindings")
+            }
         }
     }
 }
@@ -92,6 +96,7 @@ impl Error {
             Error::TooManyOps(s) => *s,
             Error::TooManyParameters(s) => *s,
             Error::TooManyPrototypes(s) => *s,
+            Error::TooManyLocals(s) => *s,
         }
     }
 }
@@ -121,6 +126,7 @@ impl From<Error> for Diagnostic {
             Error::TooManyOps(s) => Error::too_many_ops(s, d),
             Error::TooManyParameters(s) => Error::too_many_params(s, d),
             Error::TooManyPrototypes(s) => Error::too_many_prototypes(s, d),
+            Error::TooManyLocals(s) => Error::too_many_locals(s, d),
         }
     }
 }
@@ -135,7 +141,7 @@ impl Error {
         let info_text = format!(
             "modules and functions compile to a sequence of instructions. \
             Each module or function must fit in {} instructions",
-            Code::MAX_OPS
+            Function::MAX_OPS
         );
 
         let help_text = "you can avoid these limits by breaking this into \
@@ -150,14 +156,14 @@ impl Error {
         d.highlight(s, "this parameter is the culprit")
             .info(format!(
                 "functions can have a maximum of {} parameters",
-                Prototype::MAX_PARAMETERS
+                Function::MAX_ARGUMENTS
             ))
     }
 
     fn too_many_args(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this argument is the culprit").info(format!(
             "function calls can have a maximum of {} arguments",
-            Prototype::MAX_ARGUMENTS
+            Function::MAX_PARAMETERS
         ))
     }
 
@@ -165,15 +171,24 @@ impl Error {
         d.highlight(s, "this constant is where the limit is exceeded")
             .info(format!(
                 "each module can only have {} unique literal values",
-                Pool::MAX_CONSTANTS,
+                Module::MAX_CONSTANTS,
             ))
     }
 
     fn too_many_prototypes(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this function is the culprit").info(format!(
             "each module can only have {} function definitions",
-            Object::MAX_PROTOTYPES - 1,
+            Module::MAX_FUNCTIONS - 1,
         ))
+    }
+
+    fn too_many_locals(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this binding is the culprit")
+            .info(format!(
+                "each module can only have {} local bindings",
+                Function::MAX_BINDINGS - 1,
+            ))
+            .info("both function parameters and `let` bindings count")
     }
 
     fn parse_int(

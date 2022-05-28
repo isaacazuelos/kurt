@@ -2,11 +2,11 @@
 
 use std::io::Write;
 
-use compiler::Compiler;
+use compiler::ModuleBuilder;
 use diagnostic::{
     Diagnostic, DiagnosticCoordinator, InputCoordinator, InputId,
 };
-use runtime::Runtime;
+use runtime::VirtualMachine;
 use rustyline::{error::ReadlineError, Editor};
 use syntax::{Module, Parse};
 
@@ -26,8 +26,8 @@ impl Repl {
 struct ReplState {
     dump: bool,
     editor: Editor<()>,
-    runtime: Runtime,
-    compiler: Compiler,
+    vm: VirtualMachine,
+    module: ModuleBuilder,
     diagnostics: DiagnosticCoordinator,
     inputs: InputCoordinator,
 }
@@ -42,13 +42,17 @@ impl ReplState {
     fn new(args: &Args) -> ReplState {
         let editor = Editor::<()>::new();
 
-        // TODO: Read history here.
+        let module = ModuleBuilder::default();
+        let empty_main = module.build();
+
+        let mut vm = VirtualMachine::default();
+        vm.load(empty_main).unwrap();
 
         ReplState {
             dump: args.dump,
             editor,
-            runtime: Runtime::default(),
-            compiler: Compiler::default(),
+            vm,
+            module,
             diagnostics: DiagnosticCoordinator::default(),
             inputs: InputCoordinator::default(),
         }
@@ -85,46 +89,34 @@ impl ReplState {
             }
         };
 
-        if let Err(error) = self.compiler.push(&syntax) {
+        if let Err(error) = self.module.push_syntax(&syntax) {
             let mut diagnostic = Diagnostic::from(error);
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        let new_main = match self.compiler.build() {
-            Ok(object) => object,
-            Err(error) => {
-                let mut diagnostic = Diagnostic::from(error);
-                diagnostic.set_input(Some(id));
-                self.diagnostics.register(diagnostic);
-                return Err(ReplError::Step);
-            }
-        };
+        let new_main = self.module.build();
 
         if self.dump {
-            println!("{new_main}");
+            println!("{}", new_main);
         }
 
-        if let Err(error) = self.runtime.reload_main(new_main) {
+        if let Err(error) = self.vm.reload_main(new_main) {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        if let Err(error) = self.runtime.resume() {
+        if let Err(error) = self.vm.resume() {
             let mut diagnostic = Diagnostic::new(format!("{error}"));
             diagnostic.set_input(Some(id));
             self.diagnostics.register(diagnostic);
             return Err(ReplError::Step);
         }
 
-        println!(
-            "{} {}",
-            ReplState::RESULT_PROMPT,
-            self.runtime.last_result()
-        );
+        println!("{} {}", ReplState::RESULT_PROMPT, self.vm.last_result());
 
         self.flush();
 
@@ -132,9 +124,6 @@ impl ReplState {
     }
 
     fn read(&mut self) -> Result<InputId, ReplError> {
-        // TODO: We want to have a continuation prompt when the block of code on
-        //       that line could continue.
-
         let line = self.editor.readline(ReplState::PROMPT);
         match line {
             Ok(line) => Ok(self.inputs.repl_input(line)),

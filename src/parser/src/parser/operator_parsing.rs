@@ -358,7 +358,7 @@ impl From<Error> for Diagnostic {
                 )
                     .location(span.start())
                     .highlight(
-                        span, 
+                        span,
                         "the whitespace after this should be removed"
                     )
                     .info("otherwise it's not clear if it's prefix or infix")
@@ -385,7 +385,7 @@ impl From<Error> for Diagnostic {
                 )
                     .location(span.start())
                     .highlight(
-                        span, 
+                        span,
                         "the whitespace after this should be removed"
                     )
                     .info("otherwise it looks like an infix operator")
@@ -397,7 +397,7 @@ impl From<Error> for Diagnostic {
                 )
                     .location(span.start())
                     .highlight(
-                        span, 
+                        span,
                         "whitespace is needed before this"
                     )
                     .info("otherwise it looks like an infix operator")
@@ -433,7 +433,7 @@ impl From<Error> for Diagnostic {
                 Diagnostic::new("an infix operator has the wrong precedence")
                     .location(span.start())
                     .highlight(
-                        span, 
+                        span,
                         "this infix operator doesn't have the precedence \
                         needed by the parser"
                     )

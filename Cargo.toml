@@ -14,6 +14,7 @@ gc_trace = ["runtime/gc_trace"]
 trace = ["runtime/trace"]
 
 [dependencies]
+common = { path = "src/common" }
 compiler = { path = "src/compiler" }
 diagnostic = { path = "src/diagnostic" }
 runtime = { path = "src/runtime" }
