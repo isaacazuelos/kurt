@@ -45,6 +45,9 @@ pub enum Op {
     /// An immediate 48-bit signed integer value.
     I48(i48),
 
+    /// Push the currently-executing closure to the top of the stack.
+    LoadSelf,
+
     /// Load the constant at the specified index to the top of the stack. 
     /// 
     /// The currently executing module's constant pool is used.

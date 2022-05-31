@@ -10,7 +10,6 @@ use crate::{
     opcode::Op,
     Function,
 };
-
 impl ModuleBuilder {
     /// Compile a sequence of statements.
     ///
@@ -60,6 +59,8 @@ impl ModuleBuilder {
         // if it's a function, we want to let that function know it's name.
         if let syntax::Expression::Function(f) = syntax.body() {
             self.function(f, Some(name), syntax.is_rec())?;
+        } else if let Some(rec_span) = syntax.rec() {
+            return Err(Error::RecNotFunction(rec_span, syntax.body().span()));
         } else {
             self.expression(syntax.body())?;
         }
@@ -223,6 +224,8 @@ impl ModuleBuilder {
 
         // with that new function as the target of compilation
         {
+            self.active_prototype_mut().set_recursive(recursive);
+
             let parameter_count = syntax.elements().len();
 
             if parameter_count > Function::MAX_PARAMETERS {
@@ -231,17 +234,11 @@ impl ModuleBuilder {
             }
 
             self.active_prototype_mut()
-                .set_parameter_count(syntax.elements().len() as u32);
+                .set_parameter_count(parameter_count as u32);
 
             if let Some(name) = name {
                 let index = self.insert_constant(name.as_str());
                 self.active_prototype_mut().set_name(index);
-            }
-
-            if let Some(name) = name {
-                if recursive {
-                    self.bind_local(name)?
-                }
             }
 
             for parameter in syntax.elements() {
@@ -271,6 +268,8 @@ impl ModuleBuilder {
     ) -> Result<()> {
         if let Some(index) = self.resolve_local(syntax.as_str()) {
             self.emit(Op::LoadLocal(index), syntax.span())
+        } else if self.resolve_recursive(syntax) {
+            self.emit(Op::LoadSelf, syntax.span())
         } else if let Some(index) = self.resolve_capture(syntax)? {
             self.emit(Op::LoadCapture(index), syntax.span())
         } else {

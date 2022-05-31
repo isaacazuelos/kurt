@@ -17,6 +17,7 @@ pub(crate) struct FunctionBuilder {
     name: Option<Index<Constant>>,
     span: Span,
     parameter_count: u32,
+    is_recursive: bool,
     captures: Vec<Capture>,
     code: Code,
     locals: Vec<Local>,
@@ -29,6 +30,7 @@ impl FunctionBuilder {
         FunctionBuilder {
             name: None,
             span,
+            is_recursive: false,
             parameter_count: 0,
             captures: Vec::new(),
             code: Code::default(),
@@ -47,7 +49,8 @@ impl FunctionBuilder {
         let mut function = self.build();
 
         if let Some(ref mut debug) = &mut function.debug_info {
-            debug.code_spans.push(span);
+            debug.code_spans.push(span); // for unit or nop
+            debug.code_spans.push(span); // for halt
         }
 
         if self.code.ops().is_empty() {
@@ -82,6 +85,11 @@ impl FunctionBuilder {
         self.name = name
     }
 
+    /// Set the functions's name.
+    pub(crate) fn name(&self) -> Option<Index<Constant>> {
+        self.name
+    }
+
     /// The number of parameters this function
     pub(crate) fn parameter_count(&self) -> u32 {
         self.parameter_count
@@ -89,6 +97,12 @@ impl FunctionBuilder {
 
     pub(crate) fn parameters(&self) -> &[Local] {
         &self.locals[0..(self.parameter_count() as usize)]
+    }
+
+    /// Mark that this function is declared in a way where it's allowed to be
+    /// recursive.
+    pub(crate) fn set_recursive(&mut self, recursive: bool) {
+        self.is_recursive = recursive;
     }
 
     /// Set the number of parameters this prototype needs when being called.
@@ -137,7 +151,9 @@ impl FunctionBuilder {
 
         self.locals.truncate(total_in_scope - going_out_of_scope);
 
-        self.emit(Op::Close(going_out_of_scope as u32), span)?;
+        if going_out_of_scope > 0 {
+            self.emit(Op::Close(going_out_of_scope as u32), span)?;
+        }
 
         Ok(going_out_of_scope)
     }
@@ -231,6 +247,10 @@ impl FunctionBuilder {
 
     pub(crate) fn mark_as_captured(&mut self, local: Index<Local>) {
         self.locals[local.as_usize()].capture()
+    }
+
+    pub(crate) fn is_recursive(&self) -> bool {
+        self.is_recursive
     }
 }
 

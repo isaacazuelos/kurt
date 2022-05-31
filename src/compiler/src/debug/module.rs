@@ -50,13 +50,17 @@ impl Function {
         module: &Module,
         f: &mut Formatter,
     ) -> fmt::Result {
-        self.display_signature(f)?;
+        self.display_signature(f, module)?;
         writeln!(f, ":")?;
         self.display_code(f, module)
     }
 
-    fn display_signature(&self, f: &mut Formatter) -> fmt::Result {
-        self.display_name(f)?;
+    fn display_signature(
+        &self,
+        f: &mut Formatter,
+        module: &Module,
+    ) -> fmt::Result {
+        self.display_name(f, module)?;
 
         if let Some(debug) = self.debug_info() {
             write!(f, "( ")?;
@@ -69,8 +73,8 @@ impl Function {
         }
     }
 
-    fn display_name(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(name) = self.name() {
+    fn display_name(&self, f: &mut Formatter, module: &Module) -> fmt::Result {
+        if let Some(name) = self.name().and_then(|n| module.get(n)) {
             write!(f, "{name}")
         } else {
             write!(f, "{}", Function::DEFAULT_NAMELESS_NAME)
@@ -96,6 +100,20 @@ impl Function {
             }
 
             match op {
+                Op::LoadLocal(index) => {
+                    write!(f, "{:<20} // ", format!("{op}"))?;
+
+                    let local = self.debug_info().and_then(|d| {
+                        d.parameter_names().get(index.as_usize())
+                    });
+
+                    if let Some(local) = local {
+                        writeln!(f, "{}", local)
+                    } else {
+                        writeln!(f, "???")
+                    }
+                }
+
                 Op::LoadConstant(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
@@ -109,8 +127,10 @@ impl Function {
                 Op::LoadClosure(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
-                    if let Some(name) =
-                        module.get(*index).and_then(|f| f.name())
+                    if let Some(name) = module
+                        .get(*index)
+                        .and_then(|f| f.name())
+                        .and_then(|n| module.get(n))
                     {
                         writeln!(f, "{}", name)
                     } else {

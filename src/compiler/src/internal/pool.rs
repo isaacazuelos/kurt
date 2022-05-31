@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use common::Index;
+use common::{Get, Index};
 
 use crate::Constant;
 
@@ -62,6 +62,19 @@ impl ConstantPool {
     /// constants until [`Pool::len`] is `len`.
     pub(crate) fn truncate(&mut self, len: usize) {
         self.constants.retain(|_, i| i.as_usize() < len)
+    }
+}
+
+impl Get<Constant> for ConstantPool {
+    fn get(&self, index: Index<Constant>) -> Option<&Constant> {
+        for k in self.constants.keys() {
+            if let Some(c) = self.constants.get(k) {
+                if index == *c {
+                    return Some(k);
+                }
+            }
+        }
+        None
     }
 }
 

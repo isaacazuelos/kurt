@@ -133,10 +133,10 @@ impl Constant {
 impl Display for Constant {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Constant::Character(c) => write!(f, "char {c}"),
-            Constant::Float(n) => write!(f, "float {}", f64::from_bits(*n)),
-            Constant::Keyword(s) => write!(f, "keyword :{s}"),
-            Constant::String(s) => write!(f, "string {s}"),
+            Constant::Character(c) => write!(f, "{c}"),
+            Constant::Float(n) => write!(f, "{}", f64::from_bits(*n)),
+            Constant::Keyword(s) => write!(f, ":{s}"),
+            Constant::String(s) => write!(f, "{s}"),
         }
     }
 }

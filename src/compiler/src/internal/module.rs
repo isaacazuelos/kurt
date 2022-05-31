@@ -1,4 +1,4 @@
-use common::Index;
+use common::{Get, Index};
 use diagnostic::{Diagnostic, InputId, Span};
 use syntax::{Identifier, Syntax};
 
@@ -188,6 +188,12 @@ impl ModuleBuilder {
         self.active_prototype_mut().emit(op, span)
     }
 
+    /// Get a reference to the active prototype. This will return the prototype
+    /// used by `main` if we're not compiling a closure.
+    pub(crate) fn active_prototype(&self) -> &FunctionBuilder {
+        self.compiling.last().unwrap()
+    }
+
     /// Get a mutable reference to the active prototype. This will return the
     /// prototype used by `main` if we're not compiling a closure.
     pub(crate) fn active_prototype_mut(&mut self) -> &mut FunctionBuilder {
@@ -252,6 +258,23 @@ impl ModuleBuilder {
 
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         self.active_prototype_mut().resolve_local(name)
+    }
+
+    pub(crate) fn resolve_recursive(&self, syntax: &Identifier) -> bool {
+        if !self.active_prototype().is_recursive() {
+            return false;
+        }
+
+        if let Some(name_index) = self.active_prototype().name() {
+            match self.constants.get(name_index) {
+                Some(Constant::String(name)) => {
+                    name.as_str() == syntax.as_str()
+                }
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 
     pub(crate) fn resolve_capture(

@@ -108,9 +108,9 @@ mod closures {
     }
 
     // you might recognize this from http://craftinginterpreters.com/closures.html
-    test_eval! {
-        capture_dance,
-        include_str!("inputs/dance.k"),
-        "7"
-    }
+    test_eval! { capture_dance, include_str!("inputs/dance.k"), "7" }
+}
+
+mod let_rec {
+    test_eval! { simple_fn, include_str!("inputs/factorial.k"), "5040" }
 }

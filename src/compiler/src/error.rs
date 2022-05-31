@@ -15,6 +15,8 @@ pub enum Error {
     ParseFloat(Span),
 
     MutationNotSupported(Span),
+    RecNotFunction(Span, Span),
+
     UndefinedLocal(Span),
     UndefinedPrefix(Span),
     UndefinedInfix(Span),
@@ -46,6 +48,10 @@ impl fmt::Display for Error {
             MutationNotSupported(_) => {
                 write!(f, "mutation with `var` isn't implemented yet")
             }
+            RecNotFunction(_, _) => {
+                write!(f, "recursive bindings only supported on functions")
+            }
+
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
 
             UndefinedPrefix(_) => {
@@ -87,6 +93,7 @@ impl Error {
             Error::ParseInt(s, _) => *s,
             Error::ParseFloat(s) => *s,
             Error::MutationNotSupported(s) => *s,
+            Error::RecNotFunction(_, s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
             Error::UndefinedInfix(s) => *s,
@@ -112,7 +119,9 @@ impl From<Error> for Diagnostic {
             Error::ParseChar(s) => d.highlight(s, "this character"),
             Error::ParseInt(s, e) => Error::parse_int(d, s, e),
             Error::ParseFloat(s) => d.highlight(s, "this number is the issue"),
+
             Error::MutationNotSupported(s) => Error::no_mutation(s, d),
+            Error::RecNotFunction(rec, s) => Error::rec_not_function(rec, s, d),
 
             Error::UndefinedLocal(s)
             | Error::UndefinedPrefix(s)
@@ -135,6 +144,12 @@ impl Error {
     fn no_mutation(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this doesn't work")
             .help("using `let` instead would declare an immutable variable")
+    }
+
+    fn rec_not_function(rec: Span, s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(rec, "this can only be used if defining a function")
+            .highlight(s, "this is not a function")
+            .help("this will be supported (hopefully) soon")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {

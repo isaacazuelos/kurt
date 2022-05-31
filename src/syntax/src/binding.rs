@@ -16,7 +16,7 @@ use super::*;
 #[derive(Debug)]
 pub struct Binding<'a> {
     keyword: Token<'a>,
-    rec: Option<Token<'a>>,
+    rec: Option<Span>,
     name: Identifier,
     equals: Span,
     body: Expression<'a>,
@@ -46,6 +46,11 @@ impl Binding<'_> {
     /// The expression on the right of the `=` which is evaluated and bound.
     pub fn body(&self) -> &Expression {
         &self.body
+    }
+
+    // Is this binding recursive, i.e. did it have a `rec` keyword?
+    pub fn rec(&self) -> Option<Span> {
+        self.rec
     }
 
     /// The name the value is being bound to.
@@ -80,7 +85,9 @@ impl<'a> Parse<'a> for Binding<'a> {
                 SyntaxError::BindingNoReserved(parser.next_span())
             })?;
 
-        let rec = parser.consume(TokenKind::Reserved(Reserved::Rec));
+        let rec = parser
+            .consume(TokenKind::Reserved(Reserved::Rec))
+            .map(|token| token.span());
 
         let name = parser.parse()?;
 

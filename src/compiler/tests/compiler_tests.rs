@@ -41,6 +41,11 @@ test_compile! { call, "let id = (x) => x; id(1)" }
 test_compile! { capture, "let a = 1; let f = () => a;" }
 test_compile! { if_only, "if true { 1 }" }
 test_compile! { if_else, "if true { 1 } else { 2 }" }
+test_compile! { rec, "let rec f = (n) => if n == 0 {1} else {n * f(n - 1)};" }
 
 test_no_compile! { out_of_scope, "{ let x = 1; }; x" }
 test_no_compile! { missing_binding, "missing" }
+test_no_compile! { missing_rec, "let f = (n) => if n == 0 {1} else {n * f(n - 1)};" }
+
+// For now, this won't work.
+test_no_compile! { rec_data, "let rec f = [1, f];" }

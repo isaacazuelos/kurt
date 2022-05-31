@@ -18,8 +18,8 @@ impl VirtualMachine {
 impl Display for VirtualMachine {
     fn fmt(&self, f: &mut Formatter) -> Result {
         self.fmt_where(f)?;
-        write!(f, " ")?;
-        self.fmt_stack(f)?;
+        // write!(f, " ")?;
+        // self.fmt_stack(f)?;
         Ok(())
     }
 }
@@ -31,11 +31,7 @@ impl VirtualMachine {
         write!(
             f,
             "{:>12} {:<4} {:16}",
-            self.current_closure()
-                .prototype()
-                .debug_info()
-                .and_then(FunctionDebug::name)
-                .unwrap_or("<unknown>"),
+            format!("{:?}", self.current_closure().name()),
             self.pc().as_usize(),
             op,
         )

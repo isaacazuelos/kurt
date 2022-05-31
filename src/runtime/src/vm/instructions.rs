@@ -38,6 +38,7 @@ impl VirtualMachine {
                 )),
                 Op::I48(n) => self.stack.push(Value::from(n)),
 
+                Op::LoadSelf => self.load_self()?,
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,
@@ -132,6 +133,16 @@ impl VirtualMachine {
         self.stack[new_top] = *kept;
         self.stack.truncate_above(new_top);
 
+        Ok(())
+    }
+
+    /// The [`LoadSelf`][Op::LoadSelf] instruction loads the currently-executing
+    /// closure (at the base pointer) and places a copy on the stop of the
+    /// stack.
+    #[inline]
+    fn load_self(&mut self) -> Result<()> {
+        let value = Value::from(self.current_closure());
+        self.stack.push(value);
         Ok(())
     }
 
