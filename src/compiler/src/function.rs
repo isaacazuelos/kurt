@@ -17,7 +17,7 @@ pub struct Function {
 }
 
 impl Function {
-    /// The name used for the prototype containing 'main', the top-level code
+    /// The name used for the functions containing 'main', the top-level code
     /// for a module.
     pub const MAIN_NAME: &'static str = "main";
 

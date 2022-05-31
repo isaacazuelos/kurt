@@ -21,7 +21,7 @@ use crate::{
 use super::Prototype;
 
 #[repr(C, align(8))]
-pub struct Closure {
+pub struct Function {
     /// The base object required to be a [`Class`].
     base: Object,
 
@@ -32,7 +32,7 @@ pub struct Closure {
     captures: RefCell<Vec<Gc<CaptureCell>>>,
 }
 
-impl Closure {
+impl Function {
     pub fn module(&self) -> Gc<Module> {
         self.prototype.module()
     }
@@ -70,11 +70,11 @@ impl Closure {
     }
 }
 
-impl Class for Closure {
+impl Class for Function {
     const ID: ClassId = ClassId::Closure;
 }
 
-impl PartialOrd for Closure {
+impl PartialOrd for Function {
     /// Closures cannot be ordered.
     ///
     /// What would you even order them by?
@@ -83,7 +83,7 @@ impl PartialOrd for Closure {
     }
 }
 
-impl PartialEq for Closure {
+impl PartialEq for Function {
     /// Closure equality is identity.
     ///
     /// In theory we could see if they have the same prototype and captures
@@ -91,12 +91,12 @@ impl PartialEq for Closure {
     /// equal, but I think that's probably not useful.
     ///
     /// Frankly, I'm not sure I wouldn't rather have this always be false.
-    fn eq(&self, other: &Closure) -> bool {
+    fn eq(&self, other: &Function) -> bool {
         std::ptr::eq(self, other)
     }
 }
 
-impl Trace for Closure {
+impl Trace for Function {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
         for capture in self.captures.borrow().iter() {
             capture.enqueue_gc_references(worklist);
@@ -104,13 +104,13 @@ impl Trace for Closure {
     }
 }
 
-impl PrimitiveOperations for Closure {
+impl PrimitiveOperations for Function {
     fn type_name(&self) -> &'static str {
         "Closure"
     }
 }
 
-impl Debug for Closure {
+impl Debug for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.name() == Value::UNIT {
             write!(f, "<{:?}", self.name())?;
@@ -123,7 +123,7 @@ impl Debug for Closure {
             for capture in self.captures.borrow().iter() {
                 if capture
                     .inline_value()
-                    .and_then(|v| Value::as_gc::<Closure>(&v))
+                    .and_then(|v| Value::as_gc::<Function>(&v))
                     .map(|v| v.identity() == self.identity())
                     .unwrap_or(false)
                 {
@@ -139,7 +139,7 @@ impl Debug for Closure {
     }
 }
 
-impl InitFrom<Gc<Prototype>> for Closure {
+impl InitFrom<Gc<Prototype>> for Function {
     fn extra_size(_arg: &Gc<Prototype>) -> usize {
         0
     }

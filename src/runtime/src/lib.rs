@@ -1,8 +1,9 @@
 //! The language runtime interface.
 
-mod classes;
+pub mod classes;
+pub mod memory;
+
 mod error;
-mod memory;
 mod primitives;
 mod value;
 mod vm;

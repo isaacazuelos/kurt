@@ -69,7 +69,7 @@ impl Diagnostic {
     /// optional field that can be specified later, we don't necessarily know
     /// the lifetime of the input when the Diagnostic is made.
     ///
-    /// [id]: crate::InputCoordinator
+    /// [ic]: crate::InputCoordinator
     pub fn input(mut self, id: InputId) -> Self {
         self.input_id = Some(id);
         self

@@ -1,10 +1,10 @@
 //! The virtual machine's big dispatch loop
 
 use common::{i48, Get, Index};
-use compiler::{Capture, Constant, Function, Local, Op};
+use compiler::{Capture, Constant, Local, Op};
 
 use crate::{
-    classes::{Closure, List},
+    classes::{Function, List},
     error::Result,
     memory::Gc,
     primitives::PrimitiveOperations,
@@ -42,7 +42,7 @@ impl VirtualMachine {
                 Op::LoadConstant(i) => self.load_constant(i)?,
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,
-                Op::LoadClosure(i) => self.load_closure(i)?,
+                Op::LoadFunction(i) => self.load_function(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
@@ -196,16 +196,19 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// The [`LoadClosure`][Op::LoadClosure] instruction creates an instance of
+    /// The [`LoadFunction`][Op::LoadFunction] instruction creates an instance of
     /// the closure described by the indexed [`Function`] in the current
     /// module, and leaves it on the stack.
     #[inline]
-    fn load_closure(&mut self, index: Index<Function>) -> Result<()> {
-        let current_closure: Gc<Closure> = self.current_closure();
+    fn load_function(
+        &mut self,
+        index: Index<compiler::Function>,
+    ) -> Result<()> {
+        let current_closure: Gc<Function> = self.current_closure();
         let current_module = current_closure.module();
 
         let prototype = *current_module.get(index).unwrap();
-        let new_closure: Gc<Closure> = self.make_from(prototype);
+        let new_closure: Gc<Function> = self.make_from(prototype);
         self.stack.push(Value::from(new_closure));
 
         // now we set up the capture cells
@@ -244,7 +247,7 @@ impl VirtualMachine {
     #[inline]
     fn call(&mut self, arg_count: u32) -> Result<()> {
         let bp = self.stack.from_top(Index::new(arg_count));
-        let target: Gc<Closure> = self.stack[bp].try_into()?;
+        let target: Gc<Function> = self.stack[bp].try_into()?;
         let parameter_count = target.prototype().parameter_count();
 
         if parameter_count != arg_count {

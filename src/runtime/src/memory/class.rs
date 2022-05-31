@@ -12,11 +12,11 @@ use crate::memory::trace::Trace;
 
 /// Class IDs are used as type tags.
 ///
-/// In the past Rust's [`Any`] type id was used, but I kept missing places where
-/// I was matching on it. Instead, now we can use these (and [`dispatch!`][1])
-/// to keep things exhaustive and safe.
+/// In the past Rust's [`Any`][std::any::Any] type id was used, but I kept
+/// missing places where I was matching on it. Instead, now we can use these to
+/// keep things exhaustive and safe.
 ///
-/// [1]: crate::memory::object::dispatch!
+/// [1]: crate::memory::object::dispatch
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ClassId {
     CaptureCell,
@@ -51,11 +51,11 @@ impl ClassId {
 ///
 /// 1. It must be a struct which is [`#[repr(C, align(8))]`][repr].
 ///
-/// 2. It must start with a felid of type [`Object`].
+/// 2. It must start with a felid of type [`Object`][crate::memory::Object].
 ///
 /// This makes Rust promise that the object is laid out in memory consistently
-/// and with the [`Object`] first, so we can downcast and have all the object
-/// metadata in the right place.
+/// and with the [`Object`][crate::memory::Object] first, so we can downcast and
+/// have all the object metadata in the right place.
 ///
 /// [repr]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprc
 pub trait Class: Debug + Sized + Trace {

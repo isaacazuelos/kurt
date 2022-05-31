@@ -12,7 +12,7 @@ mod stack;
 mod stack_trace;
 
 use crate::{
-    classes::{Closure, Keyword, Module, String},
+    classes::{Function, Keyword, Module, String},
     memory::{Gc, GcAny},
     value::Value,
     vm::open_captures::OpenCaptures,
@@ -49,7 +49,7 @@ impl VirtualMachine {
             .last()
             .expect("load_without_running left a module for us");
 
-        let main_closure: Gc<Closure> = self.make_from(new_module.main());
+        let main_closure: Gc<Function> = self.make_from(new_module.main());
 
         self.stack.push(Value::from(main_closure));
         let bp = self.stack.from_top(Index::START);
@@ -74,9 +74,9 @@ impl VirtualMachine {
         // To replace main, we want to stash the instruction index, swap out
         // the closure, and keep any captures it has.
 
-        let old_main: Gc<Closure> = self.stack[self.bp()].as_gc().unwrap();
+        let old_main: Gc<Function> = self.stack[self.bp()].as_gc().unwrap();
 
-        let new_main: Gc<Closure> =
+        let new_main: Gc<Function> =
             self.make_from(self.modules.last().unwrap().main());
 
         for i in 0..old_main.capture_count() {
@@ -99,8 +99,6 @@ impl VirtualMachine {
 
     /// Resume the runtime. If it hasn't been started before this will also
     /// start it.
-    ///
-    /// See the implementation note on [`last_result`] for details.
     pub fn resume(&mut self) -> Result<Exit> {
         self.stack.pop();
         self.run()
@@ -165,7 +163,7 @@ impl VirtualMachine {
     /// The next opcode in the current closure, if there is one.
     pub fn op(&self) -> Op {
         self.stack()[self.bp()]
-            .as_gc::<Closure>()
+            .as_gc::<Function>()
             .expect("base pointer wasn't a closure")
             .get_op(self.pc())
             .expect("program counter out of range")
@@ -196,7 +194,7 @@ impl VirtualMachine {
     ///
     /// This will panic if there's no call frame (so no base pointer), or if the
     /// base pointer isn't pointing to a closure.
-    pub fn current_closure(&self) -> Gc<Closure> {
+    pub fn current_closure(&self) -> Gc<Function> {
         let bp = self.bp();
         self.stack[bp].as_gc().expect("bp not pointing to closure")
     }

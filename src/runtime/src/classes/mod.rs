@@ -1,5 +1,5 @@
 mod capture;
-mod closure;
+mod function;
 mod keyword;
 mod list;
 mod module;
@@ -8,7 +8,7 @@ mod string;
 
 pub use self::{
     capture::{CaptureCell, CaptureCellContents},
-    closure::Closure,
+    function::Function,
     keyword::Keyword,
     list::List,
     module::Module,

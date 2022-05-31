@@ -238,8 +238,8 @@ impl Value {
     }
 
     /// Use this value as a Rust [`u48`] if it's an natural number. Note that
-    /// this will always be between 0 and [`Value::MAX_NAT`], i.e it must fit in
-    /// a 48-bit unsigned value.
+    /// this will always be between 0 and [`u48::MAX`], i.e it must fit in a
+    /// 48-bit unsigned value.
     #[inline]
     pub const fn as_nat(&self) -> Option<u48> {
         if self.is_nat() {
@@ -257,8 +257,8 @@ impl Value {
     }
 
     /// Use this value as a Rust [`i64`] if it's an Integer. Note that this will
-    /// always be between [`Value::MAX_INT`] and [`Value::MIN_INT`], i.e it must
-    /// fit in a 48-bit integer.
+    /// always be between [`i48::MAX`] and [`i48::MIN`], i.e it must fit in a
+    /// 48-bit integer.
     #[inline]
     pub const fn as_int(&self) -> Option<i48> {
         if self.is_int() {

@@ -24,8 +24,8 @@ pub enum Op {
     Pop,
 
     /// Discard the given number of values from the top of the stack, closing
-    /// all upvalues in that range, and preserving the value on teh top of the
-    /// stack.
+    /// any open captures in that range, and preserving the value on the top of
+    /// the stack.
     Close(u32),
 
     // ## Loading constant values
@@ -38,6 +38,8 @@ pub enum Op {
 
     /// Push a `()` to the top of the stack.
     Unit,
+
+    // ## Loading Values
 
     /// An immediate 48-bit signed integer value.
     U48(u48),
@@ -64,8 +66,9 @@ pub enum Op {
     /// Keep the top of the stack as a local.
     DefineLocal,
 
-    /// Load a prototype and make a closure from it, placing it on the stack.
-    LoadClosure(Index<Function>),
+    /// Make a live function instance from the [`Function`] at the given index,
+    /// placing it on the stack.
+    LoadFunction(Index<Function>),
 
     // ## Accessing
 
@@ -87,18 +90,18 @@ pub enum Op {
 
     // ## Branching
 
-    /// Jump to the given opcode index _in the current prototype_
+    /// Jump to the given opcode index _in the currently executing function_
     /// unconditionally.
     Jump(Index<Op>),
 
-    /// Jump to the given index _in the current prototype_ if the top of the
-    /// stack if false.
+    /// Jump to the given index _in the currently executing function_, but only
+    /// if the top of the stack is `false`.
     BranchFalse(Index<Op>),
 
     // ## Logical Operators
     //
     // We don't have a logical `And` or `Or`, since these would normally be
-    // short-circuiting implementations which need branching.
+    // short-circuiting implementations which needs branching.
 
     /// Unary logical negation
     Not,
@@ -178,7 +181,7 @@ impl Display for Op {
             // We only need to match the ones with embedded arguments
             Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_usize()),
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_usize()),
-            Op::LoadClosure(i) => write!(f, "LoadClosure {}", i.as_usize()),
+            Op::LoadFunction(i) => write!(f, "LoadClosure {}", i.as_usize()),
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Jump(i) => write!(f, "Jump {}", i.as_usize()),
             Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_usize()),

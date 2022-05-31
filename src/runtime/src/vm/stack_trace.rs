@@ -5,7 +5,7 @@ use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 use compiler::ModuleDebug;
 
 use crate::{
-    classes::Closure,
+    classes::Function,
     vm::{call_stack::CallFrame, VirtualMachine},
     Error,
 };
@@ -43,7 +43,7 @@ impl VirtualMachine {
         let mut message = String::from("called by ");
 
         let prototype = self.stack[frame.bp()]
-            .as_gc::<Closure>()
+            .as_gc::<Function>()
             .expect("every frame base pointer is a closure")
             .prototype();
 

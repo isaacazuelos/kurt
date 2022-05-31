@@ -22,7 +22,7 @@ macro_rules! dispatch {
     ($f: path, $obj: ident, $( $arg: expr, )*) => {
         match $obj.class_id {
             ClassId::CaptureCell => $f( $obj.downcast::<CaptureCell>().unwrap(), $( $arg, )*),
-            ClassId::Closure => $f( $obj.downcast::<Closure>().unwrap(), $( $arg, )*),
+            ClassId::Closure => $f( $obj.downcast::<Function>().unwrap(), $( $arg, )*),
             ClassId::Keyword => $f( $obj.downcast::<Keyword>().unwrap(), $( $arg, )*),
             ClassId::List    => $f( $obj.downcast::<List>().unwrap(), $( $arg, )*),
             ClassId::Module => $f( $obj.downcast::<Module>().unwrap(), $( $arg, )* ),
@@ -42,7 +42,7 @@ macro_rules! dispatch {
 /// # Notes
 ///
 /// There's deliberately no way to create an [`Object`] that's not some other
-/// concrete [`Class`] (using the [`Runtime::make`][Runtime::make])
+/// concrete [`Class`].
 #[repr(C, align(8))]
 pub struct Object {
     /// The size (in bytes) of the allocation belonging to this [`Object`].

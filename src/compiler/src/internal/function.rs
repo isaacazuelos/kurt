@@ -105,22 +105,22 @@ impl FunctionBuilder {
         self.is_recursive = recursive;
     }
 
-    /// Set the number of parameters this prototype needs when being called.
+    /// Set the number of parameters this function needs when being called.
     pub(crate) fn set_parameter_count(&mut self, count: u32) {
         self.parameter_count = count;
     }
 
-    /// Emit into this prototype's code segment.
+    /// Emit into this function's code.
     pub(crate) fn emit(&mut self, op: Op, span: Span) -> Result<()> {
         self.code.emit(op, span)
     }
 
-    /// The code listing for this prototype.
+    /// The code listing for this function.
     pub(crate) fn code(&self) -> &Code {
         &self.code
     }
 
-    /// Get a mutable reference to the code listing for this prototype.
+    /// Get a mutable reference to the code listing for this function.
     pub(crate) fn code_mut(&mut self) -> &mut Code {
         &mut self.code
     }

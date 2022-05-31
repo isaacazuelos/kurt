@@ -1,7 +1,7 @@
 //! Runtime function prototype representation.
 //!
-//! By function prototype, I mean this is a description of a function, but not
-//! the actual callable instance. This is the object that hold a function's code
+//! By function prototype, we mean this is a description of a function, but not
+//! the actual callable thing. This is the object that holds a function's code
 //! and metadata, but to actually call it you need to create an instance of the
 //! function which can be responsible for it's captured values. That instance is
 //! a [`Function`][crate::classes::Function].

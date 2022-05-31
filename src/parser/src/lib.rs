@@ -7,8 +7,9 @@
 //! there are escape hatches for the messy edges.
 //!
 //! It scans the whole input up front with [`Lexer`][crate::lexer::Lexer], and
-//! provides arbitrary lookahead with [`peek_nth`][Parser::peek_nth]. If your
-//! grammar needs it, you can backtrack with [`Parser::with_backtracking`].
+//! provides arbitrary lookahead with [`peek_kind_nth`][Parser::peek_kind_nth].
+//! If your grammar needs it, you can backtrack with
+//! [`Parser::with_backtracking`].
 //!
 //! Anywhere your grammar is recursive you should call [`Parser::depth_track`]
 //! to help prevent the parser from blowing the stack.

@@ -22,8 +22,6 @@ pub struct StackTop;
 ///
 /// # Layout during execution
 ///
-/// During execution, the stack is kept consistent with the [`CallStack`].
-///
 /// Here's an ASCII diagram of the stack, growing up.
 ///
 /// ``` text

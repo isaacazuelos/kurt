@@ -28,7 +28,7 @@ impl u48 {
     /// Convert an i64 into an u48, blindly chopping off the high bits.
     ///
     /// This _will_ produce wrong results if `i` isn't between [`u48::MAX`] and
-    /// [`u48::MIN`]
+    /// zero.
     #[inline(always)]
     pub const fn from_u64_unchecked(n: u64) -> u48 {
         #[cfg(target_endian = "big")]
@@ -60,7 +60,9 @@ impl u48 {
         u64::from_ne_bytes([a, b, c, d, e, f, 0, 0])
     }
 
-    /// See the documentation for [`std::u64::from_str_radix`] for what
+    /// See the documentation for [`from_str_radix`][url] for what this does.
+    ///
+    /// [url]: https://doc.rust-lang.org/std/primitive.u64.html#method.from_str_radix
     pub fn from_str_radix(
         src: &str,
         radix: u32,

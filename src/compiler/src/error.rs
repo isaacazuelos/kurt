@@ -26,7 +26,7 @@ pub enum Error {
     TooManyConstants(Span),
     TooManyOps(Span),
     TooManyParameters(Span),
-    TooManyPrototypes(Span),
+    TooManyFunctions(Span),
     TooManyLocals(Span),
 }
 
@@ -74,7 +74,7 @@ impl fmt::Display for Error {
             TooManyParameters(_) => {
                 write!(f, "this function has too many parameters")
             }
-            TooManyPrototypes(_) => {
+            TooManyFunctions(_) => {
                 write!(f, "this module has too many functions")
             }
             TooManyLocals(_) => {
@@ -102,7 +102,7 @@ impl Error {
             Error::TooManyConstants(s) => *s,
             Error::TooManyOps(s) => *s,
             Error::TooManyParameters(s) => *s,
-            Error::TooManyPrototypes(s) => *s,
+            Error::TooManyFunctions(s) => *s,
             Error::TooManyLocals(s) => *s,
         }
     }
@@ -134,7 +134,7 @@ impl From<Error> for Diagnostic {
             Error::TooManyConstants(s) => Error::too_many_const(s, d),
             Error::TooManyOps(s) => Error::too_many_ops(s, d),
             Error::TooManyParameters(s) => Error::too_many_params(s, d),
-            Error::TooManyPrototypes(s) => Error::too_many_prototypes(s, d),
+            Error::TooManyFunctions(s) => Error::too_many_functions(s, d),
             Error::TooManyLocals(s) => Error::too_many_locals(s, d),
         }
     }
@@ -190,7 +190,7 @@ impl Error {
             ))
     }
 
-    fn too_many_prototypes(s: Span, d: Diagnostic) -> Diagnostic {
+    fn too_many_functions(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this function is the culprit").info(format!(
             "each module can only have {} function definitions",
             Module::MAX_FUNCTIONS - 1,

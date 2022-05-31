@@ -9,16 +9,17 @@ use crate::{
 };
 
 pub struct ModuleBuilder {
+    /// The input that was used to produce this code.
     id: Option<InputId>,
 
     /// The constant pool of all constants seen by this compiler so far.
     constants: ConstantPool,
 
-    /// A stack of currently compiling prototypes. Once completed, they're moved
-    /// to `prototypes`.
+    /// A stack of currently compiling functions. Once completed, they're moved
+    /// to `functions`.
     compiling: Vec<FunctionBuilder>,
 
-    /// Code is compiled into [`Prototype`]s which are kept here once complete
+    /// Code is compiled into [`Function`]s which are kept here once complete.
     functions: Vec<Function>,
 }
 
@@ -42,7 +43,7 @@ impl ModuleBuilder {
 
     const MAIN: usize = 0;
 
-    /// Convert the current compiler state into a new [`Object`] that can be
+    /// Convert the current compiler state into a new [`Module`] that can be
     /// loaded into the runtime.
     pub fn build(&self) -> Module {
         debug_assert_eq!(
@@ -95,7 +96,7 @@ impl ModuleBuilder {
     /// _add_ to the end of the resulting module.
     ///
     /// This consumes the builder on failure -- if this isn't what you need, you
-    /// should use [`ModuleBuilder::push`] instead.
+    /// should use [`ModuleBuilder::push_syntax`] instead.
     pub fn syntax(mut self, syntax: &syntax::Module) -> Result<Self, Error> {
         self.push_syntax(syntax)?;
         Ok(self)
@@ -150,8 +151,8 @@ impl ModuleBuilder {
 }
 
 impl ModuleBuilder {
-    /// Prime the compiler by defining a complete 'main' prototype at index zero
-    /// that just halts.
+    /// Prime the compiler by defining a 'main' function at index zero that just
+    /// halts.
     fn prime(&mut self) {
         debug_assert!(
             self.compiling.is_empty(),
@@ -183,20 +184,18 @@ impl ModuleBuilder {
         self.constants.insert(constant)
     }
 
-    /// This is just a shorthand for emitting to the current active prototype.
+    /// This is a shorthand for emitting to the currently compiling function.
     pub(crate) fn emit(&mut self, op: Op, span: Span) -> Result<(), Error> {
-        self.active_prototype_mut().emit(op, span)
+        self.current_function_mut().emit(op, span)
     }
 
-    /// Get a reference to the active prototype. This will return the prototype
-    /// used by `main` if we're not compiling a closure.
-    pub(crate) fn active_prototype(&self) -> &FunctionBuilder {
+    /// Get a reference to the currently-compiling function.
+    pub(crate) fn current_function(&self) -> &FunctionBuilder {
         self.compiling.last().unwrap()
     }
 
-    /// Get a mutable reference to the active prototype. This will return the
-    /// prototype used by `main` if we're not compiling a closure.
-    pub(crate) fn active_prototype_mut(&mut self) -> &mut FunctionBuilder {
+    /// Get a mutable reference to the currently-compiling function.
+    pub(crate) fn current_function_mut(&mut self) -> &mut FunctionBuilder {
         self.compiling.last_mut().unwrap()
     }
 }
@@ -208,7 +207,7 @@ impl ModuleBuilder {
     }
 
     pub(crate) fn patch(&mut self, index: Index<Op>, op: Op) -> Option<Op> {
-        self.active_prototype_mut().code_mut().patch(index, op)
+        self.current_function_mut().code_mut().patch(index, op)
     }
 
     pub(crate) fn with_scope<F, T>(
@@ -219,18 +218,18 @@ impl ModuleBuilder {
     where
         F: FnOnce(&mut ModuleBuilder) -> Result<T, Error>,
     {
-        self.active_prototype_mut().begin_scope();
+        self.current_function_mut().begin_scope();
 
         let result = inner(self);
 
-        self.active_prototype_mut().end_scope(span)?;
+        self.current_function_mut().end_scope(span)?;
 
         result
     }
 
     pub(crate) fn begin_function(&mut self, span: Span) -> Result<(), Error> {
         if self.compiling.len() + self.functions.len() >= u32::MAX as usize {
-            return Err(Error::TooManyPrototypes(span));
+            return Err(Error::TooManyFunctions(span));
         }
 
         self.compiling.push(FunctionBuilder::new(span));
@@ -244,7 +243,7 @@ impl ModuleBuilder {
         let function = builder.build();
 
         if self.functions.len() >= Module::MAX_FUNCTIONS {
-            Err(Error::TooManyPrototypes(function.span()))
+            Err(Error::TooManyFunctions(function.span()))
         } else {
             self.functions.push(function);
             Ok(Index::new((self.functions.len() - 1) as u32))
@@ -252,20 +251,20 @@ impl ModuleBuilder {
     }
 
     pub(crate) fn bind_local(&mut self, id: &Identifier) -> Result<(), Error> {
-        self.active_prototype_mut()
+        self.current_function_mut()
             .bind_local(Local::new(id.as_str(), id.span()))
     }
 
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
-        self.active_prototype_mut().resolve_local(name)
+        self.current_function_mut().resolve_local(name)
     }
 
     pub(crate) fn resolve_recursive(&self, syntax: &Identifier) -> bool {
-        if !self.active_prototype().is_recursive() {
+        if !self.current_function().is_recursive() {
             return false;
         }
 
-        if let Some(name_index) = self.active_prototype().name() {
+        if let Some(name_index) = self.current_function().name() {
             match self.constants.get(name_index) {
                 Some(Constant::String(name)) => {
                     name.as_str() == syntax.as_str()

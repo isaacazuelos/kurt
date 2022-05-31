@@ -124,7 +124,7 @@ impl Function {
                     }
                 }
 
-                Op::LoadClosure(index) => {
+                Op::LoadFunction(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
                     if let Some(name) = module

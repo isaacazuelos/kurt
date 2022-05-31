@@ -224,7 +224,7 @@ impl ModuleBuilder {
 
         // with that new function as the target of compilation
         {
-            self.active_prototype_mut().set_recursive(recursive);
+            self.current_function_mut().set_recursive(recursive);
 
             let parameter_count = syntax.elements().len();
 
@@ -233,12 +233,12 @@ impl ModuleBuilder {
                 return Err(Error::TooManyParameters(problem_element.span()));
             }
 
-            self.active_prototype_mut()
+            self.current_function_mut()
                 .set_parameter_count(parameter_count as u32);
 
             if let Some(name) = name {
                 let index = self.insert_constant(name.as_str());
-                self.active_prototype_mut().set_name(index);
+                self.current_function_mut().set_name(index);
             }
 
             for parameter in syntax.elements() {
@@ -251,7 +251,7 @@ impl ModuleBuilder {
 
         let i = self.end_function()?;
 
-        self.emit(Op::LoadClosure(i), syntax.span())
+        self.emit(Op::LoadFunction(i), syntax.span())
     }
 
     /// Compile an expression wrapped in parens.
