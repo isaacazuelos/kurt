@@ -22,6 +22,11 @@ impl List {
         self.elements.len()
     }
 
+    /// Is the list the empty list?
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Subscript the list by a value.
     pub fn index(&self, index: Value) -> Result<Value, Error> {
         if let Some(i) = index.as_int() {

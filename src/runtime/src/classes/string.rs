@@ -114,6 +114,11 @@ impl String {
         self.base.size() - std::mem::size_of::<String>()
     }
 
+    /// Is this an empty string?
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// View the underlying UTF-8 bytes of the string as a slice.
     pub fn as_bytes(&self) -> &[u8] {
         // SAFETY: Doing this is exactly what we created the `data` for. See the

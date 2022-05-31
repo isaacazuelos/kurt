@@ -5,8 +5,6 @@
 
 use std::fmt::{Display, Formatter, Result};
 
-use compiler::FunctionDebug;
-
 use crate::VirtualMachine;
 
 impl VirtualMachine {
@@ -48,6 +46,7 @@ impl VirtualMachine {
         write!(f, "]")
     }
 
+    #[allow(dead_code)] // useful, but rarely
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
         let omitted = self.stack().len() - self.stack_frame().len();
 
