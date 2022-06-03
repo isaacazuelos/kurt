@@ -16,6 +16,7 @@ pub enum Error {
 
     MutationNotSupported(Span),
     RecNotFunction(Span, Span),
+    EarlyExitKindNotSupported(Span),
 
     UndefinedLocal(Span),
     UndefinedPrefix(Span),
@@ -50,6 +51,9 @@ impl fmt::Display for Error {
             }
             RecNotFunction(_, _) => {
                 write!(f, "recursive bindings only supported on functions")
+            }
+            EarlyExitKindNotSupported(_) => {
+                write!(f, "cannot yet compile this expression")
             }
 
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
@@ -94,6 +98,7 @@ impl Error {
             Error::ParseFloat(s) => *s,
             Error::MutationNotSupported(s) => *s,
             Error::RecNotFunction(_, s) => *s,
+            Error::EarlyExitKindNotSupported(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
             Error::UndefinedInfix(s) => *s,
@@ -122,6 +127,9 @@ impl From<Error> for Diagnostic {
 
             Error::MutationNotSupported(s) => Error::no_mutation(s, d),
             Error::RecNotFunction(rec, s) => Error::rec_not_function(rec, s, d),
+            Error::EarlyExitKindNotSupported(s) => {
+                Error::early_kind_not_supported(s, d)
+            }
 
             Error::UndefinedLocal(s)
             | Error::UndefinedPrefix(s)
@@ -150,6 +158,11 @@ impl Error {
         d.highlight(rec, "this can only be used if defining a function")
             .highlight(s, "this is not a function")
             .help("this will be supported (hopefully) soon")
+    }
+
+    fn early_kind_not_supported(span: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(span, "this isn't implemented yet")
+            .help("it's in the works, but only `return` works right now")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {

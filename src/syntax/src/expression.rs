@@ -25,6 +25,7 @@ pub enum Expression<'a> {
     Binary(Binary<'a>),
     Block(Block<'a>),
     Call(Call<'a>),
+    EarlyExit(EarlyExit<'a>),
     Function(Function<'a>),
     Grouping(Grouping<'a>),
     Identifier(Identifier),
@@ -41,6 +42,7 @@ impl<'a> Syntax for Expression<'a> {
             Expression::Binary(b) => b.span(),
             Expression::Block(b) => b.span(),
             Expression::Call(c) => c.span(),
+            Expression::EarlyExit(e) => e.span(),
             Expression::Function(f) => f.span(),
             Expression::Grouping(g) => g.span(),
             Expression::Identifier(i) => i.span(),
@@ -189,7 +191,7 @@ impl<'a> Expression<'a> {
     ///
     /// - [`primary`][p] := [`Identifier`] | [`Block`] | [`Function`]
     ///                   | [`Literal`]    | [`List`]  | [`IfOnly`]   
-    ///                   | [`IfElse`]
+    ///                   | [`IfElse`]     | [`EarlyExit`]
     ///
     /// [p]: Expression::primary
     pub fn primary(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
@@ -197,6 +199,13 @@ impl<'a> Expression<'a> {
             Some(TokenKind::Reserved(Reserved::If)) => {
                 parser.parse().map(Expression::If)
             }
+
+            Some(TokenKind::Reserved(
+                Reserved::Return
+                | Reserved::Yield
+                | Reserved::Break
+                | Reserved::Continue,
+            )) => parser.parse().map(Expression::EarlyExit),
 
             Some(TokenKind::Identifier) => {
                 parser.parse().map(Expression::Identifier)

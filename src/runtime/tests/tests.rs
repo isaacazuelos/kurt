@@ -114,3 +114,7 @@ mod closures {
 mod let_rec {
     test_eval! { simple_fn, include_str!("inputs/factorial.k"), "5040" }
 }
+
+mod early_exits {
+    test_eval! { early_return, "let f = () => {return 8; 1}; f()", "8" }
+}

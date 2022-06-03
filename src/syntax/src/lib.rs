@@ -15,6 +15,7 @@ mod binding;
 mod block;
 mod call;
 mod conditional;
+mod early_exit;
 mod entry;
 mod error;
 mod expression;
@@ -32,6 +33,7 @@ pub use self::{
     block::Block,
     call::Call,
     conditional::{IfElse, IfOnly},
+    early_exit::{EarlyExit, ExitKind},
     entry::Module,
     error::Error as SyntaxError,
     expression::Expression,

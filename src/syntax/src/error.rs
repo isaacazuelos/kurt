@@ -16,6 +16,8 @@ pub enum Error {
     CallNoOpen(Span, Span),
     CallNoClose(Span, Span),
 
+    EarlyExitNoReservedWord(Span),
+
     ExpressionInvalidStart(Span),
 
     IfNoReserved(Span),
@@ -74,6 +76,10 @@ impl From<Error> for Diagnostic {
 
             Error::CallNoClose(open, found) => {
                 Error::call_no_close(open, found)
+            }
+
+            Error::EarlyExitNoReservedWord(span) => {
+                Error::early_exit_no_reserved(span)
             }
 
             Error::ExpressionInvalidStart(span) => {
@@ -152,6 +158,7 @@ impl Error {
             Error::BlockNoClose(_, s) => s,
             Error::CallNoOpen(_, s) => s,
             Error::CallNoClose(_, s) => s,
+            Error::EarlyExitNoReservedWord(s) => s,
             Error::ExpressionInvalidStart(s) => s,
             Error::IfNoReserved(s) => s,
             Error::IfNoElse(_, s) => s,
@@ -230,6 +237,14 @@ impl Error {
             .location(span.start())
             .highlight(open, "a function call's argument list started here")
             .highlight(span, "but this isn't a `)` to end it")
+    }
+
+    fn early_exit_no_reserved(span: Span) -> Diagnostic {
+        Diagnostic::new(
+            "expected one of `return`, `yield`, `break`, or `continue`.",
+        )
+        .location(span.start())
+        .highlight(span, "expected here")
     }
 
     fn expression_invalid_start(span: Span) -> Diagnostic {

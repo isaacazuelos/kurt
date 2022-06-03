@@ -111,6 +111,7 @@ impl ModuleBuilder {
             syntax::Expression::Binary(b) => self.binary(b),
             syntax::Expression::Block(b) => self.block(b),
             syntax::Expression::Call(c) => self.call(c),
+            syntax::Expression::EarlyExit(e) => self.early_exit(e),
             syntax::Expression::Function(f) => self.function(f, None, false),
             syntax::Expression::Grouping(g) => self.grouping(g),
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
@@ -210,6 +211,22 @@ impl ModuleBuilder {
             Err(Error::TooManyArguments(problem_arg.span()))
         } else {
             self.emit(Op::Call(count as u32), syntax.open() + syntax.close())
+        }
+    }
+
+    /// Compile an early exit expression.
+    fn early_exit(&mut self, syntax: &syntax::EarlyExit) -> Result<()> {
+        match syntax.kind() {
+            syntax::ExitKind::Return => {
+                if let Some(expression) = syntax.expression() {
+                    self.expression(expression)?;
+                } else {
+                    self.emit(Op::Unit, syntax.span())?;
+                }
+
+                self.emit(Op::Return, syntax.span())
+            }
+            _ => Err(Error::EarlyExitKindNotSupported(syntax.span())),
         }
     }
 

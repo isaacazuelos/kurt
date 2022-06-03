@@ -49,3 +49,5 @@ test_no_compile! { missing_rec, "let f = (n) => if n == 0 {1} else {n * f(n - 1)
 
 // For now, this won't work.
 test_no_compile! { rec_data, "let rec f = [1, f];" }
+
+test_compile! { early_return, "let f = () => {return 7;};"}
