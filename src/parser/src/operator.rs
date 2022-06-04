@@ -222,19 +222,11 @@ impl Default for DefinedOperators {
         op.define_infix("+", Left, p); // add
         op.define_infix("-", Left, p); // sub
 
-        // comparison
+        // shifts
         p = p.next();
-        op.define_infix("<", Left, p); // less
-        op.define_infix(">", Left, p); // greater
-        op.define_infix("<=", Left, p); // leq
-        op.define_infix(">=", Left, p); // geq
-        op.define_infix("<>", Left, p); // diamond
-        op.define_infix("><", Left, p); // duck
-
-        // equality
-        p = p.next();
-        op.define_infix("==", Left, p); // eq
-        op.define_infix("!=", Left, p); // neq
+        op.define_infix("<<", Left, p); // sll
+        op.define_infix(">>", Left, p); // srl
+        op.define_infix(">>>", Left, p); // sra
 
         // bits
         p = p.next();
@@ -242,22 +234,34 @@ impl Default for DefinedOperators {
         op.define_infix("|", Left, p); // bit or
         op.define_infix("⊕", Left, p); // bit xor
 
-        // shifts
+        // error coalescing
         p = p.next();
-        op.define_infix("<<", Left, p); // sll
-        op.define_infix(">>", Left, p); // srl
-        op.define_infix(">>>", Left, p); // sra
+        op.define_infix("??", Left, p);
 
-        // error
-        op.define_infix("??", Left, p); // coalescing
+        // comparison
+        p = p.next();
+        op.define_infix("<", Disallow, p); // less
+        op.define_infix(">", Disallow, p); // greater
+        op.define_infix("<=", Disallow, p); // leq
+        op.define_infix(">=", Disallow, p); // geq
+        op.define_infix("<>", Disallow, p); // diamond
+        op.define_infix("><", Disallow, p); // duck
+        op.define_infix("==", Disallow, p); // eq
+        op.define_infix("!=", Disallow, p); // neq
 
         // errors and pipes
         p = p.next();
         op.define_infix("|>", Left, p); // f pipe
 
+        // logical and and or
+        p = p.next();
+        op.define_infix("and", Left, p); // `and`
+        p = p.next();
+        op.define_infix("or", Left, p); // `or`
+
         // functions
         p = p.next();
-        op.define_infix("->", Right, p);
+        op.define_infix("->", Right, p); // function type constructor
 
         // assignment
         p = p.next();

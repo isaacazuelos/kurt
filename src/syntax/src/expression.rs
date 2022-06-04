@@ -531,4 +531,17 @@ mod parser_tests {
             result
         )
     }
+
+    #[test]
+    fn infix_and() {
+        let mut parser = Parser::new("true or false and true").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            parser.defined_operators().get_infix("and").unwrap().1
+                < parser.defined_operators().get_infix("or").unwrap().1
+        );
+        assert!(
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "and")
+        );
+    }
 }

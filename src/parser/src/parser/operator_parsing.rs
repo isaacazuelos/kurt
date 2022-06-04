@@ -40,7 +40,7 @@
 use diagnostic::{Diagnostic, Span};
 
 use crate::{
-    lexer::{Delimiter, Token, TokenKind},
+    lexer::{Delimiter, Reserved, Token, TokenKind},
     operator::{Associativity, DefinedOperators, Precedence},
     parser::Parser,
 };
@@ -216,7 +216,9 @@ impl<'a> Parser<'a> {
     /// Consume the next token iff it looks to be an infix operator, i.e. if the
     /// following conditions are met:
     ///
-    /// 1. The next token is an `Kind::Operator`.
+    /// 1. The next token is an [`Operator`][TokenKind::Operator], or
+    ///    [`Reserved`][TokenKind::Reserved] words [`And`][Reserved::And] or
+    ///    [`Or`][Reserved::Or].
     ///
     /// 2. We need at least 1 token before for the lhs, and 2 after for the
     ///    operator we'll return and the rhs.
@@ -243,8 +245,14 @@ impl<'a> Parser<'a> {
         }
 
         let token = self.tokens[self.cursor];
-        if token.kind() != TokenKind::Operator {
-            return Err(Error::NotOperator(token.span()));
+
+        if !matches!(
+            token.kind(),
+            TokenKind::Operator
+                | TokenKind::Reserved(Reserved::And)
+                | TokenKind::Reserved(Reserved::Or)
+        ) {
+            return Err(Error::NotOperatorAndOr(token.span()));
         }
 
         // 2
@@ -290,6 +298,7 @@ pub enum Error {
     MultipleNonAssociative(Span, Span),
 
     NotOperator(Span),
+    NotOperatorAndOr(Span),
 
     PrefixSpaceAfter(Span),
     PrefixNoSpaceBefore(Span),
@@ -348,6 +357,12 @@ impl From<Error> for Diagnostic {
 
             Error::NotOperator(span) => {
                 Diagnostic::new("an operator was expected")
+                    .location(span.start())
+                    .highlight(span, "instead we saw this")
+            }
+
+            Error::NotOperatorAndOr(span) => {
+                Diagnostic::new("an operator, `and` or `or` was expected")
                     .location(span.start())
                     .highlight(span, "instead we saw this")
             }

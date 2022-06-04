@@ -26,6 +26,7 @@ impl VirtualMachine {
                 Op::Nop => continue,
 
                 // stack
+                Op::Dup => self.dup()?,
                 Op::Pop => self.stack.pop(),
                 Op::Close(n) => self.close(n)?,
 
@@ -116,6 +117,17 @@ impl VirtualMachine {
     fn halt(&mut self) -> Result<Exit> {
         self.pc_mut().saturating_decrement();
         Ok(Exit::Halt)
+    }
+
+    /// The [`Dup`][Op::Dup] instruction duplicates the value on the top of the
+    /// stack. Does nothing if the stack is empty.
+    #[inline]
+    fn dup(&mut self) -> Result<()> {
+        if let Some(value) = self.stack().last().cloned() {
+            self.stack.push(value);
+        }
+
+        Ok(())
     }
 
     /// The [`Close`][Op::Close] instructions slides the value on the top of the

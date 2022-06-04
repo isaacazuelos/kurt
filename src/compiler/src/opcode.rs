@@ -20,6 +20,9 @@ pub enum Op {
 
     // ## Stack Manipulation
 
+    /// Duplicate the value on the top of the stack.
+    Dup,
+    
     /// Discard the value on the top of the stack, if there is one.
     Pop,
 
@@ -95,7 +98,7 @@ pub enum Op {
     Jump(Index<Op>),
 
     /// Jump to the given index _in the currently executing function_, but only
-    /// if the top of the stack is `false`.
+    /// if the top of the stack is `false`. This pops the stack as well.
     BranchFalse(Index<Op>),
 
     // ## Logical Operators

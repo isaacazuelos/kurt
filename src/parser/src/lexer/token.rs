@@ -79,7 +79,7 @@ pub enum Kind {
     /// Things like `+`, `==` or `>>=` are operators.
     Operator,
 
-    /// `->` or `→`
+    /// `->`
     Arrow,
     /// `@`
     At,
@@ -89,7 +89,7 @@ pub enum Kind {
     Colon,
     /// `,`
     Comma,
-    /// `=>` or `⇒`
+    /// `=>`
     DoubleArrow,
     /// `;`
     Semicolon,
@@ -178,6 +178,7 @@ pub enum Delimiter {
 /// reserving them ahead of time is a good call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reserved {
+    And,
     Async,
     Atomic,
     Await,
@@ -191,8 +192,8 @@ pub enum Reserved {
     Else,
     Enum,
     Export,
-    Extern,
     Extend,
+    Extern,
     For,
     Goto,
     If,
@@ -203,6 +204,7 @@ pub enum Reserved {
     Let,
     Loop,
     Module,
+    Or,
     Panic,
     Protocol,
     Raise,
@@ -224,6 +226,7 @@ impl Reserved {
     pub fn as_str(self) -> &'static str {
         use self::Reserved::*;
         match self {
+            And => "and",
             Async => "async",
             Atomic => "atomic",
             Await => "await",
@@ -249,6 +252,7 @@ impl Reserved {
             Let => "let",
             Loop => "loop",
             Module => "module",
+            Or => "or",
             Panic => "panic",
             Protocol => "protocol",
             Raise => "raise",
@@ -269,6 +273,7 @@ impl Reserved {
     pub(crate) fn try_from_bytes(b: &str) -> Option<Reserved> {
         use self::Reserved::*;
         Some(match b {
+            "and" => And,
             "async" => Async,
             "atomic" => Atomic,
             "await" => Await,
@@ -294,6 +299,7 @@ impl Reserved {
             "let" => Let,
             "loop" => Loop,
             "module" => Module,
+            "or" => Or,
             "panic" => Panic,
             "protocol" => Protocol,
             "raise" => Raise,

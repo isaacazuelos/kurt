@@ -118,3 +118,37 @@ mod let_rec {
 mod early_exits {
     test_eval! { early_return, "let f = () => {return 8; 1}; f()", "8" }
 }
+
+mod operator_and_or {
+    test_eval! {
+        op_and,
+        "[ false and false,
+           false and true, 
+           true  and false, 
+           true  and true, 
+         ] == [false, false, false, true]", 
+        "true"
+    }
+
+    test_eval! {
+        op_or,
+        "[ false or false,
+           false or true, 
+           true  or false, 
+           true  or true,
+         ] == [ false, true, true, true]", 
+         "true"
+    }
+
+    test_eval! {
+        short_circuiting_or,
+        "true or (:not_divisible / 0)",
+        "true"
+    }
+
+    test_eval! {
+        short_circuiting_and,
+        "false and (:not_divisible / 0)",
+        "false"
+    }
+}

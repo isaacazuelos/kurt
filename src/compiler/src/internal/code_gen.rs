@@ -137,6 +137,10 @@ impl ModuleBuilder {
 
     /// Compile a binary operator expression.
     fn binary(&mut self, syntax: &syntax::Binary) -> Result<()> {
+        if matches!(syntax.operator(), "and" | "or") {
+            return self.short_circuiting(syntax);
+        }
+
         self.expression(syntax.left())?;
         self.expression(syntax.right())?;
 
@@ -166,6 +170,33 @@ impl ModuleBuilder {
         }?;
 
         self.emit(op, syntax.operator_span())
+    }
+
+    /// A `and` infix operator.
+    ///
+    fn short_circuiting(&mut self, syntax: &syntax::Binary) -> Result<()> {
+        //
+        // <a and b> => [ <a> , Dup, BranchFalse(:end), Pop, <b>, :end ]
+        // <a or b>  => [ <a> , Dup, Not, BranchFalse(:end), Pop, <b>, :end ]
+
+        self.expression(syntax.left())?;
+
+        self.emit(Op::Dup, syntax.operator_span())?;
+
+        if syntax.operator() == "or" {
+            self.emit(Op::Not, syntax.operator_span())?;
+        }
+
+        let jump_end = self.next_index();
+        self.emit(Op::Nop, syntax.operator_span())?;
+
+        self.emit(Op::Pop, syntax.operator_span())?;
+
+        self.expression(syntax.right())?;
+
+        let end = self.next_index();
+        self.patch(jump_end, Op::BranchFalse(end));
+        Ok(())
     }
 
     /// Compile a unary operator expression.
