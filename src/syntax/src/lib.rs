@@ -24,6 +24,7 @@ mod grouping;
 mod ident;
 mod list;
 mod literal;
+mod loops;
 mod operator;
 mod statement;
 mod subscript;
@@ -42,6 +43,7 @@ pub use self::{
     ident::Identifier,
     list::List,
     literal::{Kind as LiteralKind, Literal},
+    loops::{Loop, While},
     operator::{Binary, Unary},
     statement::Statement,
     subscript::Subscript,

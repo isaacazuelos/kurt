@@ -1,7 +1,8 @@
 //! Test the compilation pieces of code to make sure they compile.
 //!
 //! They're not executed, and the results of compilation aren't verified. These
-//! are more just sanity tests.
+//! are more just sanity tests to make sure the constructs even compile as
+//! expected.
 
 use compiler::Module;
 
@@ -51,3 +52,6 @@ test_no_compile! { missing_rec, "let f = (n) => if n == 0 {1} else {n * f(n - 1)
 test_no_compile! { rec_data, "let rec f = [1, f];" }
 
 test_compile! { early_return, "let f = () => {return 7;};"}
+
+test_compile! { while_loop, "while false { 1 }" }
+test_compile! { loop_loop, "loop { 1 }" }

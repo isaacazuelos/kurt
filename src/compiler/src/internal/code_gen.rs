@@ -117,8 +117,10 @@ impl ModuleBuilder {
             syntax::Expression::Identifier(i) => self.identifier_expression(i),
             syntax::Expression::If(i) => self.if_else(i),
             syntax::Expression::List(l) => self.list(l),
+            syntax::Expression::Loop(l) => self.loop_loop(l),
             syntax::Expression::Literal(l) => self.literal(l),
             syntax::Expression::Unary(u) => self.unary(u),
+            syntax::Expression::While(w) => self.while_loop(w),
             syntax::Expression::Subscript(s) => self.subscript(s),
         }
     }
@@ -361,6 +363,32 @@ impl ModuleBuilder {
         self.expression(syntax.index())?;
         let span = syntax.open() + syntax.close();
         self.emit(Op::Index, span)
+    }
+
+    fn loop_loop(&mut self, syntax: &syntax::Loop) -> Result<()> {
+        let top = self.next_index();
+
+        self.block(syntax.body())?;
+
+        self.emit(Op::Jump(top), syntax.loop_span())
+    }
+
+    fn while_loop(&mut self, syntax: &syntax::While) -> Result<()> {
+        let top = self.next_index();
+
+        self.expression(syntax.condition())?;
+
+        self.emit(Op::Dup, syntax.condition().span())?;
+        let end_jump = self.next_index();
+        self.emit(Op::Nop, syntax.condition().span())?;
+
+        self.block(syntax.body())?;
+
+        self.emit(Op::Jump(top), syntax.while_span())?;
+
+        let end = self.next_index();
+        self.patch(end_jump, Op::BranchFalse(end));
+        Ok(())
     }
 
     /// Compile a literal

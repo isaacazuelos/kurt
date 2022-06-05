@@ -152,3 +152,9 @@ mod operator_and_or {
         "false"
     }
 }
+
+mod looping {
+    test_eval! { loop_return, "let looper = () => loop { return 7; }; looper()", "7" }
+
+    test_eval! { while_false, "while () { 7 }", "()" }
+}

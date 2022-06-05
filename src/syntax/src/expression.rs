@@ -32,8 +32,10 @@ pub enum Expression<'a> {
     If(IfElse<'a>),
     List(List<'a>),
     Literal(Literal<'a>),
+    Loop(Loop<'a>),
     Subscript(Subscript<'a>),
     Unary(Unary<'a>),
+    While(While<'a>),
 }
 
 impl<'a> Syntax for Expression<'a> {
@@ -49,8 +51,10 @@ impl<'a> Syntax for Expression<'a> {
             Expression::If(i) => i.span(),
             Expression::List(l) => l.span(),
             Expression::Literal(e) => e.span(),
+            Expression::Loop(l) => l.span(),
             Expression::Subscript(s) => s.span(),
             Expression::Unary(u) => u.span(),
+            Expression::While(w) => w.span(),
         }
     }
 }
@@ -206,6 +210,14 @@ impl<'a> Expression<'a> {
                 | Reserved::Break
                 | Reserved::Continue,
             )) => parser.parse().map(Expression::EarlyExit),
+
+            Some(TokenKind::Reserved(Reserved::Loop)) => {
+                parser.parse().map(Expression::Loop)
+            }
+
+            Some(TokenKind::Reserved(Reserved::While)) => {
+                parser.parse().map(Expression::While)
+            }
 
             Some(TokenKind::Identifier) => {
                 parser.parse().map(Expression::Identifier)

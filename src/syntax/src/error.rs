@@ -36,6 +36,9 @@ pub enum Error {
     ListNoOpen(Span),
     ListNoClose(Span, Span),
 
+    LoopNoReserved(Span),
+    WhileNoReserved(Span),
+
     UnitNoOpen(Span),
     UnitNoClose(Span, Span),
 
@@ -120,6 +123,9 @@ impl From<Error> for Diagnostic {
                 Error::list_no_close(open, found)
             }
 
+            Error::LoopNoReserved(span) => Error::loop_no_reserved(span),
+            Error::WhileNoReserved(span) => Error::while_no_reserved(span),
+
             Error::UnitNoOpen(span) => Error::unit_no_open(span),
 
             Error::UnitNoClose(open, found) => {
@@ -171,6 +177,8 @@ impl Error {
             Error::IdentifierMissing(s) => s,
             Error::ListNoOpen(s) => s,
             Error::ListNoClose(_, s) => s,
+            Error::LoopNoReserved(s) => s,
+            Error::WhileNoReserved(s) => s,
             Error::UnitNoOpen(s) => s,
             Error::UnitNoClose(_, s) => s,
             Error::KeywordNoSpace(_, s) => s,
@@ -334,6 +342,18 @@ impl Error {
             .location(found.start())
             .highlight(open, "the list started here")
             .highlight(found, "expected a `]` here")
+    }
+
+    fn loop_no_reserved(span: Span) -> Diagnostic {
+        Diagnostic::new("Expected `loop`")
+            .location(span.start())
+            .highlight(span, "`loop` was expected here")
+    }
+
+    fn while_no_reserved(span: Span) -> Diagnostic {
+        Diagnostic::new("Expected `while`")
+            .location(span.start())
+            .highlight(span, "`while` was expected here")
     }
 
     fn unit_no_open(span: Span) -> Diagnostic {
