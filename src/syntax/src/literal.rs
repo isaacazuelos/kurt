@@ -68,6 +68,7 @@ impl<'a> Parse<'a> for Literal<'a> {
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
         match parser.peek_kind() {
             Some(TokenKind::Colon) => Literal::parse_keyword_with(parser),
+
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                 Literal::parse_unit(parser)
             }
@@ -98,9 +99,19 @@ impl<'a> Literal<'a> {
             .consume(TokenKind::Colon)
             .ok_or_else(|| SyntaxError::KeywordNoColon(parser.next_span()))?;
 
-        let name = parser.consume(TokenKind::Identifier).ok_or_else(|| {
-            SyntaxError::KeywordNoName(colon.span(), parser.next_span())
-        })?;
+        let name = parser
+            .consume_if(|t| {
+                // anything that's word-like is fair game
+                matches!(
+                    t.kind(),
+                    TokenKind::Identifier
+                        | TokenKind::Reserved(_)
+                        | TokenKind::Bool
+                )
+            })
+            .ok_or_else(|| {
+                SyntaxError::KeywordNoName(colon.span(), parser.next_span())
+            })?;
 
         // Check to rule out keyword like `: foo`
         if colon.span().end() != name.span().start() {
@@ -169,6 +180,38 @@ mod parser_tests {
         assert_eq!(literal.kind(), Kind::Keyword);
         assert_eq!(literal.body(), "hello_world");
         assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_keyword_false() {
+        let mut parser = Parser::new(" :false").unwrap();
+        let literal = parser.parse::<Literal>().unwrap();
+        assert_eq!(literal.kind(), Kind::Keyword);
+        assert_eq!(literal.body(), "false");
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_keyword_reserved() {
+        let mut parser = Parser::new(" :loop").unwrap();
+        let literal = parser.parse::<Literal>().unwrap();
+        assert_eq!(literal.kind(), Kind::Keyword);
+        assert_eq!(literal.body(), "loop");
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_keyword_numeric() {
+        let mut parser = Parser::new(" :7 ").unwrap();
+        let result = parser.parse::<Literal>();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_keyword_operator() {
+        let mut parser = Parser::new(" :+ ").unwrap();
+        let result = parser.parse::<Literal>();
+        assert!(result.is_err());
     }
 
     #[test]
