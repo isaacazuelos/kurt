@@ -9,23 +9,12 @@ pub(crate) struct OpenCaptures {
 
 impl OpenCaptures {
     pub(crate) fn push(&mut self, cell: Gc<CaptureCell>) {
-        match cell.contents() {
-            crate::classes::CaptureCellContents::Inline(_) => {
-                panic!("attempted to add a closed capture to the open list")
-            }
-            crate::classes::CaptureCellContents::Stack(i) => {
-                debug_assert!(
-                    if let Some(last) = self.last_index() {
-                        last < i
-                    } else {
-                        true
-                    },
-                    "open captures list must remain sorted"
-                );
+        debug_assert!(
+            !cell.is_open(),
+            "attempted to add a closed capture cell to the open list"
+        );
 
-                self.cells.push(cell)
-            }
-        }
+        self.cells.push(cell)
     }
 
     pub(crate) fn last_index(&self) -> Option<Index<Stack>> {
@@ -35,6 +24,16 @@ impl OpenCaptures {
             .expect("all cells in the open list should be open");
 
         Some(index)
+    }
+
+    pub(crate) fn get(&self, index: Index<Stack>) -> Option<Gc<CaptureCell>> {
+        for cell in self.cells.iter().rev() {
+            let found = cell.stack_index().unwrap();
+            if index == found {
+                return Some(*cell);
+            }
+        }
+        None
     }
 
     /// Pop an open cell if it's stack index is above the given `top` index.

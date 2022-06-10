@@ -11,7 +11,7 @@ macro_rules! test_eval {
             let exit = rt.load(module);
             assert!(exit.is_ok(), "exited with {:?}", exit);
             let actual = rt.last_result();
-            assert_eq!($expected, actual, "got {}", actual);
+            assert_eq!($expected, actual,);
         }
     };
 }
@@ -170,4 +170,6 @@ mod assignment {
     test_eval! { simple_assignment, "let x = 10; let y = 8; x = 11; x", "11"}
     test_eval! { assignment_math, "let x = 10; x = x + 3", "13"}
     test_eval! { index_assignment, "let x = [1, 2, 3]; x[1] = :yes; x", "[1, :yes, 3]"}
+    test_eval! { assign_to_capture, "let x = 0; let inc = () => x = x + 1; inc(); inc(); x", "2"}
+    test_eval! { assign_shared_capture, include_str!("./inputs/assign_shared_capture.k"), "20" }
 }

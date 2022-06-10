@@ -80,6 +80,9 @@ pub enum Op {
     /// Set the value of a local binding.
     SetLocal(Index<Local>),
 
+    /// Set the value of a non-local binding.
+    SetCapture(Index<Capture>),
+
     /// Set a value inside something subscriptable. Expects the new value on
     /// the top of the stack, with the key below it and the target indexable
     /// value below that. Used for `a[b] = c` assignment.

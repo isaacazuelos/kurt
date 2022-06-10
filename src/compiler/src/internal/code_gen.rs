@@ -263,11 +263,13 @@ impl ModuleBuilder {
         &mut self,
         syntax: &syntax::Identifier,
     ) -> Result<Op> {
-        let local = self
-            .resolve_local(syntax.as_str())
-            .ok_or_else(|| Error::UndefinedLocal(syntax.span()))?;
-
-        Ok(Op::SetLocal(local))
+        if let Some(local) = self.resolve_local(syntax.as_str()) {
+            Ok(Op::SetLocal(local))
+        } else if let Some(capture) = self.resolve_capture(syntax)? {
+            Ok(Op::SetCapture(capture))
+        } else {
+            Err(Error::UndefinedLocal(syntax.span()))
+        }
     }
 
     /// Assignment to an identifier

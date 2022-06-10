@@ -49,6 +49,7 @@ impl VirtualMachine {
 
                 // Assignment
                 Op::SetLocal(i) => self.set_local(i)?,
+                Op::SetCapture(i) => self.set_capture(i)?,
                 Op::SetIndex => self.set_index()?,
 
                 // functions
@@ -235,13 +236,19 @@ impl VirtualMachine {
             let capture_index: Index<compiler::Capture> = Index::new(i);
 
             let capture = prototype.get(capture_index).unwrap();
-
+            dbg!(capture);
             let cell = match capture {
                 Capture::Local(local_index) => {
+                    // we want to check the open list here first to see if we want to reuse one.
                     let index = Stack::from_local(self.bp(), *local_index);
-                    let new_cell = self.make_from(index);
-                    self.open_captures.push(new_cell);
-                    new_cell
+
+                    if let Some(existing_cell) = self.open_captures.get(index) {
+                        existing_cell
+                    } else {
+                        let new_cell = self.make_from(index);
+                        self.open_captures.push(new_cell);
+                        new_cell
+                    }
                 }
 
                 Capture::Recapture(capture_index) => {
@@ -264,6 +271,28 @@ impl VirtualMachine {
         );
         let bp = self.bp();
         self.stack[(bp, index)] = new_value;
+        Ok(())
+    }
+
+    /// The [`SetLocal`][Op::SetLocal] instruction sets the local binding at the
+    /// given index to the value on the top of the stack. This leaves the new
+    /// value on the stack.
+    fn set_capture(&mut self, index: Index<Capture>) -> Result<()> {
+        let new_value = *self.stack.last().expect(
+            "SetLocal expects the new value on the stack, but it was empty",
+        );
+
+        let cell = self.current_closure().get_capture_cell(index);
+
+        match cell.contents() {
+            crate::classes::CaptureCellContents::Inline(_) => {
+                cell.close(new_value)
+            }
+            crate::classes::CaptureCellContents::Stack(i) => {
+                self.stack[i] = new_value
+            }
+        }
+
         Ok(())
     }
 

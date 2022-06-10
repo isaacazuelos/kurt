@@ -56,5 +56,6 @@ test_compile! { early_return, "let f = () => {return 7;};"}
 test_compile! { while_loop, "while false { 1 }" }
 test_compile! { loop_loop, "loop { 1 }" }
 
-test_compile! { assignment_to_id, "let x = 1; x = 3; "}
-test_compile! { assignment_to_sub, "let x = 1; x[7] = 2; "}
+test_compile! { assignment_to_id, "let x = 1; x = 3;" }
+test_compile! { assignment_to_sub, "let x = 1; x[7] = 2;" }
+test_compile! { assignment_to_capture, "let x = 0; let inc = () => x = x + 1" }

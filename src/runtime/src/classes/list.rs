@@ -47,7 +47,6 @@ impl List {
     /// Subscript the list by a value.
     pub fn index(&self, index: Value) -> Result<Value, Error> {
         let slot = self.slot(index)?;
-        dbg!(slot);
         let value = self.elements.borrow()[slot];
         Ok(value)
     }
