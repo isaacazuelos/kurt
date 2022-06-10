@@ -143,6 +143,10 @@ impl ModuleBuilder {
             return self.short_circuiting(syntax);
         }
 
+        if matches!(syntax.operator(), "=") {
+            return self.assignment(syntax);
+        }
+
         self.expression(syntax.left())?;
         self.expression(syntax.right())?;
 
@@ -172,6 +176,54 @@ impl ModuleBuilder {
         }?;
 
         self.emit(op, syntax.operator_span())
+    }
+
+    fn assignment(&mut self, syntax: &syntax::Binary) -> Result<()> {
+        let set_op = self.assignment_target(syntax.left())?;
+        self.expression(syntax.right())?;
+        self.emit(set_op, syntax.operator_span())
+    }
+
+    fn assignment_target(&mut self, syntax: &syntax::Expression) -> Result<Op> {
+        match syntax {
+            Expression::Subscript(s) => self.assignment_target_subscript(s),
+            Expression::Identifier(i) => self.assignment_target_identifier(i),
+
+            Expression::Binary(_)
+            | Expression::Block(_)
+            | Expression::Call(_)
+            | Expression::EarlyExit(_)
+            | Expression::Function(_)
+            | Expression::Grouping(_)
+            | Expression::If(_)
+            | Expression::List(_)
+            | Expression::Literal(_)
+            | Expression::Loop(_)
+            | Expression::Unary(_)
+            | Expression::While(_) => {
+                Err(Error::NotALegalAssignmentTarget(syntax.span()))
+            }
+        }
+    }
+
+    fn assignment_target_identifier(
+        &mut self,
+        syntax: &syntax::Identifier,
+    ) -> Result<Op> {
+        if let Some(local) = self.resolve_local(syntax.as_str()) {
+            Ok(Op::SetLocal(local))
+        } else {
+            Err(Error::UndefinedLocal(syntax.span()))
+        }
+    }
+
+    fn assignment_target_subscript(
+        &mut self,
+        syntax: &syntax::Subscript,
+    ) -> Result<Op> {
+        self.expression(syntax.target())?;
+        self.expression(syntax.index())?;
+        Ok(Op::SetIndex)
     }
 
     /// A `and` infix operator.

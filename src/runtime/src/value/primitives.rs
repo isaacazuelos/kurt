@@ -402,6 +402,22 @@ impl PrimitiveOperations for Value {
         dispatch!(PrimitiveOperations::index, self, other, rt,)
     }
 
+    fn set_index(
+        &self,
+        key: Value,
+        new: Value,
+        rt: &mut VirtualMachine,
+    ) -> Result<(), Error> {
+        if let Some(obj) = self.as_gc_any() {
+            obj.set_index(key, new, rt)
+        } else {
+            Err(Error::OperationNotSupported {
+                type_name: self.type_name(),
+                op_name: "set_index",
+            })
+        }
+    }
+
     fn is_truthy(&self) -> bool {
         dispatch!(PrimitiveOperations::is_truthy, self,)
     }

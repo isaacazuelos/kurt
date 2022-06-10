@@ -73,6 +73,16 @@ pub enum Op {
     /// placing it on the stack.
     LoadFunction(Index<Function>),
 
+    // ## Assignment
+
+    /// Set the value of a local binding.
+    SetLocal(Index<Local>),
+
+    /// Set a value inside something subscriptable. Expects the new value on
+    /// the top of the stack, with the key below it and the target indexable
+    /// value below that. Used for `a[b] = c` assignment.
+    SetIndex,
+
     // ## Accessing
 
     /// Index the item just below the top of the stack by the value on the top

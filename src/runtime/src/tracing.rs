@@ -17,7 +17,7 @@ impl Display for VirtualMachine {
     fn fmt(&self, f: &mut Formatter) -> Result {
         self.fmt_where(f)?;
         // write!(f, " ")?;
-        // self.fmt_stack(f)?;
+        self.fmt_stack(f)?;
         Ok(())
     }
 }
@@ -37,25 +37,16 @@ impl VirtualMachine {
 
     #[allow(dead_code)] // useful, but rarely
     fn fmt_open_captures(&self, f: &mut Formatter) -> Result {
-        write!(f, "[ ",)?;
-
-        for v in self.open_captures.iter() {
-            write!(f, "{:?}, ", v)?;
-        }
-
-        write!(f, "]")
+        f.debug_list().entries(self.open_captures.iter()).finish()
     }
 
     #[allow(dead_code)] // useful, but rarely
     fn fmt_stack(&self, f: &mut Formatter) -> Result {
         let omitted = self.stack().len() - self.stack_frame().len();
 
-        write!(f, "[ ...{} | ", omitted)?;
-
-        for v in self.stack_frame() {
-            write!(f, "{:?}, ", v)?;
-        }
-
-        write!(f, "]")
+        f.debug_list()
+            .entry(&format!("...{omitted}"))
+            .entries(self.stack_frame().iter())
+            .finish()
     }
 }

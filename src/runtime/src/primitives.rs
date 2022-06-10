@@ -119,6 +119,18 @@ pub trait PrimitiveOperations: Sized {
         })
     }
 
+    fn set_index(
+        &self,
+        _key: Value,
+        _new: Value,
+        _rt: &mut VirtualMachine,
+    ) -> Result<(), Error> {
+        Err(Error::OperationNotSupported {
+            type_name: self.type_name(),
+            op_name: "set_index",
+        })
+    }
+
     fn cmp(&self, _: &Self) -> Option<Ordering> {
         None
     }

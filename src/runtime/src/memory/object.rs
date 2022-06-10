@@ -166,6 +166,22 @@ impl PrimitiveOperations for Object {
         dispatch!(PrimitiveOperations::add, self, other, rt,)
     }
 
+    fn set_index(
+        &self,
+        key: Value,
+        new: Value,
+        _rt: &mut VirtualMachine,
+    ) -> Result<(), Error> {
+        if let Some(list) = self.downcast::<List>() {
+            list.set_index(key, new)
+        } else {
+            Err(Error::OperationNotSupported {
+                type_name: self.type_name(),
+                op_name: "[]=",
+            })
+        }
+    }
+
     fn index(
         &self,
         key: Value,

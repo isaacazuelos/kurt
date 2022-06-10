@@ -2,24 +2,23 @@
 
 //! Runtime closure representation
 use std::{
+    cell::RefCell,
     fmt::{self, Debug},
     ptr::addr_of_mut,
 };
-
-use common::i48;
 
 use crate::{memory::*, primitives::PrimitiveOperations, value::Value, Error};
 
 #[repr(C, align(8))]
 pub struct List {
     base: Object,
-    elements: Vec<Value>,
+    elements: RefCell<Vec<Value>>,
 }
 
 impl List {
     /// The number of elements in the list.
     pub fn len(&self) -> usize {
-        self.elements.len()
+        self.elements.borrow().len()
     }
 
     /// Is the list the empty list?
@@ -27,45 +26,39 @@ impl List {
         self.len() == 0
     }
 
+    fn slot(&self, index: Value) -> Result<usize, Error> {
+        let i = index
+            .as_int()
+            .ok_or_else(|| Error::OperationNotSupported {
+                type_name: index.type_name(),
+                op_name: "indexing by",
+            })?
+            .as_i64();
+
+        if i >= self.len() as i64 || i < -(self.len() as i64) {
+            Err(Error::SubscriptIndexOutOfRange)
+        } else if i > 0 {
+            Ok(i as usize)
+        } else {
+            Ok(self.len() - (i.abs() as usize))
+        }
+    }
+
     /// Subscript the list by a value.
     pub fn index(&self, index: Value) -> Result<Value, Error> {
-        if let Some(i) = index.as_int() {
-            if i < i48::ZERO {
-                // i.abs can't overflow, since i came from a Value's 48-bits.
-                // the + 1 is safe because we just tested that it's not 0.
-                let i = i.as_i64();
-                self.index_back((i + 1).abs() as usize)
-            } else {
-                self.index_front(i.as_i64() as usize)
-            }
-        } else if let Some(n) = index.as_nat() {
-            self.index_front(n.as_u64() as usize)
-        } else {
-            Err(Error::OperationNotSupported {
-                type_name: self.type_name(),
-                op_name: "index",
-            })
-        }
+        let slot = self.slot(index)?;
+        let value = self.elements.borrow()[slot];
+        Ok(value)
     }
 
-    // Subscript from the back of the list, with 0 being the last element.
-    fn index_back(&self, n: usize) -> Result<Value, Error> {
-        if n + 1 >= self.len() {
-            Err(Error::SubscriptIndexOutOfRange)
-        } else {
-            let right_index = self.len() - (n + 1);
-            self.elements
-                .get(right_index)
-                .cloned()
-                .ok_or(Error::SubscriptIndexOutOfRange)
-        }
-    }
-
-    fn index_front(&self, n: usize) -> Result<Value, Error> {
-        self.elements
-            .get(n as usize)
-            .cloned()
-            .ok_or(Error::SubscriptIndexOutOfRange)
+    pub fn set_index(
+        &self,
+        index: Value,
+        new_value: Value,
+    ) -> Result<(), Error> {
+        let slot = self.slot(index)?;
+        self.elements.borrow_mut()[slot] = new_value;
+        Ok(())
     }
 }
 
@@ -87,7 +80,7 @@ impl PartialOrd for List {
 
 impl Trace for List {
     fn enqueue_gc_references(&self, worklist: &mut WorkList) {
-        for e in &self.elements {
+        for e in self.elements.borrow().iter() {
             e.enqueue_gc_references(worklist);
         }
     }
@@ -95,11 +88,9 @@ impl Trace for List {
 
 impl Debug for List {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[ ",)?;
-        for e in &self.elements {
-            write!(f, "{:?}, ", e)?;
-        }
-        write!(f, "]",)
+        f.debug_list()
+            .entries(self.elements.borrow().iter())
+            .finish()
     }
 }
 
@@ -110,7 +101,7 @@ impl InitFrom<Vec<Value>> for List {
     }
 
     unsafe fn init(ptr: *mut Self, arg: Vec<Value>) {
-        addr_of_mut!((*ptr).elements).write(arg);
+        addr_of_mut!((*ptr).elements).write(RefCell::new(arg));
     }
 }
 

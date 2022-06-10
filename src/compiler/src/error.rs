@@ -17,6 +17,7 @@ pub enum Error {
     MutationNotSupported(Span),
     RecNotFunction(Span, Span),
     EarlyExitKindNotSupported(Span),
+    NotALegalAssignmentTarget(Span),
 
     UndefinedLocal(Span),
     UndefinedPrefix(Span),
@@ -54,6 +55,9 @@ impl fmt::Display for Error {
             }
             EarlyExitKindNotSupported(_) => {
                 write!(f, "cannot yet compile this expression")
+            }
+            NotALegalAssignmentTarget(_) => {
+                write!(f, "cannot assign to this")
             }
 
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
@@ -99,6 +103,7 @@ impl Error {
             Error::MutationNotSupported(s) => *s,
             Error::RecNotFunction(_, s) => *s,
             Error::EarlyExitKindNotSupported(s) => *s,
+            Error::NotALegalAssignmentTarget(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
             Error::UndefinedInfix(s) => *s,
@@ -129,6 +134,9 @@ impl From<Error> for Diagnostic {
             Error::RecNotFunction(rec, s) => Error::rec_not_function(rec, s, d),
             Error::EarlyExitKindNotSupported(s) => {
                 Error::early_kind_not_supported(s, d)
+            }
+            Error::NotALegalAssignmentTarget(s) => {
+                Error::not_assignment_target(s, d)
             }
 
             Error::UndefinedLocal(s)
@@ -163,6 +171,11 @@ impl Error {
     fn early_kind_not_supported(span: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(span, "this isn't implemented yet")
             .help("it's in the works, but only `return` works right now")
+    }
+
+    fn not_assignment_target(span: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(span, "can't assign to this")
+            .help("you can only assign to variables, or subscripts")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {

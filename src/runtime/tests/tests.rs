@@ -56,8 +56,8 @@ mod functions {
 }
 
 mod lists {
-    test_eval! { list_empty, "[]", "[ ]" }
-    test_eval! { list, "[1,2,3]", "[ 1, 2, 3, ]" }
+    test_eval! { list_empty, "[]", "[]" }
+    test_eval! { list, "[1,2,3]", "[1, 2, 3]" }
     test_eval! { list_stack, "let x = 0; [1,2,3]; x", "0" }
 }
 
@@ -157,4 +157,11 @@ mod looping {
     test_eval! { loop_return, "let looper = () => loop { return 7; }; looper()", "7" }
 
     test_eval! { while_false, "while () { 7 }", "()" }
+
+    // test_eval! { while_loop, "let x = 0; while x < 10 { x = x + 1; }; x", "10"}
+}
+
+mod assignment {
+    test_eval! { simple_assignment, "let x = 10; let y = 8; x = 11; x", "11"}
+    test_eval! { index_assignment, "let x = [1, 2, 3]; x[1] = :yes; x", "[1, :yes, 3]"}
 }

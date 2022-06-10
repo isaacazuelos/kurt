@@ -47,6 +47,10 @@ impl VirtualMachine {
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
+                // Assignment
+                Op::SetLocal(i) => self.set_local(i)?,
+                Op::SetIndex => self.set_index()?,
+
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
                 Op::Return => self.r#return()?,
@@ -250,6 +254,36 @@ impl VirtualMachine {
         Ok(())
     }
 
+    /// The [`SetLocal`][Op::SetLocal] instruction sets the local binding at the
+    /// given index to the value on the top of the stack. This leaves the new
+    /// value on the stack.
+    fn set_local(&mut self, index: Index<Local>) -> Result<()> {
+        let new_value = *self.stack.last().expect(
+            "SetLocal expects the new value on the stack, but it was empty",
+        );
+        let bp = self.bp();
+        self.stack[(bp, index)] = new_value;
+        Ok(())
+    }
+
+    /// The [`SetIndex`][Op::SetIndex] instruction needs 3 values on the stack,
+    /// which (from the top) are the new value, the key to index with, and the
+    /// target value.
+    fn set_index(&mut self) -> Result<()> {
+        let new = self.stack[Index::<StackTop>::new(0)];
+        let key = self.stack[Index::<StackTop>::new(1)];
+
+        let col_index = self.stack.from_top(Index::new(2));
+        let col = self.stack[col_index];
+
+        col.set_index(key, new, self)?;
+
+        self.stack[col_index] = new;
+        self.stack.pop();
+        self.stack.pop();
+        Ok(())
+    }
+
     /// The [`Call`][Op::Call] instruction calls a function passing the
     /// indicated number of arguments. This is done by creating and pushing a
     /// new frame on the [`CallStack`][crate::call_stack::CallStack].
@@ -330,7 +364,7 @@ impl VirtualMachine {
         Ok(())
     }
 
-    /// The [`BranchFalse(i)`][Op::BranchFalse] instruction consumes teh top of
+    /// The [`BranchFalse(i)`][Op::BranchFalse] instruction consumes the top of
     /// the stack, and if it [`is_truthy`][PrimitiveOperations::is_truthy] then
     /// continues on. If it's not, then it jumps to `i`.
     #[inline]
