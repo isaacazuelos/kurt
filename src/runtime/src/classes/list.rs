@@ -37,7 +37,7 @@ impl List {
 
         if i >= self.len() as i64 || i < -(self.len() as i64) {
             Err(Error::SubscriptIndexOutOfRange)
-        } else if i > 0 {
+        } else if i >= 0 {
             Ok(i as usize)
         } else {
             Ok(self.len() - (i.abs() as usize))
@@ -47,6 +47,7 @@ impl List {
     /// Subscript the list by a value.
     pub fn index(&self, index: Value) -> Result<Value, Error> {
         let slot = self.slot(index)?;
+        dbg!(slot);
         let value = self.elements.borrow()[slot];
         Ok(value)
     }
