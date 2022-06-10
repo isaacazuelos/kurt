@@ -18,6 +18,7 @@ pub enum Error {
     RecNotFunction(Span, Span),
     EarlyExitKindNotSupported(Span),
     NotALegalAssignmentTarget(Span),
+    JumpTooFar(Span),
 
     UndefinedLocal(Span),
     UndefinedPrefix(Span),
@@ -58,6 +59,9 @@ impl fmt::Display for Error {
             }
             NotALegalAssignmentTarget(_) => {
                 write!(f, "cannot assign to this")
+            }
+            JumpTooFar(_) => {
+                write!(f, "this code needs to jump too far")
             }
 
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
@@ -104,6 +108,7 @@ impl Error {
             Error::RecNotFunction(_, s) => *s,
             Error::EarlyExitKindNotSupported(s) => *s,
             Error::NotALegalAssignmentTarget(s) => *s,
+            Error::JumpTooFar(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
             Error::UndefinedInfix(s) => *s,
@@ -138,6 +143,7 @@ impl From<Error> for Diagnostic {
             Error::NotALegalAssignmentTarget(s) => {
                 Error::not_assignment_target(s, d)
             }
+            Error::JumpTooFar(s) => Error::jump_too_far(s, d),
 
             Error::UndefinedLocal(s)
             | Error::UndefinedPrefix(s)
@@ -176,6 +182,11 @@ impl Error {
     fn not_assignment_target(span: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(span, "can't assign to this")
             .help("you can only assign to variables, or subscripts")
+    }
+
+    fn jump_too_far(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this is the code that's a problem")
+            .help("breaking this up with functions might help")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {

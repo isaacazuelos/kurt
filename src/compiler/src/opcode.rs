@@ -6,6 +6,8 @@ use common::{i48, u48, Index};
 
 use crate::{Capture, Constant, Function, Local};
 
+type Offset = i32;
+
 /// These are the individual instructions that our VM interprets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[rustfmt::skip]
@@ -105,11 +107,15 @@ pub enum Op {
 
     /// Jump to the given opcode index _in the currently executing function_
     /// unconditionally.
-    Jump(Index<Op>),
+    Jump(Offset),
 
     /// Jump to the given index _in the currently executing function_, but only
     /// if the top of the stack is `false`. This pops the stack as well.
-    BranchFalse(Index<Op>),
+    Branch(Offset),
+
+    /// Jump to the given index _in the currently executing function_, but only
+    /// if the top of the stack is `false`. This pops the stack as well.
+    BranchFalse(Offset),
 
     // ## Logical Operators
     //
@@ -196,8 +202,9 @@ impl Display for Op {
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_usize()),
             Op::LoadFunction(i) => write!(f, "LoadClosure {}", i.as_usize()),
             Op::Call(i) => write!(f, "Call {}", i),
-            Op::Jump(i) => write!(f, "Jump {}", i.as_usize()),
-            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i.as_usize()),
+            Op::Jump(i) => write!(f, "Jump {}", i),
+            Op::Branch(i) => write!(f, "Branch {}", i),
+            Op::BranchFalse(i) => write!(f, "BranchFalse {}", i),
             Op::List(n) => write!(f, "List {n}"),
 
             // Everything else is the same as what is derived for Debug.

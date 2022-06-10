@@ -63,7 +63,7 @@ impl<'a> Parse<'a> for Expression<'a> {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
-        parser.depth_track(|parser| Expression::infix(parser, Precedence::MIN))
+        parser.depth_track(|parser| Expression::infix(parser, Precedence::MAX))
     }
 }
 
@@ -90,18 +90,18 @@ impl<'a> Expression<'a> {
         parser: &mut Parser<'a>,
         precedence: Precedence,
     ) -> SyntaxResult<Expression<'a>> {
-        if precedence == Precedence::MAX {
+        if precedence == Precedence::MIN {
             return Expression::prefix(parser);
         }
 
-        let mut lhs = Expression::infix(parser, precedence.next())?;
+        let mut lhs = Expression::infix(parser, precedence.lower())?;
         let mut non_associative_operator_seen = None;
 
         while let Ok((token, associativity)) = parser.consume_infix(precedence)
         {
             let rhs = match associativity {
                 parser::operator::Associativity::Left => {
-                    Expression::infix(parser, precedence.next())
+                    Expression::infix(parser, precedence.lower())
                 }
                 parser::operator::Associativity::Right => {
                     Expression::infix(parser, precedence)
@@ -116,7 +116,7 @@ impl<'a> Expression<'a> {
                         ));
                     } else {
                         non_associative_operator_seen = Some(token.span());
-                        Expression::infix(parser, precedence.next())
+                        Expression::infix(parser, precedence.lower())
                     }
                 }
             }?;
@@ -494,7 +494,7 @@ mod parser_tests {
         let mut parser = Parser::new("1 + 2 * 3").unwrap();
         let result = parser.parse::<Expression>();
         assert!(
-            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "*"),
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "+"),
             "got {:#?}",
             result
         )
@@ -505,7 +505,7 @@ mod parser_tests {
         let mut parser = Parser::new("1 * 2 + 3").unwrap();
         let result = parser.parse::<Expression>();
         assert!(
-            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "*"),
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "+"),
             "got {:#?}",
             result
         )
@@ -538,7 +538,8 @@ mod parser_tests {
 
         let result = parser.parse::<Expression>();
         assert!(
-            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "<*>"),
+            // we add _after_ we multiply, so it's the outer node on the tree.
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "<+>"),
             "got {:#?}",
             result
         )
@@ -553,7 +554,22 @@ mod parser_tests {
                 < parser.defined_operators().get_infix("or").unwrap().1
         );
         assert!(
-            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "and")
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "or")
+        );
+    }
+
+    #[test]
+    fn infix_and_mixed() {
+        let mut parser = Parser::new("true or 7 == 3").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            parser.defined_operators().get_infix("==").unwrap().1
+                < parser.defined_operators().get_infix("or").unwrap().1
+        );
+        assert!(
+            matches!(result, Ok(Expression::Binary(ref b)) if b.operator() == "or"),
+            "found {:#?}",
+            result
         );
     }
 }

@@ -63,7 +63,7 @@ mod lists {
 
 mod conditionals {
     test_eval! { if_only, "if true { 10 }", "10" }
-    test_eval! { if_only_f, "if false { 10 }", "()" }
+    test_eval! { if_only_f, "if false { 10 }", "false" }
     test_eval! { if_else_t, "if true { 10 } else { 20 }", "10" }
     test_eval! { if_else_f, "if false { 10 } else { 20 }", "20" }
     // This one caught a bug in the GC, somehow.
@@ -77,6 +77,8 @@ mod primitive_operations {
     test_eval! { addition, "1 + 2", "3" }
     test_eval! { subtraction, "4 - 2", "2" }
     test_eval! { mul, "8 * 8", "64" }
+    test_eval! { order, "2 * 3 + 4", "10"}
+    test_eval! { order_flip, "4 + 2 * 3", "10"}
     test_eval! { div, "100 / 3", "33" }
     test_eval! { pow, "2^10", "1024" }
     test_eval! { modulus, "125 % 2", "1" }
@@ -126,8 +128,8 @@ mod operator_and_or {
            false and true, 
            true  and false, 
            true  and true, 
-         ] == [false, false, false, true]", 
-        "true"
+         ]", 
+        "[false, false, false, true]"
     }
 
     test_eval! {
@@ -136,8 +138,8 @@ mod operator_and_or {
            false or true, 
            true  or false, 
            true  or true,
-         ] == [ false, true, true, true]", 
-         "true"
+         ]", 
+         "[false, true, true, true]"
     }
 
     test_eval! {
@@ -156,12 +158,16 @@ mod operator_and_or {
 mod looping {
     test_eval! { loop_return, "let looper = () => loop { return 7; }; looper()", "7" }
 
-    test_eval! { while_false, "while () { 7 }", "()" }
+    test_eval! { while_false, "while false { 7 }", "()" }
 
-    // test_eval! { while_loop, "let x = 0; while x < 10 { x = x + 1; }; x", "10"}
+    test_eval! { while_loop, "let x = 0; while x < 10 { x = x + 1 }; x", "10"}
+
+    test_eval! { while_loop_end_value, "let x = 0; while x < 10 { x = x + 1; 17 }", "17"}
 }
 
 mod assignment {
+    test_eval! { assignment_precedence, "let x = 1; x = x + 13; x", "14" }
     test_eval! { simple_assignment, "let x = 10; let y = 8; x = 11; x", "11"}
+    test_eval! { assignment_math, "let x = 10; x = x + 3", "13"}
     test_eval! { index_assignment, "let x = [1, 2, 3]; x[1] = :yes; x", "[1, :yes, 3]"}
 }

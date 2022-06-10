@@ -28,6 +28,11 @@ pub struct Block<'a> {
 }
 
 impl<'a> Block<'a> {
+    /// The span of the block's opening brace.
+    pub fn open(&self) -> Span {
+        self.open
+    }
+
     /// The span of the block's closing brace.
     pub fn close(&self) -> Span {
         self.close

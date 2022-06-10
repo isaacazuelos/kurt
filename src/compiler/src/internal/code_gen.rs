@@ -1,5 +1,6 @@
 //! The rules for walking a syntax tree.
 
+use common::Index;
 use diagnostic::Span;
 use syntax::{self, Expression, Sequence, Statement, Syntax};
 
@@ -10,11 +11,24 @@ use crate::{
     opcode::Op,
     Function,
 };
+
+use super::module::PatchObligation;
 impl ModuleBuilder {
     /// Compile a sequence of statements.
     ///
     /// If it's empty or if it has a trailing semicolon, a `()` is left on the
     /// stack, otherwise only the last result is.
+    ///
+    /// ```text
+    ///   <s_1>
+    ///   Pop
+    ///   <s_2>
+    ///   Pop
+    ///   ...
+    ///   <s_n>
+    /// [ Pop  ]  // trailing semicolon
+    /// [ Unit ]  // if trailing semicolon or no statements
+    /// ```
     pub(crate) fn statement_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
     where
         S: Sequence<Element = Statement<'a>>,
@@ -49,6 +63,10 @@ impl ModuleBuilder {
     }
 
     /// Compile a binding statement, something like `let a = b` or `var x = y`.
+    ///
+    /// ```text
+    ///   DefineLocal
+    /// ```
     fn binding(&mut self, syntax: &syntax::Binding) -> Result<()> {
         if syntax.is_var() {
             return Err(Error::MutationNotSupported(syntax.keyword().span()));
@@ -75,32 +93,38 @@ impl ModuleBuilder {
 
     /// Compiles an empty statement
     ///
-    /// Empty statements have a value of `()`, so we need to push one to the stack.
+    /// Empty statements have a value of `()`, so we need to push one to the
+    /// stack.
+    ///
+    /// ``` text
+    ///   Unit
+    /// ```
     fn empty_statement(&mut self, span: Span) -> Result<()> {
         self.emit(Op::Unit, span)
     }
 
     /// Compile an `if` with no `else` as a statement.
+    ///
+    /// Compile an `if` with no `else` as a statement.
+    ///
+    /// ``` text
+    ///   <condition>
+    ///   BranchFalse(end)
+    ///   <block>
+    /// end:
+    ///     ...
+    /// ```
     fn if_only(&mut self, syntax: &syntax::IfOnly) -> Result<()> {
         self.expression(syntax.condition())?;
 
         let end_span = syntax.block().close();
 
-        let patch_emit_unit = self.next_index();
-        self.emit(Op::Nop, end_span)?;
-
+        let jump_false = self.new_patch_obligation(end_span)?;
         self.block(syntax.block())?;
 
-        let patch_jump_end = self.next_index();
-        self.emit(Op::Nop, end_span)?;
-
-        let emit_unit = self.next_index();
-        self.emit(Op::Unit, end_span)?;
-
-        let end = self.next_index();
-
-        self.patch(patch_emit_unit, Op::BranchFalse(emit_unit));
-        self.patch(patch_jump_end, Op::Jump(end));
+        let end = self.next_op(end_span)?;
+        let to_end = jump_distance(jump_false, end, syntax.span())?;
+        self.patch(jump_false, Op::BranchFalse(to_end));
 
         Ok(())
     }
@@ -126,6 +150,13 @@ impl ModuleBuilder {
     }
 
     /// Compile a sequence of expressions, leaving each on the stack.
+    ///
+    /// ```text
+    ///     <e_1>
+    ///     <e_2>
+    ///     ...
+    ///     <e_n>
+    /// ```
     fn expression_sequence<'a, S>(&mut self, syntax: &S) -> Result<()>
     where
         S: Sequence<Element = Expression<'a>>,
@@ -138,6 +169,15 @@ impl ModuleBuilder {
     }
 
     /// Compile a binary operator expression.
+    ///
+    /// We have to special case `and` and `or`, but otherwise the byte code
+    /// emitted is the following, when `op` is one of the built-in operations
+    ///
+    /// ``` text
+    ///   <left>
+    ///   <right>
+    ///   <op>
+    /// ```
     fn binary(&mut self, syntax: &syntax::Binary) -> Result<()> {
         if matches!(syntax.operator(), "and" | "or") {
             return self.short_circuiting(syntax);
@@ -178,12 +218,20 @@ impl ModuleBuilder {
         self.emit(op, syntax.operator_span())
     }
 
+    /// Compiles an assignment expression.
+    ///
+    /// ```text
+    ///   <left>
+    ///   <right>
+    ///   <set_op>
+    /// ```
     fn assignment(&mut self, syntax: &syntax::Binary) -> Result<()> {
         let set_op = self.assignment_target(syntax.left())?;
         self.expression(syntax.right())?;
         self.emit(set_op, syntax.operator_span())
     }
 
+    /// Compiles the left hand side of an assignment
     fn assignment_target(&mut self, syntax: &syntax::Expression) -> Result<Op> {
         match syntax {
             Expression::Subscript(s) => self.assignment_target_subscript(s),
@@ -206,17 +254,30 @@ impl ModuleBuilder {
         }
     }
 
+    /// Assignment to an identifier
+    ///
+    /// ```text
+    ///   SetLocal
+    /// ```
     fn assignment_target_identifier(
         &mut self,
         syntax: &syntax::Identifier,
     ) -> Result<Op> {
-        if let Some(local) = self.resolve_local(syntax.as_str()) {
-            Ok(Op::SetLocal(local))
-        } else {
-            Err(Error::UndefinedLocal(syntax.span()))
-        }
+        let local = self
+            .resolve_local(syntax.as_str())
+            .ok_or_else(|| Error::UndefinedLocal(syntax.span()))?;
+
+        Ok(Op::SetLocal(local))
     }
 
+    /// Assignment to an identifier
+    ///
+    /// ```text
+    ///   <target>
+    ///   <key>
+    ///   <new value>
+    ///   SetIndex
+    /// ```
     fn assignment_target_subscript(
         &mut self,
         syntax: &syntax::Subscript,
@@ -226,30 +287,35 @@ impl ModuleBuilder {
         Ok(Op::SetIndex)
     }
 
-    /// A `and` infix operator.
+    /// An `and` or `or` infix operator.
     ///
+    /// ``` text
+    ///   <left>
+    /// [ Branch(end)] // if `or`
+    /// [ BranchFalse(end)] // if `and`
+    ///   <right>
+    /// end:
+    ///   ...
+    /// ```
     fn short_circuiting(&mut self, syntax: &syntax::Binary) -> Result<()> {
-        //
-        // <a and b> => [ <a> , Dup, BranchFalse(:end), Pop, <b>, :end ]
-        // <a or b>  => [ <a> , Dup, Not, BranchFalse(:end), Pop, <b>, :end ]
-
+        let op_span = syntax.operator_span();
         self.expression(syntax.left())?;
 
-        self.emit(Op::Dup, syntax.operator_span())?;
-
-        if syntax.operator() == "or" {
-            self.emit(Op::Not, syntax.operator_span())?;
-        }
-
-        let jump_end = self.next_index();
-        self.emit(Op::Nop, syntax.operator_span())?;
-
-        self.emit(Op::Pop, syntax.operator_span())?;
+        let branch = self.new_patch_obligation(op_span)?;
 
         self.expression(syntax.right())?;
 
-        let end = self.next_index();
-        self.patch(jump_end, Op::BranchFalse(end));
+        let end = self.next_op(op_span)?;
+
+        let distance = jump_distance(branch, end, syntax.span())?;
+
+        let op = if syntax.operator() == "and" {
+            Op::BranchFalse(distance)
+        } else {
+            Op::Branch(distance)
+        };
+
+        self.patch(branch, op);
         Ok(())
     }
 
@@ -380,25 +446,42 @@ impl ModuleBuilder {
     }
 
     /// Compile an `if` with and `else`.
+    ///
+    /// ``` text
+    ///   <condition>
+    ///   BranchFalse(start_of_else_block)
+    ///   <true_block>
+    ///   Jump(end)
+    /// start_of_else_block:
+    ///   Pop
+    ///   <false branch>;
+    /// end:
+    ///    ...
+    /// ```
     fn if_else(&mut self, syntax: &syntax::IfElse) -> Result<()> {
         self.expression(syntax.condition())?;
 
-        let patch_branch_false = self.next_index();
-        self.emit(Op::Nop, syntax.else_span())?;
+        let branch_false =
+            self.new_patch_obligation(syntax.false_block().span())?;
 
         self.block(syntax.true_block())?;
 
-        let patch_jump_end = self.next_index();
-        self.emit(Op::Nop, syntax.false_block().close())?;
+        let jump_to_end =
+            self.new_patch_obligation(syntax.true_block().close())?;
 
-        let false_start = self.next_index();
+        let start_of_else_block = self.next_op(syntax.false_block().open())?;
 
+        self.emit(Op::Pop, syntax.false_block().open())?;
         self.block(syntax.false_block())?;
 
-        let end = self.next_index();
+        let end = self.next_op(syntax.false_block().close())?;
 
-        self.patch(patch_branch_false, Op::BranchFalse(false_start));
-        self.patch(patch_jump_end, Op::Jump(end));
+        let to_else =
+            jump_distance(branch_false, start_of_else_block, syntax.span())?;
+        self.patch(branch_false, Op::BranchFalse(to_else));
+
+        let to_end = jump_distance(jump_to_end, end, syntax.span())?;
+        self.patch(jump_to_end, Op::Jump(to_end));
 
         Ok(())
     }
@@ -417,29 +500,58 @@ impl ModuleBuilder {
         self.emit(Op::Index, span)
     }
 
+    /// Compile a `loop` loop.
+    ///
+    /// ``` text
+    /// top:
+    ///   <body>
+    ///   Jump(top)
+    /// ```
     fn loop_loop(&mut self, syntax: &syntax::Loop) -> Result<()> {
-        let top = self.next_index();
-
+        let top = self.next_op(syntax.loop_span())?;
         self.block(syntax.body())?;
-
-        self.emit(Op::Jump(top), syntax.loop_span())
+        let jump = self.new_patch_obligation(syntax.body().close())?;
+        let distance = jump_distance(jump, top, syntax.span())?;
+        self.patch(jump, Op::Jump(distance));
+        Ok(())
     }
 
+    /// Compile a `while` loop.
+    ///
+    /// ``` text
+    ///   Unit               // while's value is () if it don't loop
+    /// top:
+    ///   <condition>
+    ///   BranchFalse(end)
+    ///   Pop                // remove last value
+    ///   <body>
+    ///   Jump(top)
+    /// end:
+    ///   Pop                // remove the false that left the loop
+    /// ```
     fn while_loop(&mut self, syntax: &syntax::While) -> Result<()> {
-        let top = self.next_index();
+        let condition_span = syntax.condition().span();
+
+        self.emit(Op::Unit, condition_span)?;
+        let top = self.next_op(condition_span)?;
 
         self.expression(syntax.condition())?;
 
-        self.emit(Op::Dup, syntax.condition().span())?;
-        let end_jump = self.next_index();
-        self.emit(Op::Nop, syntax.condition().span())?;
+        let condition_false = self.new_patch_obligation(condition_span)?;
 
+        self.emit(Op::Pop, condition_span)?;
         self.block(syntax.body())?;
 
-        self.emit(Op::Jump(top), syntax.while_span())?;
+        let jump = self.new_patch_obligation(syntax.while_span())?;
+        let to_top = jump_distance(jump, top, syntax.span())?;
+        self.patch(jump, Op::Jump(to_top));
 
-        let end = self.next_index();
-        self.patch(end_jump, Op::BranchFalse(end));
+        let end = self.next_op(syntax.body().close())?;
+        let to_end =
+            jump_distance(condition_false, end, syntax.condition().span())?;
+        self.patch(condition_false, Op::BranchFalse(to_end));
+
+        self.emit(Op::Pop, condition_span)?;
         Ok(())
     }
 
@@ -537,5 +649,22 @@ impl ModuleBuilder {
     /// Compile a unit literal (i.e. `()`).
     fn unit(&mut self, syntax: &syntax::Literal) -> Result<()> {
         self.emit(Op::Unit, syntax.span())
+    }
+}
+
+fn jump_distance(
+    jump_instruction: Index<PatchObligation>,
+    target: Index<Op>,
+    span: Span,
+) -> Result<i32> {
+    let start = jump_instruction.as_usize() as isize;
+    let end = target.as_usize() as isize;
+
+    let distance = end - start;
+
+    if distance <= i32::MAX as isize && distance >= i32::MIN as isize {
+        Ok(distance as i32)
+    } else {
+        Err(Error::JumpTooFar(span))
     }
 }

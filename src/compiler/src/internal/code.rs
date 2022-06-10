@@ -10,6 +10,8 @@ use crate::{
     Function,
 };
 
+use super::module::PatchObligation;
+
 /// A listing of opcodes for our VM in order.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Code {
@@ -37,17 +39,26 @@ impl Code {
         &self.opcodes
     }
 
-    pub(crate) fn next_index(&self) -> Index<Op> {
+    pub(crate) fn next_index(&self) -> Option<Index<Op>> {
         // len was checked in emit, so this cast is safe.
-        Index::new(self.opcodes.len() as u32)
+        if self.opcodes.len() <= u32::MAX as usize {
+            Some(Index::new(self.opcodes.len() as u32))
+        } else {
+            None
+        }
     }
 
     /// Patch an existing instruction with another given instruction, at a
     /// specific index. Returns the replaced op, or `None` if the index is
     /// invalid.
-    pub(crate) fn patch(&mut self, index: Index<Op>, op: Op) -> Option<Op> {
-        if let old @ Some(_) = self.get(index).cloned() {
-            self.opcodes[index.as_usize()] = op;
+    pub(crate) fn patch(
+        &mut self,
+        obligation: Index<PatchObligation>,
+        op: Op,
+    ) -> Option<Op> {
+        if let old @ Some(_) = self.opcodes.get(obligation.as_usize()).cloned()
+        {
+            self.opcodes[obligation.as_usize()] = op;
             old
         } else {
             None

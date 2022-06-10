@@ -200,14 +200,34 @@ impl ModuleBuilder {
     }
 }
 
+pub(crate) struct PatchObligation;
+
 // Bindings and scopes
 impl ModuleBuilder {
-    pub(crate) fn next_index(&self) -> Index<Op> {
-        self.compiling.last().unwrap().code().next_index()
+    pub(crate) fn next_op(&self, span: Span) -> Result<Index<Op>, Error> {
+        self.compiling
+            .last()
+            .unwrap()
+            .code()
+            .next_index()
+            .ok_or_else(|| Error::TooManyOps(span))
     }
 
-    pub(crate) fn patch(&mut self, index: Index<Op>, op: Op) -> Option<Op> {
-        self.current_function_mut().code_mut().patch(index, op)
+    pub(crate) fn patch(
+        &mut self,
+        obligation: Index<PatchObligation>,
+        op: Op,
+    ) -> Option<Op> {
+        self.current_function_mut().code_mut().patch(obligation, op)
+    }
+
+    pub(crate) fn new_patch_obligation(
+        &mut self,
+        span: Span,
+    ) -> Result<Index<PatchObligation>, Error> {
+        let index = self.next_op(span)?;
+        self.emit(Op::Nop, span)?;
+        Ok(Index::new(index.into()))
     }
 
     pub(crate) fn with_scope<F, T>(

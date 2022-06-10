@@ -57,7 +57,8 @@ impl VirtualMachine {
 
                 // branching
                 Op::Jump(i) => self.jump(i)?,
-                Op::BranchFalse(i) => self.branch_false(i)?,
+                Op::Branch(i) => self.branch(true, i)?,
+                Op::BranchFalse(i) => self.branch(false, i)?,
 
                 // logic
                 Op::Not => self.unary(Value::not)?,
@@ -359,27 +360,30 @@ impl VirtualMachine {
     /// The [`Jump(i)`][Op::Jump] instruction jumps to `i` in the current
     /// prototype. We don't have inter-function or inter-module jumps.
     #[inline]
-    fn jump(&mut self, i: Index<Op>) -> Result<()> {
-        *self.pc_mut() = i;
+    fn jump(&mut self, offset: i32) -> Result<()> {
+        let pc = self.pc().as_usize() as isize - 1; // since it already advanced by fetch
+        let new = pc + offset as isize;
+
+        *self.pc_mut() = Index::new(new as _);
+
         Ok(())
     }
 
-    /// The [`BranchFalse(i)`][Op::BranchFalse] instruction consumes the top of
-    /// the stack, and if it [`is_truthy`][PrimitiveOperations::is_truthy] then
-    /// continues on. If it's not, then it jumps to `i`.
+    /// The [`Branch*`][Op::Branch] instruction consumes the top of the stack,
+    /// and if it's [`is_truthy`][PrimitiveOperations::is_truthy] matches `on`
+    /// then it adjusts the PC by the offset.
     #[inline]
-    fn branch_false(&mut self, i: Index<Op>) -> Result<()> {
+    fn branch(&mut self, on: bool, offset: i32) -> Result<()> {
         let truthy = self
             .stack
             .last()
             .expect("the stack should not be empty when executing BranchFalse")
             .is_truthy();
 
-        self.stack.pop();
-
-        if !truthy {
-            self.jump(i)
+        if on == truthy {
+            self.jump(offset)
         } else {
+            self.stack.pop();
             Ok(())
         }
     }

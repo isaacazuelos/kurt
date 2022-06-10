@@ -53,7 +53,8 @@ pub enum Associativity {
 ///
 /// When multiple operators are used, precedence is how we decide which one
 /// 'happens first'. For example, `a + b * c` is read as the same as `a + (b *
-/// c)` because the `*` has higher precedence
+/// c)` because the `*` has higher precedence. Higher precedence means closer to
+/// the root of the tree, lower precedence means "binds tighter".
 ///
 /// This is really the same thing as PEDMAS but extended to more symbols.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -73,6 +74,10 @@ impl Precedence {
         }
 
         Precedence(self.0 + 1)
+    }
+
+    pub fn lower(self) -> Self {
+        Precedence(self.0.saturating_sub(1))
     }
 }
 
@@ -208,37 +213,38 @@ impl Default for DefinedOperators {
         // lets us move these around easier
         let mut p = Precedence::MIN;
 
-        // exponentiation
+        // 1. exponentiation
+        p = p.next();
         op.define_infix("^", Right, p); // pow
 
-        // multiplication
+        // 2. multiplication
         p = p.next();
         op.define_infix("*", Left, p); // mul
         op.define_infix("/", Left, p); // div
         op.define_infix("%", Left, p); // mod
 
-        // addition
+        // 3. addition
         p = p.next();
         op.define_infix("+", Left, p); // add
         op.define_infix("-", Left, p); // sub
 
-        // shifts
+        // 4. shifts
         p = p.next();
         op.define_infix("<<", Left, p); // sll
         op.define_infix(">>", Left, p); // srl
         op.define_infix(">>>", Left, p); // sra
 
-        // bits
+        // 5. bits
         p = p.next();
         op.define_infix("&", Left, p); // bit and
         op.define_infix("|", Left, p); // bit or
         op.define_infix("⊕", Left, p); // bit xor
 
-        // error coalescing
+        // 6.  error coalescing
         p = p.next();
         op.define_infix("??", Left, p);
 
-        // comparison
+        // 7. comparison
         p = p.next();
         op.define_infix("<", Disallow, p); // less
         op.define_infix(">", Disallow, p); // greater
@@ -249,21 +255,21 @@ impl Default for DefinedOperators {
         op.define_infix("==", Disallow, p); // eq
         op.define_infix("!=", Disallow, p); // neq
 
-        // errors and pipes
+        // 8. errors and pipes
         p = p.next();
         op.define_infix("|>", Left, p); // f pipe
 
-        // logical and and or
+        // 9 & 10. logical and and or
         p = p.next();
         op.define_infix("and", Left, p); // `and`
         p = p.next();
         op.define_infix("or", Left, p); // `or`
 
-        // functions
+        // 11. functions
         p = p.next();
         op.define_infix("->", Right, p); // function type constructor
 
-        // assignment
+        // 12. assignment
         p = p.next();
         op.define_infix("=", Disallow, p);
         op.define_infix("+=", Disallow, p);
