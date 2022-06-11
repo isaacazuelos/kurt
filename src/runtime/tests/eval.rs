@@ -157,12 +157,28 @@ mod operator_and_or {
 
 mod looping {
     test_eval! { loop_return, "let looper = () => loop { return 7; }; looper()", "7" }
-
     test_eval! { while_false, "while false { 7 }", "()" }
-
     test_eval! { while_loop, "let x = 0; while x < 10 { x = x + 1 }; x", "10"}
-
     test_eval! { while_loop_end_value, "let x = 0; while x < 10 { x = x + 1; 17 }", "17"}
+    test_eval! { break_simple, "loop { break }", "()" }
+    test_eval! { break_simple_semicolon, "loop { break; }", "()" }
+    test_eval! { break_value, "loop { break 7 }", "7" }
+    test_eval! { break_value_semicolon, "loop { break 7; }", "7" }
+    test_eval! { break_while_value, "while true { break 7; }", "7" }
+    test_eval! { continue_expr, r#"
+        let x = 1; 
+        let y = :stack_guard;
+        while true { 
+            if x < 3 { 
+                x = x + 1; 
+                continue;
+                // if continue doesn't work, we'll break with the wrong value
+                break 7;
+            } else { 
+                break x;
+            } 
+        }
+    "#, "3" }
 }
 
 mod assignment {

@@ -369,15 +369,30 @@ impl ModuleBuilder {
 
     /// Compile an early exit expression.
     fn early_exit(&mut self, syntax: &syntax::EarlyExit) -> Result<()> {
+        if let Some(expression) = syntax.expression() {
+            self.expression(expression)?;
+        } else {
+            self.emit(Op::Unit, syntax.span())?;
+        }
+
         match syntax.kind() {
-            syntax::ExitKind::Return => {
-                if let Some(expression) = syntax.expression() {
-                    self.expression(expression)?;
-                } else {
-                    self.emit(Op::Unit, syntax.span())?;
+            syntax::ExitKind::Return => self.emit(Op::Return, syntax.span()),
+
+            syntax::ExitKind::Break => {
+                let jump = self.new_patch_obligation(syntax.span())?;
+                self.current_function_mut().register_break(jump)
+            }
+
+            syntax::ExitKind::Continue => {
+                // We allow this in the parser so it matches the other early
+                // exits which can have values, but it's not legal -- what would
+                // it mean?
+                if let Some(invalid) = syntax.expression() {
+                    return Err(Error::ContinueWithValue(invalid.span()));
                 }
 
-                self.emit(Op::Return, syntax.span())
+                let jump = self.new_patch_obligation(syntax.span())?;
+                self.current_function_mut().register_continue(jump)
             }
             _ => Err(Error::EarlyExitKindNotSupported(syntax.span())),
         }
@@ -511,11 +526,22 @@ impl ModuleBuilder {
     /// ```
     fn loop_loop(&mut self, syntax: &syntax::Loop) -> Result<()> {
         let top = self.next_op(syntax.loop_span())?;
+
+        self.current_function_mut().begin_loop();
         self.block(syntax.body())?;
+
         let jump = self.new_patch_obligation(syntax.body().close())?;
         let distance = jump_distance(jump, top, syntax.span())?;
         self.patch(jump, Op::Jump(distance));
-        Ok(())
+
+        let end = self.next_op(syntax.body().close())?;
+
+        self.current_function_mut().end_loop(
+            top,
+            end,
+            syntax.body().open(),
+            syntax.body().close(),
+        )
     }
 
     /// Compile a `while` loop.
@@ -524,12 +550,14 @@ impl ModuleBuilder {
     ///   Unit               // while's value is () if it don't loop
     /// top:
     ///   <condition>
-    ///   BranchFalse(end)
+    ///   BranchFalse(condition_false)
     ///   Pop                // remove last value
     ///   <body>
     ///   Jump(top)
-    /// end:
+    /// condition_false:
     ///   Pop                // remove the false that left the loop
+    /// end:           //
+    ///   ...
     /// ```
     fn while_loop(&mut self, syntax: &syntax::While) -> Result<()> {
         let condition_span = syntax.condition().span();
@@ -539,21 +567,38 @@ impl ModuleBuilder {
 
         self.expression(syntax.condition())?;
 
-        let condition_false = self.new_patch_obligation(condition_span)?;
+        let condition_false_jump = self.new_patch_obligation(condition_span)?;
 
         self.emit(Op::Pop, condition_span)?;
+
+        self.current_function_mut().begin_loop();
         self.block(syntax.body())?;
 
         let jump = self.new_patch_obligation(syntax.while_span())?;
         let to_top = jump_distance(jump, top, syntax.span())?;
         self.patch(jump, Op::Jump(to_top));
 
-        let end = self.next_op(syntax.body().close())?;
-        let to_end =
-            jump_distance(condition_false, end, syntax.condition().span())?;
-        self.patch(condition_false, Op::BranchFalse(to_end));
+        let condition_false = self.next_op(syntax.body().close())?;
+        let to_condition_false = jump_distance(
+            condition_false_jump,
+            condition_false,
+            syntax.condition().span(),
+        )?;
+
+        self.patch(condition_false_jump, Op::BranchFalse(to_condition_false));
 
         self.emit(Op::Pop, condition_span)?;
+
+        let end = self.next_op(syntax.body().close())?;
+
+        // close off any break and continue statements
+        self.current_function_mut().end_loop(
+            top,
+            end,
+            syntax.body().open(),
+            syntax.body().close(),
+        )?;
+
         Ok(())
     }
 
@@ -654,7 +699,7 @@ impl ModuleBuilder {
     }
 }
 
-fn jump_distance(
+pub(crate) fn jump_distance(
     jump_instruction: Index<PatchObligation>,
     target: Index<Op>,
     span: Span,

@@ -24,15 +24,24 @@ impl Display for VirtualMachine {
 
 impl VirtualMachine {
     fn fmt_where(&self, f: &mut Formatter) -> Result {
+        let pc = self.pc();
+        let loc = self
+            .current_closure()
+            .prototype()
+            .debug_info()
+            .and_then(|info| info.span_of(self.pc()))
+            .map(|span| {
+                format!(
+                    "{:>3}:{:<3}",
+                    span.start().line(),
+                    span.start().column()
+                )
+            })
+            .unwrap_or_else(String::new);
         let op = format!("{}", self.op());
+        let name = format!("{:?}", self.current_closure().name());
 
-        write!(
-            f,
-            "{:>12} {:<4} {:16}",
-            format!("{:?}", self.current_closure().name()),
-            self.pc().as_usize(),
-            op,
-        )
+        write!(f, "{:04} {:>8} {:<4} {:16}", loc, name, pc.as_usize(), op,)
     }
 
     #[allow(dead_code)] // useful, but rarely

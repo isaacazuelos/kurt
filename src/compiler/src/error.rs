@@ -18,6 +18,8 @@ pub enum Error {
     RecNotFunction(Span, Span),
     EarlyExitKindNotSupported(Span),
     NotALegalAssignmentTarget(Span),
+    ContinueWithValue(Span),
+
     JumpTooFar(Span),
 
     UndefinedLocal(Span),
@@ -59,6 +61,9 @@ impl fmt::Display for Error {
             }
             NotALegalAssignmentTarget(_) => {
                 write!(f, "cannot assign to this")
+            }
+            ContinueWithValue(_) => {
+                write!(f, "a `continue` cannot take a value")
             }
             JumpTooFar(_) => {
                 write!(f, "this code needs to jump too far")
@@ -108,6 +113,7 @@ impl Error {
             Error::RecNotFunction(_, s) => *s,
             Error::EarlyExitKindNotSupported(s) => *s,
             Error::NotALegalAssignmentTarget(s) => *s,
+            Error::ContinueWithValue(s) => *s,
             Error::JumpTooFar(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
@@ -143,6 +149,7 @@ impl From<Error> for Diagnostic {
             Error::NotALegalAssignmentTarget(s) => {
                 Error::not_assignment_target(s, d)
             }
+            Error::ContinueWithValue(s) => Error::continue_with_value(s, d),
             Error::JumpTooFar(s) => Error::jump_too_far(s, d),
 
             Error::UndefinedLocal(s)
@@ -184,9 +191,15 @@ impl Error {
             .help("you can only assign to variables, or subscripts")
     }
 
-    fn jump_too_far(s: Span, d: Diagnostic) -> Diagnostic {
+    fn continue_with_value(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this is the code that's a problem")
             .help("breaking this up with functions might help")
+    }
+
+    fn jump_too_far(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this value isn't allowed").info(
+            "Unlike `break` or `return`, you can't give a value to `continue`",
+        )
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {

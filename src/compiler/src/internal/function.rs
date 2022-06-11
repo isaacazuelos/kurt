@@ -7,12 +7,22 @@ use common::{Get, Index};
 
 use crate::{
     error::{Error, Result},
-    internal::{capture::Capture, code::Code, local::Local},
+    internal::{
+        capture::Capture, code::Code, code_gen::jump_distance, local::Local,
+    },
     opcode::Op,
     Constant, Function, FunctionDebug,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+use super::module::PatchObligation;
+
+#[derive(Debug, Clone)]
+struct LoopObligations {
+    breaks: Vec<Index<PatchObligation>>,
+    continues: Vec<Index<PatchObligation>>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct FunctionBuilder {
     name: Option<Index<Constant>>,
     span: Span,
@@ -22,6 +32,7 @@ pub(crate) struct FunctionBuilder {
     code: Code,
     locals: Vec<Local>,
     scopes: Vec<usize>,
+    loops: Vec<LoopObligations>,
 }
 
 impl FunctionBuilder {
@@ -36,6 +47,7 @@ impl FunctionBuilder {
             code: Code::default(),
             locals: Vec::default(),
             scopes: vec![0],
+            loops: Vec::default(),
         }
     }
 
@@ -131,7 +143,7 @@ impl FunctionBuilder {
 
     pub(crate) fn end_scope(&mut self, span: Span) -> Result<usize> {
         let total_in_scope = self.locals.len();
-        let going_out_of_scope = self
+        let in_scope_count = self
             .scopes
             .pop()
             .expect("compiler cannot end scope with no open scopes");
@@ -141,7 +153,7 @@ impl FunctionBuilder {
             "top level function scope should not end."
         );
 
-        debug_assert!(total_in_scope >= going_out_of_scope);
+        debug_assert!(total_in_scope >= in_scope_count);
 
         debug_assert!(
             Function::MAX_BINDINGS <= u32::MAX as usize,
@@ -149,22 +161,51 @@ impl FunctionBuilder {
             so we won't have going_out_of_scope exceed that"
         );
 
-        self.locals.truncate(total_in_scope - going_out_of_scope);
+        self.locals.truncate(total_in_scope - in_scope_count);
 
-        if going_out_of_scope > 0 {
-            self.emit(Op::Close(going_out_of_scope as u32), span)?;
+        if in_scope_count > 0 {
+            self.emit(Op::Close(in_scope_count as u32), span)?;
         }
 
-        Ok(going_out_of_scope)
+        Ok(in_scope_count)
+    }
+
+    pub(crate) fn begin_loop(&mut self) {
+        self.loops.push(LoopObligations {
+            breaks: Vec::new(),
+            continues: Vec::new(),
+        });
+    }
+
+    pub(crate) fn end_loop(
+        &mut self,
+        start: Index<Op>,
+        end: Index<Op>,
+        start_span: Span,
+        end_span: Span,
+    ) -> Result<()> {
+        let obligations = self.loops.pop().unwrap();
+
+        for obligation in obligations.breaks {
+            let to_end = jump_distance(obligation, end, end_span)?;
+            self.code.patch(obligation, Op::Jump(to_end));
+        }
+
+        for obligation in obligations.continues {
+            let to_start = jump_distance(obligation, start, start_span)?;
+            self.code.patch(obligation, Op::Jump(to_start));
+        }
+
+        Ok(())
     }
 
     /// Bind a [`Local`] in the current scope.
     pub(crate) fn bind_local(&mut self, local: Local) -> Result<()> {
-        if let Some(count) = self.scopes.last_mut() {
-            *count += 1;
-            if *count == Function::MAX_BINDINGS {
-                return Err(Error::TooManyLocals(local.span()));
-            }
+        let count = self.scopes.last_mut().expect("scopes shouldn't be empty");
+
+        *count += 1;
+        if *count == Function::MAX_BINDINGS {
+            return Err(Error::TooManyLocals(local.span()));
         }
 
         self.locals.push(local);
@@ -251,6 +292,30 @@ impl FunctionBuilder {
 
     pub(crate) fn is_recursive(&self) -> bool {
         self.is_recursive
+    }
+
+    pub(crate) fn register_break(
+        &mut self,
+        jump: Index<PatchObligation>,
+    ) -> Result<()> {
+        if let Some(obs) = self.loops.last_mut() {
+            obs.breaks.push(jump);
+            Ok(())
+        } else {
+            panic!("not in a loop error")
+        }
+    }
+
+    pub(crate) fn register_continue(
+        &mut self,
+        jump: Index<PatchObligation>,
+    ) -> Result<()> {
+        if let Some(obs) = self.loops.last_mut() {
+            obs.continues.push(jump);
+            Ok(())
+        } else {
+            panic!("not in loop error")
+        }
     }
 }
 
