@@ -14,11 +14,11 @@
 use std::{alloc::Layout, ptr::NonNull};
 
 mod class;
-mod collector;
 mod gc;
 mod object;
-
 mod trace;
+
+pub(crate) mod collector;
 
 use crate::VirtualMachine;
 
@@ -151,6 +151,8 @@ impl VirtualMachine {
         #[allow(clippy::let_and_return)]
         let ptr = std::alloc::alloc(layout) as _;
 
+        self.gc_state.used += layout.size();
+
         #[cfg(feature = "gc_trace")]
         eprintln!("allocating {:?}", ptr);
 
@@ -169,6 +171,7 @@ impl VirtualMachine {
         let layout =
             Layout::from_size_align_unchecked(gc.deref().size(), Object::ALIGN);
         let ptr = std::mem::transmute(gc);
-        std::alloc::dealloc(ptr, layout)
+        std::alloc::dealloc(ptr, layout);
+        self.gc_state.used -= layout.size();
     }
 }

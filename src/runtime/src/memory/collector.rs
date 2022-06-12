@@ -50,20 +50,59 @@ impl GCHeader {
     }
 }
 
-impl VirtualMachine {
-    /// Collect garbage, but only if needed.
-    #[inline(always)] // inline the 'fast' check, not slow collection.
-    pub fn collect_garbage(&mut self) {
-        if self.garbage_collection_is_needed() {
-            self.force_collect_garbage();
+#[derive(Debug)]
+pub(crate) struct GcState {
+    heap_head: Option<GcAny>,
+    capacity: usize,
+    pub(crate) used: usize,
+    tracked_allocations: usize,
+}
+
+impl Default for GcState {
+    fn default() -> Self {
+        GcState {
+            heap_head: None,
+            capacity: GcState::DEFAULT_CAPACITY,
+            used: 0,
+            tracked_allocations: 0,
         }
     }
+}
+
+impl GcState {
+    // These numbers were pulled from thin air.
+    const DEFAULT_CAPACITY: usize = 4096;
+    const GROWTH_FACTOR: usize = 2;
+
+    const GETTING_FULL: f64 = 0.80;
+    const STILL_TOO_FULL: f64 = 0.50;
 
     /// Is it time to run a full GC cycle?
     #[inline(always)]
     // TODO: write something smarter than this!
     pub fn garbage_collection_is_needed(&mut self) -> bool {
-        true
+        self.used_percent() > GcState::GETTING_FULL
+    }
+
+    pub fn used_percent(&self) -> f64 {
+        self.used as f64 / self.capacity as f64
+    }
+
+    pub fn grow_if_needed(&mut self) {
+        if self.used_percent() > GcState::STILL_TOO_FULL {
+            self.capacity *= GcState::GROWTH_FACTOR;
+        }
+    }
+}
+
+impl VirtualMachine {
+    /// Collect garbage, but only if needed.
+    #[inline(always)] // inline the 'fast' check, not slow collection.
+    pub fn collect_garbage(&mut self) {
+        if self.gc_state.garbage_collection_is_needed() {
+            self.force_collect_garbage();
+            self.gc_state.grow_if_needed();
+        }
     }
 
     /// Force a full garbage collection cycle, even if it's not needed.
@@ -84,12 +123,14 @@ impl VirtualMachine {
     pub(crate) unsafe fn register_gc_ptr(&mut self, ptr: GcAny) {
         let header = ptr.deref().gc_header();
 
-        let old_heap_head = self.heap_head;
+        let old_heap_head = self.gc_state.heap_head;
 
         debug_assert!(header.next.get().is_none());
 
+        self.gc_state.tracked_allocations += 1;
+
         header.next.set(old_heap_head);
-        self.heap_head = Some(ptr);
+        self.gc_state.heap_head = Some(ptr);
     }
 
     /// Using [`Runtime`] to access the root set of live objects, we visit every
@@ -117,7 +158,7 @@ impl VirtualMachine {
         #[cfg(feature = "gc_trace")]
         eprintln!("starting sweep phase");
 
-        let mut list = self.heap_head.take();
+        let mut list = self.gc_state.heap_head.take();
 
         while let Some(ptr) = list {
             // update list to be the tail.
@@ -129,6 +170,7 @@ impl VirtualMachine {
                 unsafe { self.register_gc_ptr(ptr) };
             } else {
                 unsafe { self.deallocate(ptr) };
+                self.gc_state.tracked_allocations -= 1;
             }
         }
     }

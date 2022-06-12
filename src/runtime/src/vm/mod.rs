@@ -13,7 +13,7 @@ mod stack_trace;
 
 use crate::{
     classes::{Function, Keyword, Module, String},
-    memory::{Gc, GcAny},
+    memory::{collector::GcState, Gc},
     value::Value,
     vm::open_captures::OpenCaptures,
     Result,
@@ -35,8 +35,8 @@ pub struct VirtualMachine {
     call_stack: CallStack,
 
     // Heap
-    pub(crate) heap_head: Option<GcAny>,
     pub(crate) open_captures: OpenCaptures,
+    pub(crate) gc_state: GcState,
 }
 
 impl VirtualMachine {
