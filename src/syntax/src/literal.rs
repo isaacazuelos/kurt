@@ -78,7 +78,8 @@ impl<'a> Parse<'a> for Literal<'a> {
 }
 
 impl<'a> Literal<'a> {
-    fn parse_unit(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
+    /// Parses a `()` as a unit literal.
+    pub fn parse_unit(parser: &mut Parser<'a>) -> SyntaxResult<Literal<'a>> {
         let open = parser
             .consume(TokenKind::Open(Delimiter::Parenthesis))
             .ok_or_else(|| SyntaxError::UnitNoOpen(parser.next_span()))?;

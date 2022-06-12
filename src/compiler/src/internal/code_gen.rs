@@ -143,6 +143,7 @@ impl ModuleBuilder {
             syntax::Expression::List(l) => self.list(l),
             syntax::Expression::Loop(l) => self.loop_loop(l),
             syntax::Expression::Literal(l) => self.literal(l),
+            syntax::Expression::Tuple(t) => self.tuple(t),
             syntax::Expression::Unary(u) => self.unary(u),
             syntax::Expression::While(w) => self.while_loop(w),
             syntax::Expression::Subscript(s) => self.subscript(s),
@@ -237,20 +238,7 @@ impl ModuleBuilder {
             Expression::Subscript(s) => self.assignment_target_subscript(s),
             Expression::Identifier(i) => self.assignment_target_identifier(i),
 
-            Expression::Binary(_)
-            | Expression::Block(_)
-            | Expression::Call(_)
-            | Expression::EarlyExit(_)
-            | Expression::Function(_)
-            | Expression::Grouping(_)
-            | Expression::If(_)
-            | Expression::List(_)
-            | Expression::Literal(_)
-            | Expression::Loop(_)
-            | Expression::Unary(_)
-            | Expression::While(_) => {
-                Err(Error::NotALegalAssignmentTarget(syntax.span()))
-            }
+            _ => Err(Error::NotALegalAssignmentTarget(syntax.span())),
         }
     }
 
@@ -509,6 +497,18 @@ impl ModuleBuilder {
         self.emit(Op::List(syntax.elements().len() as u32), syntax.span())
     }
 
+    fn tuple(&mut self, syntax: &syntax::Tuple) -> Result<()> {
+        if let Some(tag) = syntax.tag() {
+            self.keyword(tag.as_str(), tag.span())?;
+        }
+
+        self.expression_sequence(syntax)?;
+        self.emit(
+            Op::Tuple(syntax.elements().len() as u32, syntax.is_tagged()),
+            syntax.span(),
+        )
+    }
+
     /// Compile a subscript postfix
     fn subscript(&mut self, syntax: &syntax::Subscript) -> Result<()> {
         self.expression(syntax.target())?;
@@ -611,7 +611,9 @@ impl ModuleBuilder {
             syntax::LiteralKind::Decimal => self.decimal(syntax),
             syntax::LiteralKind::Float => self.float(syntax),
             syntax::LiteralKind::Hexadecimal => self.hexadecimal(syntax),
-            syntax::LiteralKind::Keyword => self.keyword(syntax),
+            syntax::LiteralKind::Keyword => {
+                self.keyword(syntax.body(), syntax.span())
+            }
             syntax::LiteralKind::Octal => self.octal(syntax),
             syntax::LiteralKind::String => self.string(syntax),
             syntax::LiteralKind::Unit => self.unit(syntax),
@@ -670,12 +672,12 @@ impl ModuleBuilder {
     }
 
     /// Compile a keyword literal
-    fn keyword(&mut self, syntax: &syntax::Literal) -> Result<()> {
-        let kw = Constant::parse_keyword(syntax.body());
+    fn keyword(&mut self, body: &str, span: Span) -> Result<()> {
+        let kw = Constant::parse_keyword(body);
         let index = self
             .insert_constant(kw)
-            .ok_or_else(|| Error::TooManyConstants(syntax.span()))?;
-        self.emit(Op::LoadConstant(index), syntax.span())
+            .ok_or_else(|| Error::TooManyConstants(span))?;
+        self.emit(Op::LoadConstant(index), span)
     }
 
     /// Compile a hexadecimal numeric literal

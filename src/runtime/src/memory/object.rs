@@ -28,6 +28,8 @@ macro_rules! dispatch {
             ClassId::Module => $f( $obj.downcast::<Module>().unwrap(), $( $arg, )* ),
             ClassId::Prototype => $f( $obj.downcast::<Prototype>().unwrap(), $( $arg, )* ),
             ClassId::String  => $f( $obj.downcast::<String>().unwrap(), $( $arg, )*),
+            ClassId::Tuple  => $f( $obj.downcast::<Tuple>().unwrap(), $( $arg, )*),
+
         }
     };
 }

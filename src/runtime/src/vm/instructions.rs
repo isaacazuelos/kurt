@@ -4,7 +4,7 @@ use common::{i48, Get, Index};
 use compiler::{Capture, Constant, Local, Op};
 
 use crate::{
-    classes::{Function, List},
+    classes::{Function, Keyword, List, Tuple},
     error::Result,
     memory::Gc,
     primitives::PrimitiveOperations,
@@ -90,6 +90,7 @@ impl VirtualMachine {
 
                 // temporary
                 Op::List(n) => self.list(n)?,
+                Op::Tuple(n, tag) => self.tuple(n, tag)?,
             }
         }
     }
@@ -379,9 +380,61 @@ impl VirtualMachine {
 
         // We already handled empty lists, so there's a first element.
         let first_element =
-            self.stack.from_top(under_elements.saturating_previous());
+            self.stack.from_top(under_elements).saturating_next();
         self.stack[first_element] = value;
         self.stack.truncate_above(first_element);
+
+        Ok(())
+    }
+
+    /// The [`Tuple(len, tag)`][Op::Tuple] instruction takes the top `len`
+    /// values on the stack and makes them the elements of a new tuple which is
+    /// left on top of the stack. If `is_tagged`, we need also consume the value
+    /// on the stack below the tuple elements and use it as the tag for our new
+    /// tuple -- this tag value must be a Keyword.
+    #[inline]
+    fn tuple(&mut self, len: u32, is_tagged: bool) -> Result<()> {
+        if len == 0 && !is_tagged {
+            // this is just `()` so we just use unit
+            self.stack.push(Value::UNIT);
+            return Ok(());
+        }
+
+        if len == 0 && is_tagged {
+            // this is just the bare keyword, and that keyword is on the top of
+            // the stack (beneath the 0 elements), so we just leave it.
+            return Ok(());
+        }
+
+        let under_elements = Index::<StackTop>::new(len);
+
+        // here we actually make the new Gc<Tuple>
+        let value = {
+            let values = self.stack().above(under_elements).to_vec();
+
+            let tag = if is_tagged {
+                self.stack[under_elements].as_gc::<Keyword>()
+            } else {
+                None
+            };
+
+            debug_assert_eq!(values.len(), len as usize);
+            debug_assert_eq!(is_tagged, tag.is_some());
+
+            let tup: Gc<Tuple> = self.make_from((values, tag));
+
+            Value::from(tup)
+        };
+
+        let mut target_slot = self.stack.from_top(under_elements);
+
+        if !is_tagged {
+            // if there's no tag, we actually want where the first element was
+            target_slot.saturating_increment()
+        }
+
+        self.stack[target_slot] = value;
+        self.stack.truncate_above(target_slot);
 
         Ok(())
     }

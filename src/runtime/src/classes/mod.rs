@@ -5,6 +5,7 @@ mod list;
 mod module;
 mod prototype;
 mod string;
+mod tuple;
 
 pub use self::{
     capture::{CaptureCell, CaptureCellContents},
@@ -14,4 +15,5 @@ pub use self::{
     module::Module,
     prototype::Prototype,
     string::String,
+    tuple::Tuple,
 };

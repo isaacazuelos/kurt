@@ -195,6 +195,9 @@ pub enum Op {
     /// Make a list using the indicated number of arguments on the stack.
     List(u32),
 
+    /// Make a tuple
+    Tuple(u32, bool),
+
 }
 
 impl Display for Op {

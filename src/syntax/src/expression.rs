@@ -34,6 +34,7 @@ pub enum Expression<'a> {
     Literal(Literal<'a>),
     Loop(Loop<'a>),
     Subscript(Subscript<'a>),
+    Tuple(Tuple<'a>),
     Unary(Unary<'a>),
     While(While<'a>),
 }
@@ -53,6 +54,7 @@ impl<'a> Syntax for Expression<'a> {
             Expression::Literal(e) => e.span(),
             Expression::Loop(l) => l.span(),
             Expression::Subscript(s) => s.span(),
+            Expression::Tuple(s) => s.span(),
             Expression::Unary(u) => u.span(),
             Expression::While(w) => w.span(),
         }
@@ -229,6 +231,8 @@ impl<'a> Expression<'a> {
                 parser.parse().map(Expression::Block)
             }
 
+            // this does each of unit `()`, tuples `(1, 2, 3)`, and function
+            // definitions `(a, b) => c`.
             Some(TokenKind::Open(Delimiter::Parenthesis)) => {
                 Expression::open_parenthesis(parser)
             }
@@ -237,7 +241,11 @@ impl<'a> Expression<'a> {
                 parser.parse().map(Expression::List)
             }
 
-            Some(k) if k.is_literal() || k == TokenKind::Colon => {
+            // this does both keywords literals like `:foo` and tagged
+            // collections like `:ok(1)`.
+            Some(TokenKind::Colon) => Expression::colon(parser),
+
+            Some(k) if k.is_literal() => {
                 parser.parse().map(Expression::Literal)
             }
 
@@ -251,17 +259,17 @@ impl<'a> Expression<'a> {
 
     /// Parse an expression which starts with an open paren.
     ///
-    /// There are a bunch of things that could be here. Some of these have
-    /// arbitrarily-deep prefixes, so we need to either have arbitrary lookahead
-    /// and do something like LR parsing with a stack until we decide, or
-    /// backtracking.
+    /// There are a bunch of syntax that starts with a `(`. Some of these have
+    /// arbitrarily-deep prefixes. Instead of parsing and then disambiguating,
+    /// we just backtrack.
     ///
-    ///
+    /// - A function's parameter list like `(a, b) => c`
+    /// - `()` is unit
     /// - An expression wrapped in parentheses for grouping
-    /// - A function's parameter list
+    /// - An (untagged) tuple
     ///
-    /// - Tuples (not yet implemented)
-    /// - `()` is unit (not yet implemented)
+    /// If the expression is ambiguous, the first valid interpretation above is
+    /// the one used.
     ///
     /// # Grammar
     ///
@@ -271,30 +279,38 @@ impl<'a> Expression<'a> {
     fn open_parenthesis(
         parser: &mut Parser<'a>,
     ) -> SyntaxResult<Expression<'a>> {
-        match parser.with_backtracking(Function::parse_with) {
-            Ok(f) => Ok(Expression::Function(f)),
-            Err(e1) => {
-                if parser.peek_kind_nth(1)
-                    == Some(TokenKind::Close(Delimiter::Parenthesis))
-                {
-                    let unit = parser.parse()?;
-                    Ok(Expression::Literal(unit))
-                } else {
-                    match parser.parse() {
-                        Ok(g) => Ok(Expression::Grouping(g)),
-                        Err(e2) => match (e1, e2) {
-                            (Error::Syntax(se1), Error::Syntax(se2)) => {
-                                Err(Error::Syntax(if se1.end() >= se2.end() {
-                                    se1
-                                } else {
-                                    se2
-                                }))
-                            }
-                            (e1, _) => Err(e1),
-                        },
-                    }
-                }
+        if let Ok(f) = parser.with_backtracking(Function::parse_with) {
+            Ok(Expression::Function(f))
+        } else if let Ok(unit) = parser.with_backtracking(Literal::parse_unit) {
+            Ok(Expression::Literal(unit))
+        } else if let Ok(g) = parser.with_backtracking(Grouping::parse_with) {
+            Ok(Expression::Grouping(g))
+        } else if let Ok(t) = parser.with_backtracking(Tuple::parse_with) {
+            Ok(Expression::Tuple(t))
+        } else {
+            Err(Error::Syntax(SyntaxError::OpenParenNoParse(
+                parser.next_span(),
+            )))
+        }
+    }
+
+    /// Parse an expression which starts with a colon `:`, which could be either
+    /// a bare keyword, or it could be part of a tagged collection.
+    ///
+    /// # Grammar
+    ///
+    /// [`open_parenthesis`][0] := [`Function`] | [`Grouping`]
+    ///
+    /// [0]: Expression::open_parenthesis
+    fn colon(parser: &mut Parser<'a>) -> SyntaxResult<Expression<'a>> {
+        match parser.peek_kind_nth(2) {
+            Some(TokenKind::Open(Delimiter::Parenthesis)) => {
+                Ok(Expression::Tuple(parser.parse()?))
             }
+            // tagged records will go here
+
+            // The literal case handles the error when peek(1) isn't an identifier.
+            _ => Ok(Expression::Literal(parser.parse()?)),
         }
     }
 }
@@ -349,6 +365,28 @@ mod parser_tests {
         assert!(
             matches!(result, Ok(Expression::Call(_))),
             "expected call but got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn keyword_not_tuple() {
+        let mut parser = Parser::new(" :foo ").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(result, Ok(Expression::Literal(_))),
+            "expected just a bare keyword literal but got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn tagged_tuple() {
+        let mut parser = Parser::new(" :foo() ").unwrap();
+        let result = parser.parse::<Expression>();
+        assert!(
+            matches!(result, Ok(Expression::Tuple(_))),
+            "expected just a bare keyword literal but got {:?}",
             result
         );
     }

@@ -26,6 +26,7 @@ pub enum ClassId {
     Module,
     Prototype,
     String,
+    Tuple,
 }
 
 impl ClassId {
@@ -38,6 +39,7 @@ impl ClassId {
             ClassId::Module => "Module",
             ClassId::Prototype => "Prototype",
             ClassId::String => "String",
+            ClassId::Tuple => "Tuple",
         }
     }
 }

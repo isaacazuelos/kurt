@@ -61,6 +61,15 @@ mod lists {
     test_eval! { list_stack, "let x = 0; [1,2,3]; x", "0" }
 }
 
+mod tuple {
+    test_eval! { empty, "(,)", "()" }
+    test_eval! { tag_empty, ":ok()", ":ok" }
+    test_eval! { tag_nonempty, ":ok(1)", ":ok(1,)" }
+    test_eval! { simple, "(1, 2, 3)", "(1, 2, 3)" }
+    test_eval! { stack, "let x = 0; (1,2,3); x", "0" }
+    test_eval! { tag_stack, "let x = 0; :foo(1,2,3); x", "0" }
+}
+
 mod conditionals {
     test_eval! { if_only, "if true { 10 }", "10" }
     test_eval! { if_only_f, "if false { 10 }", "false" }

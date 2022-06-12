@@ -46,6 +46,8 @@ pub enum Error {
     KeywordNoColon(Span),
     KeywordNoName(Span, Span),
 
+    OpenParenNoParse(Span),
+
     SubscriptNoOpen(Span),
     SubscriptNoClose(Span, Span),
 
@@ -151,6 +153,8 @@ impl From<Error> for Diagnostic {
             Error::TopLevelUnusedInput(prev, found) => {
                 Error::top_level_unused_input(prev, found)
             }
+
+            Error::OpenParenNoParse(span) => Error::open_paren(span),
         }
     }
 }
@@ -187,6 +191,7 @@ impl Error {
             Error::SubscriptNoOpen(s) => s,
             Error::SubscriptNoClose(_, s) => s,
             Error::TopLevelUnusedInput(s, _) => s,
+            Error::OpenParenNoParse(s) => s,
         }
     }
 
@@ -413,6 +418,16 @@ impl Error {
             .highlight(
                 issue,
                 "this doesn't look like part of the previous statement",
+            )
+    }
+
+    fn open_paren(span: Span) -> Diagnostic {
+        Diagnostic::new("not able to interpret this open parenthesis")
+            .location(span.start())
+            .highlight(span, "this is the issue")
+            .info(
+                "an `(` can be the start of a tuple, closure, `()`, function \
+                definition, or of parenthesis used for grouping",
             )
     }
 }

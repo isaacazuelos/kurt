@@ -28,6 +28,7 @@ mod loops;
 mod operator;
 mod statement;
 mod subscript;
+mod tuple;
 
 pub use self::{
     binding::Binding,
@@ -47,6 +48,7 @@ pub use self::{
     operator::{Binary, Unary},
     statement::Statement,
     subscript::Subscript,
+    tuple::Tuple,
 };
 
 pub type SyntaxResult<S> = Result<S, parser::Error<SyntaxError>>;
