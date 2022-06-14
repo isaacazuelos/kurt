@@ -1,32 +1,8 @@
-//! Module debug info
+//! Module display code
 
 use std::fmt::{self, Display, Formatter};
 
-use common::Get;
-use diagnostic::InputId;
-
-use crate::{Function, Module, ModuleBuilder, Op};
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ModuleDebug {
-    input_id: Option<InputId>,
-}
-
-impl ModuleDebug {
-    pub fn new(builder: &ModuleBuilder) -> ModuleDebug {
-        ModuleDebug {
-            input_id: builder.id(),
-        }
-    }
-
-    pub fn input_id(&self) -> Option<InputId> {
-        self.input_id
-    }
-
-    pub fn set_input_id(&mut self, id: InputId) {
-        self.input_id = Some(id);
-    }
-}
+use crate::{Function, Module, Op};
 
 impl Display for Module {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -74,7 +50,7 @@ impl Function {
     }
 
     fn display_name(&self, f: &mut Formatter, module: &Module) -> fmt::Result {
-        if let Some(name) = self.name().and_then(|n| module.get(n)) {
+        if let Some(name) = self.name().map(|n| &module[n]) {
             write!(f, "{name}")
         } else {
             write!(f, "{}", Function::DEFAULT_NAMELESS_NAME)
@@ -117,20 +93,14 @@ impl Function {
                 Op::LoadConstant(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
-                    if let Some(constant) = module.get(*index) {
-                        writeln!(f, "{}", constant)
-                    } else {
-                        writeln!(f, "???")
-                    }
+                    writeln!(f, "{}", module[*index])
                 }
 
                 Op::LoadFunction(index) => {
                     write!(f, "{:<20} // ", format!("{op}"))?;
 
-                    if let Some(name) = module
-                        .get(*index)
-                        .and_then(|f| f.name())
-                        .and_then(|n| module.get(n))
+                    if let Some(name) =
+                        module[*index].name().map(|n| &module[n])
                     {
                         writeln!(f, "{}", name)
                     } else {

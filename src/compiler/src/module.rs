@@ -2,18 +2,16 @@
 //!
 //! It's ready for the runtime. Like a python `.pyc` or C `.o` file.
 
-use common::{Get, Index};
+use common::Index;
+use diagnostic::InputId;
 
-use crate::{
-    constant::Constant, debug::ModuleDebug, internal::ModuleBuilder, Function,
-};
+use crate::{constant::Constant, internal::ModuleBuilder, Function};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    pub(crate) input: Option<InputId>,
     pub(crate) constants: Vec<Constant>,
     pub(crate) functions: Vec<Function>,
-
-    pub(crate) debug_info: Option<ModuleDebug>,
 }
 
 impl Module {
@@ -28,16 +26,6 @@ impl Module {
     /// The maximum number of constants that a module can contain.
     pub const MAX_CONSTANTS: usize = Index::<Constant>::MAX;
 
-    /// The debug info for this module.
-    pub fn debug_info(&self) -> Option<&ModuleDebug> {
-        self.debug_info.as_ref()
-    }
-
-    /// Throw away the extra debug info this module carries.
-    pub fn strip_debug(&mut self) {
-        self.debug_info = None;
-    }
-
     pub fn constants(&self) -> &[Constant] {
         &self.constants
     }
@@ -47,15 +35,19 @@ impl Module {
     }
 }
 
-impl Get<Function> for Module {
-    fn get(&self, index: Index<Function>) -> Option<&Function> {
-        self.functions.get(index.as_usize())
+impl std::ops::Index<Index<Function>> for Module {
+    type Output = Function;
+
+    fn index(&self, index: Index<Function>) -> &Self::Output {
+        &self.functions[index.as_usize()]
     }
 }
 
-impl Get<Constant> for Module {
-    fn get(&self, index: Index<Constant>) -> Option<&Constant> {
-        self.constants.get(index.as_usize())
+impl std::ops::Index<Index<Constant>> for Module {
+    type Output = Constant;
+
+    fn index(&self, index: Index<Constant>) -> &Self::Output {
+        &self.constants[index.as_usize()]
     }
 }
 

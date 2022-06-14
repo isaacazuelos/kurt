@@ -5,4 +5,4 @@
 mod function;
 mod module;
 
-pub use self::{function::FunctionDebug, module::ModuleDebug};
+pub use self::function::FunctionDebug;

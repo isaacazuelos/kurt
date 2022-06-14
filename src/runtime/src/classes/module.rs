@@ -8,7 +8,8 @@ use std::{
 };
 
 use common::{Get, Index};
-use compiler::{Constant, ModuleDebug};
+use compiler::Constant;
+use diagnostic::InputId;
 
 use crate::{
     classes::Prototype,
@@ -22,10 +23,9 @@ use crate::{
 pub struct Module {
     base: Object,
 
+    id: Option<InputId>,
     constants: Vec<Value>,
     prototypes: Vec<Gc<Prototype>>,
-
-    debug_info: Option<ModuleDebug>,
 }
 
 impl Module {
@@ -55,8 +55,6 @@ impl Module {
             live_module.constants.push(value);
         }
 
-        live_module.debug_info = module.debug_info().map(ToOwned::to_owned);
-
         for function in module.functions() {
             live_module
                 .prototypes
@@ -73,8 +71,8 @@ impl Module {
         self.prototypes[0]
     }
 
-    pub fn debug_info(&self) -> Option<&ModuleDebug> {
-        self.debug_info.as_ref()
+    pub fn id(&self) -> Option<InputId> {
+        self.id
     }
 
     pub fn constant(&self, index: Index<Constant>) -> Option<Value> {
@@ -128,7 +126,7 @@ impl InitFrom<()> for Module {
     }
 
     unsafe fn init(ptr: *mut Self, _args: ()) {
-        addr_of_mut!((*ptr).debug_info).write(None);
+        addr_of_mut!((*ptr).id).write(None);
         addr_of_mut!((*ptr).constants).write(Vec::new());
         addr_of_mut!((*ptr).prototypes).write(Vec::new());
     }

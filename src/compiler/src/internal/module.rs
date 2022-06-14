@@ -5,7 +5,7 @@ use syntax::{Identifier, Syntax};
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Function, Local, Module, ModuleDebug, Op,
+    Capture, Constant, Function, Local, Module, Op,
 };
 
 pub struct ModuleBuilder {
@@ -58,12 +58,10 @@ impl ModuleBuilder {
 
         functions[Module::MAIN.as_usize()] = main;
 
-        let debug_info = ModuleDebug::new(self);
-
         Module {
+            input: None,
             constants: self.constants.as_vec(),
             functions,
-            debug_info: Some(debug_info),
         }
     }
 

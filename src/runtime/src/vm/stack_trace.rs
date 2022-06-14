@@ -2,8 +2,6 @@
 
 use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 
-use compiler::ModuleDebug;
-
 use crate::{
     classes::Function,
     vm::{call_stack::CallFrame, VirtualMachine},
@@ -18,11 +16,7 @@ impl VirtualMachine {
     ) {
         let mut d = Diagnostic::new(error.to_string());
 
-        let id = self
-            .current_closure()
-            .module()
-            .debug_info()
-            .and_then(ModuleDebug::input_id);
+        let id = self.current_closure().module().id();
 
         d.set_input(id);
 

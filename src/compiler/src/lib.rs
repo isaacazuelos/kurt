@@ -11,7 +11,7 @@ pub mod error;
 
 pub use crate::{
     constant::Constant,
-    debug::{FunctionDebug, ModuleDebug},
+    debug::FunctionDebug,
     function::Function,
     internal::{Capture, Local, ModuleBuilder},
     module::Module,
