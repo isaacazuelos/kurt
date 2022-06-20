@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use common::{i48, u48, Index};
 
-use crate::{Capture, Constant, Function, Local};
+use crate::{Capture, Constant, Export, Function, Local};
 
 type Offset = i32;
 
@@ -61,6 +61,9 @@ pub enum Op {
     LoadConstant(Index<Constant>),
 
     // ## Loading other kinds of values
+  
+    /// Load a top-level exported binding from this module.
+    LoadExport(Index<Export>),
 
     /// Load a local binding.
     LoadLocal(Index<Local>),
@@ -76,6 +79,11 @@ pub enum Op {
     LoadFunction(Index<Function>),
 
     // ## Assignment
+
+    /// Set the value of a local binding. Note that all bindings exists as soon
+    /// as the module is loaded and they're set to `()`, but they can't be 
+    /// accessed yet.
+    SetExport(Index<Export>), 
 
     /// Set the value of a local binding.
     SetLocal(Index<Local>),
@@ -206,6 +214,7 @@ impl Display for Op {
             // We only need to match the ones with embedded arguments
             Op::LoadConstant(i) => write!(f, "LoadConstant {}", i.as_usize()),
             Op::LoadLocal(i) => write!(f, "LoadLocal {}", i.as_usize()),
+            Op::LoadExport(i) => write!(f, "LoadExport {}", i.as_usize()),
             Op::LoadFunction(i) => write!(f, "LoadClosure {}", i.as_usize()),
             Op::Call(i) => write!(f, "Call {}", i),
             Op::Jump(i) => write!(f, "Jump {}", i),

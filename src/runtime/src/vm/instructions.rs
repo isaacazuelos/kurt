@@ -1,7 +1,7 @@
 //! The virtual machine's big dispatch loop
 
 use common::{i48, Get, Index};
-use compiler::{Capture, Constant, Local, Op};
+use compiler::{Capture, Constant, Export, Local, Op};
 
 use crate::{
     classes::{Function, Keyword, List, Tuple},
@@ -44,6 +44,7 @@ impl VirtualMachine {
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,
                 Op::LoadFunction(i) => self.load_function(i)?,
+                Op::LoadExport(i) => self.load_export(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
@@ -51,6 +52,7 @@ impl VirtualMachine {
                 Op::SetLocal(i) => self.set_local(i)?,
                 Op::SetCapture(i) => self.set_capture(i)?,
                 Op::SetIndex => self.set_index()?,
+                Op::SetExport(i) => self.set_export(i)?,
 
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
@@ -108,9 +110,10 @@ impl VirtualMachine {
     #[inline]
     fn close_captures_above(&mut self, top: Index<Stack>) {
         while let Some(cell) = self.open_captures.pop_if_above(top) {
-            let index = cell
-                .stack_index()
-                .expect("cells in the open list should be open, and therefor have a stack index");
+            let index = cell.stack_index().expect(
+                "cells in the open list should be open, \
+                        and so must have a stack index",
+            );
             let value = self.stack[index];
             cell.close(value);
         }
@@ -171,12 +174,32 @@ impl VirtualMachine {
     #[inline]
     fn load_constant(&mut self, index: Index<Constant>) -> Result<()> {
         let constant = self
-            .current_closure()
-            .module()
+            .current_module()
             .constant(index)
             .expect("constant index out of range");
 
         self.stack.push(constant);
+        Ok(())
+    }
+
+    /// Load an exported value from the current module to the top of the stack.
+    #[inline]
+    fn load_export(&mut self, index: Index<Export>) -> Result<()> {
+        let module = self.current_module();
+        self.stack.push(module.export(index));
+        Ok(())
+    }
+
+    /// Set an exported value from the current module to the value on the top
+    /// of the stack. The value is left in place.
+    #[inline]
+    fn set_export(&mut self, index: Index<Export>) -> Result<()> {
+        let module = self.current_module();
+        let value = *self
+            .stack
+            .last()
+            .expect("Cannot SetExport with empty stack");
+        module.set_export(index, value);
         Ok(())
     }
 

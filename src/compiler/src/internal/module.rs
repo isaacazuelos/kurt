@@ -5,7 +5,7 @@ use syntax::{Identifier, Syntax};
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Function, Local, Module, Op,
+    Capture, Constant, Export, Function, Local, Module, Op,
 };
 
 pub struct ModuleBuilder {
@@ -21,6 +21,9 @@ pub struct ModuleBuilder {
 
     /// Code is compiled into [`Function`]s which are kept here once complete.
     functions: Vec<Function>,
+
+    /// Exported values
+    exports: Vec<Export>,
 }
 
 impl Default for ModuleBuilder {
@@ -30,6 +33,7 @@ impl Default for ModuleBuilder {
             constants: Default::default(),
             compiling: Default::default(),
             functions: Default::default(),
+            exports: Default::default(),
         };
 
         compiler.prime();
@@ -58,10 +62,13 @@ impl ModuleBuilder {
 
         functions[Module::MAIN.as_usize()] = main;
 
+        let exports = self.exports.iter().map(|e| e.name().into()).collect();
+
         Module {
             input: None,
             constants: self.constants.as_vec(),
             functions,
+            exports,
         }
     }
 
@@ -196,6 +203,11 @@ impl ModuleBuilder {
     pub(crate) fn current_function_mut(&mut self) -> &mut FunctionBuilder {
         self.compiling.last_mut().unwrap()
     }
+
+    /// Is the module compiling it's top-level code in it's `main`?
+    pub(crate) fn on_main_top_level(&self) -> bool {
+        (self.compiling.len() == 1) && (self.compiling[0].on_top_level())
+    }
 }
 
 pub(crate) struct PatchObligation;
@@ -273,8 +285,47 @@ impl ModuleBuilder {
             .bind_local(Local::new(id.as_str(), id.span()))
     }
 
+    pub(crate) fn bind_export(
+        &mut self,
+        id: &Identifier,
+    ) -> Result<Index<Export>, Error> {
+        debug_assert!(
+            self.on_main_top_level(),
+            "new exports can only be bound from the top level of main"
+        );
+
+        // you cannot shadow exported values
+        if let Some(index) = self.resolve_export(id.as_str()) {
+            let previous = self.exports[index.as_usize()].span();
+            return Err(Error::ShadowExport(id.span(), previous));
+        }
+
+        let index = self.exports.len();
+        if index >= Index::<Export>::MAX as usize {
+            return Err(Error::TooManyExports(id.span()));
+        }
+
+        self.exports.push(Export::new(id.as_str(), id.span()));
+
+        Ok(Index::new(index as u32))
+    }
+
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         self.current_function_mut().resolve_local(name)
+    }
+
+    pub(crate) fn resolve_export(
+        &mut self,
+        name: &str,
+    ) -> Option<Index<Export>> {
+        for (i, e) in self.exports.iter().enumerate() {
+            if e.name() == name {
+                // won't overflow, as bind_export keeps us under the max
+                return Some(Index::new(i as u32));
+            }
+        }
+
+        None
     }
 
     pub(crate) fn resolve_recursive(&self, syntax: &Identifier) -> bool {

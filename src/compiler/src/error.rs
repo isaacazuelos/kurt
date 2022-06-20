@@ -14,11 +14,12 @@ pub enum Error {
     ParseInt(Span, std::num::ParseIntError),
     ParseFloat(Span),
 
-    MutationNotSupported(Span),
+    VarNotSupported(Span),
     RecNotFunction(Span, Span),
     EarlyExitKindNotSupported(Span),
     NotALegalAssignmentTarget(Span),
     ContinueWithValue(Span),
+    ShadowExport(Span, Span),
 
     JumpTooFar(Span),
 
@@ -33,6 +34,7 @@ pub enum Error {
     TooManyParameters(Span),
     TooManyFunctions(Span),
     TooManyLocals(Span),
+    TooManyExports(Span),
 }
 
 impl fmt::Display for Error {
@@ -50,8 +52,8 @@ impl fmt::Display for Error {
                 write!(f, "cannot parse floating-point number")
             }
 
-            MutationNotSupported(_) => {
-                write!(f, "mutation with `var` isn't implemented yet")
+            VarNotSupported(_) => {
+                write!(f, "bindings are created with `let`, not `var`")
             }
             RecNotFunction(_, _) => {
                 write!(f, "recursive bindings only supported on functions")
@@ -65,9 +67,11 @@ impl fmt::Display for Error {
             ContinueWithValue(_) => {
                 write!(f, "a `continue` cannot take a value")
             }
+            ShadowExport(_,_) => write!(f, "cannot shadow exported value"),
             JumpTooFar(_) => {
                 write!(f, "this code needs to jump too far")
             }
+            
 
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
 
@@ -97,6 +101,9 @@ impl fmt::Display for Error {
             TooManyLocals(_) => {
                 write!(f, "this function has too many local bindings")
             }
+            TooManyExports(_) => {
+                write!(f, "this module has to many exported bindings")
+            }
         }
     }
 }
@@ -109,11 +116,12 @@ impl Error {
             Error::ParseChar(s) => *s,
             Error::ParseInt(s, _) => *s,
             Error::ParseFloat(s) => *s,
-            Error::MutationNotSupported(s) => *s,
+            Error::VarNotSupported(s) => *s,
             Error::RecNotFunction(_, s) => *s,
             Error::EarlyExitKindNotSupported(s) => *s,
             Error::NotALegalAssignmentTarget(s) => *s,
             Error::ContinueWithValue(s) => *s,
+            Error::ShadowExport(s, _) => *s,
             Error::JumpTooFar(s) => *s,
             Error::UndefinedLocal(s) => *s,
             Error::UndefinedPrefix(s) => *s,
@@ -125,6 +133,7 @@ impl Error {
             Error::TooManyParameters(s) => *s,
             Error::TooManyFunctions(s) => *s,
             Error::TooManyLocals(s) => *s,
+            Error::TooManyExports(s) => *s,
         }
     }
 }
@@ -141,7 +150,7 @@ impl From<Error> for Diagnostic {
             Error::ParseInt(s, e) => Error::parse_int(d, s, e),
             Error::ParseFloat(s) => d.highlight(s, "this number is the issue"),
 
-            Error::MutationNotSupported(s) => Error::no_mutation(s, d),
+            Error::VarNotSupported(s) => Error::var(s, d),
             Error::RecNotFunction(rec, s) => Error::rec_not_function(rec, s, d),
             Error::EarlyExitKindNotSupported(s) => {
                 Error::early_kind_not_supported(s, d)
@@ -150,6 +159,7 @@ impl From<Error> for Diagnostic {
                 Error::not_assignment_target(s, d)
             }
             Error::ContinueWithValue(s) => Error::continue_with_value(s, d),
+            Error::ShadowExport(s, p) => Error::shadow_export(s, p, d),
             Error::JumpTooFar(s) => Error::jump_too_far(s, d),
 
             Error::UndefinedLocal(s)
@@ -165,14 +175,15 @@ impl From<Error> for Diagnostic {
             Error::TooManyParameters(s) => Error::too_many_params(s, d),
             Error::TooManyFunctions(s) => Error::too_many_functions(s, d),
             Error::TooManyLocals(s) => Error::too_many_locals(s, d),
+            Error::TooManyExports(s) => Error::too_many_exports(s, d),
         }
     }
 }
 
 impl Error {
-    fn no_mutation(s: Span, d: Diagnostic) -> Diagnostic {
-        d.highlight(s, "this doesn't work")
-            .help("using `let` instead would declare an immutable variable")
+    fn var(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "use `let` here")
+            .help("use `let` here instead of `var`")
     }
 
     fn rec_not_function(rec: Span, s: Span, d: Diagnostic) -> Diagnostic {
@@ -200,6 +211,11 @@ impl Error {
         d.highlight(s, "this value isn't allowed").info(
             "Unlike `break` or `return`, you can't give a value to `continue`",
         )
+    }
+
+    fn shadow_export(s: Span, p: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(p, "this is top-level binding is exported, and cannot be shadowed")
+            .highlight(s, "this binding is shadowing the previous one")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {
@@ -254,6 +270,13 @@ impl Error {
                 Function::MAX_BINDINGS - 1,
             ))
             .info("both function parameters and `let` bindings count")
+    }
+
+    fn too_many_exports(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this binding is the culprit").info(format!(
+            "each module can only have {} top-level exported bindings",
+            Function::MAX_BINDINGS - 1,
+        ))
     }
 
     fn parse_int(

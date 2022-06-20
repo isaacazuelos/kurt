@@ -70,10 +70,13 @@ impl VirtualMachine {
         );
 
         self.load_without_running(new_main_module)?;
+        let old_module = self.current_module();
+        let new_module = *self.modules.last().unwrap();
 
-        // To replace main, we want to stash the instruction index, swap out
-        // the closure, and keep any captures it has.
+        unsafe { Module::steal_exports(new_module, old_module) }
 
+        // To replace main, we want to stash the instruction index, swap out the
+        // closure, and keep any captures it has.
         let old_main: Gc<Function> = self.stack[self.bp()].as_gc().unwrap();
 
         let new_main: Gc<Function> =
@@ -197,6 +200,15 @@ impl VirtualMachine {
     pub fn current_closure(&self) -> Gc<Function> {
         let bp = self.bp();
         self.stack[bp].as_gc().expect("bp not pointing to closure")
+    }
+
+    /// The currently executing module.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if there's no call frame.
+    pub fn current_module(&self) -> Gc<Module> {
+        self.current_closure().module()
     }
 
     /// The program counter is the address of the currently executing piece of

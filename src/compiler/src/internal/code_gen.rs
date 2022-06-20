@@ -69,7 +69,7 @@ impl ModuleBuilder {
     /// ```
     fn binding(&mut self, syntax: &syntax::Binding) -> Result<()> {
         if syntax.is_var() {
-            return Err(Error::MutationNotSupported(syntax.keyword().span()));
+            return Err(Error::VarNotSupported(syntax.keyword().span()));
         }
 
         let name = syntax.name();
@@ -83,10 +83,15 @@ impl ModuleBuilder {
             self.expression(syntax.body())?;
         }
 
-        self.bind_local(name)?;
-
-        // We're keeping this slot on the stack.
-        self.emit(Op::DefineLocal, syntax.span())?;
+        if self.on_main_top_level() {
+            let index = self.bind_export(name)?;
+            self.emit(Op::SetExport(index), syntax.span())?;
+            self.emit(Op::Unit, syntax.span())?;
+        } else {
+            self.bind_local(name)?;
+            // We're keeping this slot on the stack.
+            self.emit(Op::DefineLocal, syntax.span())?;
+        }
 
         Ok(())
     }
@@ -255,6 +260,8 @@ impl ModuleBuilder {
             Ok(Op::SetLocal(local))
         } else if let Some(capture) = self.resolve_capture(syntax)? {
             Ok(Op::SetCapture(capture))
+        } else if let Some(export) = self.resolve_export(syntax.as_str()) {
+            Ok(Op::SetExport(export))
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
         }
@@ -445,6 +452,8 @@ impl ModuleBuilder {
             self.emit(Op::LoadSelf, syntax.span())
         } else if let Some(index) = self.resolve_capture(syntax)? {
             self.emit(Op::LoadCapture(index), syntax.span())
+        } else if let Some(index) = self.resolve_export(syntax.as_str()) {
+            self.emit(Op::LoadExport(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
         }

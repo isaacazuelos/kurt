@@ -6,7 +6,9 @@ use crate::{Function, Module, Op};
 
 impl Display for Module {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "module {{")?;
+        writeln!(f, "module {{")?;
+
+        self.display_exports(f)?;
 
         if !self.functions.is_empty() {
             writeln!(f)?;
@@ -17,6 +19,18 @@ impl Display for Module {
         }
 
         write!(f, "}}")
+    }
+}
+
+impl Module {
+    fn display_exports(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "export {{ ")?;
+
+        for export in &self.exports {
+            write!(f, "{}, ", export)?;
+        }
+
+        writeln!(f, " }}")
     }
 }
 

@@ -2,6 +2,7 @@
 
 mod constant;
 mod debug;
+mod export;
 mod function;
 mod internal;
 mod module;
@@ -12,6 +13,7 @@ pub mod error;
 pub use crate::{
     constant::Constant,
     debug::FunctionDebug,
+    export::Export,
     function::Function,
     internal::{Capture, Local, ModuleBuilder},
     module::Module,

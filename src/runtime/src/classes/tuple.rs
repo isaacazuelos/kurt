@@ -21,7 +21,7 @@ pub struct Tuple {
 
 impl Tuple {
     pub fn len(&self) -> usize {
-        todo!()
+        self.elements.borrow().len()
     }
 
     pub fn is_empty(&self) -> bool {

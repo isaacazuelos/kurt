@@ -36,7 +36,8 @@ mod let_bindings {
     test_eval! { let_return_unit, "let x = 1", "()" }
     test_eval! { let_local_lookup, "let x = 1; x", "1" }
     test_eval! { let_local_twice, "let x = 1; let y = 2; x", "1" }
-    test_eval! { let_local_shadow, "let x = 1; let x = 2; x", "2" }
+    // in a block so they're not exports
+    test_eval! { let_local_shadow, "{ let x = 1; let x = 2; x }", "2" }
     test_eval! { let_local_complex, "let x = 1; 100; ;;; let y = 2; x; 10; y", "2" }
 }
 

@@ -3,12 +3,13 @@
 //! For now it's just a GC wrapper around [`compiler::Module`].
 
 use std::{
+    cell::RefCell,
     fmt::{self, Debug, Formatter},
     ptr::addr_of_mut,
 };
 
 use common::{Get, Index};
-use compiler::Constant;
+use compiler::{Constant, Export};
 use diagnostic::InputId;
 
 use crate::{
@@ -26,6 +27,7 @@ pub struct Module {
     id: Option<InputId>,
     constants: Vec<Value>,
     prototypes: Vec<Gc<Prototype>>,
+    exports: RefCell<Vec<Value>>,
 }
 
 impl Module {
@@ -60,6 +62,23 @@ impl Module {
                 .prototypes
                 .push(vm.make_from((gc, function.to_owned())))
         }
+
+        // We create and set the right number of exports to `()` so that we
+        // don't need to worry about bounds checks while the module's `main`
+        // is being run.
+        live_module
+            .exports
+            .replace(vec![Value::UNIT; module.export_count()]);
+    }
+
+    pub(crate) unsafe fn steal_exports(new: Gc<Module>, old: Gc<Module>) {
+        assert!(old.exports.borrow().len() <= new.exports.borrow().len());
+       
+        for i in 0..old.exports.borrow().len() {
+            let index = Index::new(i as _);
+            let export = old.export(index);
+            new.set_export(index, export);  
+        }
     }
 
     pub fn main(&self) -> Gc<Prototype> {
@@ -77,6 +96,14 @@ impl Module {
 
     pub fn constant(&self, index: Index<Constant>) -> Option<Value> {
         self.constants.get(index.as_usize()).copied()
+    }
+
+    pub fn export(&self, index: Index<Export>) -> Value {
+        self.exports.borrow()[index.as_usize()]
+    }
+
+    pub fn set_export(&self, index: Index<Export>, value: Value) {
+        self.exports.borrow_mut()[index.as_usize()] = value;
     }
 }
 
@@ -129,5 +156,6 @@ impl InitFrom<()> for Module {
         addr_of_mut!((*ptr).id).write(None);
         addr_of_mut!((*ptr).constants).write(Vec::new());
         addr_of_mut!((*ptr).prototypes).write(Vec::new());
+        addr_of_mut!((*ptr).exports).write(RefCell::new(Vec::new()));
     }
 }

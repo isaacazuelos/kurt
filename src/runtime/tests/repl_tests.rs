@@ -56,7 +56,7 @@ fn simple_resume() {
 }
 
 #[test]
-fn locals() {
+fn bindings() {
     let mut main = ModuleBuilder::default().input("let x = 1;").unwrap();
     let mut vm = VirtualMachine::default();
 

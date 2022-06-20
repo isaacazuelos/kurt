@@ -317,6 +317,10 @@ impl FunctionBuilder {
             panic!("not in loop error")
         }
     }
+
+    pub(crate) fn on_top_level(&self) -> bool {
+        self.scopes.len() == 1
+    }
 }
 
 impl Get<Op> for FunctionBuilder {

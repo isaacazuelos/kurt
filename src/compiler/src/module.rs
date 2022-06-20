@@ -12,6 +12,7 @@ pub struct Module {
     pub(crate) input: Option<InputId>,
     pub(crate) constants: Vec<Constant>,
     pub(crate) functions: Vec<Function>,
+    pub(crate) exports: Vec<String>,
 }
 
 impl Module {
@@ -32,6 +33,10 @@ impl Module {
 
     pub fn functions(&self) -> &[Function] {
         &self.functions
+    }
+
+    pub fn export_count(&self) -> usize {
+        self.exports.len()
     }
 }
 
