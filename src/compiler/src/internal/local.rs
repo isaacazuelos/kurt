@@ -6,15 +6,17 @@ pub struct Local {
     name: String,
     span: Span,
     is_captured: bool,
+    is_var: bool,
 }
 
 impl Local {
     /// Crate a new local binding definition.
-    pub fn new(name: &str, span: Span) -> Local {
+    pub fn new(name: &str, span: Span, var: bool) -> Local {
         Local {
             name: name.into(),
             span,
             is_captured: false,
+            is_var: var,
         }
     }
 
@@ -33,6 +35,10 @@ impl Local {
         self.is_captured
     }
 
+    pub fn is_var(&self) -> bool {
+        self.is_var
+    }
+
     pub fn capture(&mut self) {
         self.is_captured = true;
     }
@@ -44,6 +50,7 @@ impl<'a> From<&Identifier> for Local {
             name: id.as_str().into(),
             span: id.span(),
             is_captured: false,
+            is_var: false,
         }
     }
 }

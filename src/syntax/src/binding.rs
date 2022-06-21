@@ -15,6 +15,7 @@ use super::*;
 /// [`Binding`] := `let`[`Identifier`] `=` [`Expression`]  
 #[derive(Debug)]
 pub struct Binding<'a> {
+    is_pub: Option<Span>,
     keyword: Token<'a>,
     rec: Option<Span>,
     name: Identifier,
@@ -36,6 +37,11 @@ impl Binding<'_> {
     /// Is this a `let` binding?
     pub fn is_let(&self) -> bool {
         self.keyword.kind() == Kind::Reserved(Reserved::Let)
+    }
+
+    /// Is this a `pub` binding?
+    pub fn is_pub(&self) -> bool {
+        self.is_pub.is_some()
     }
 
     // Is this binding recursive, i.e. did it have a `rec` keyword?
@@ -66,7 +72,11 @@ impl Binding<'_> {
 
 impl Syntax for Binding<'_> {
     fn span(&self) -> Span {
-        self.keyword.span() + self.body.span()
+        if let Some(is_pub) = self.is_pub {
+            is_pub + self.body.span()
+        } else {
+            self.keyword.span() + self.body.span()
+        }
     }
 }
 
@@ -74,6 +84,10 @@ impl<'a> Parse<'a> for Binding<'a> {
     type SyntaxError = SyntaxError;
 
     fn parse_with(parser: &mut Parser<'a>) -> SyntaxResult<Binding<'a>> {
+        let is_pub = parser
+            .consume(TokenKind::Reserved(Reserved::Pub))
+            .map(|t| t.span());
+
         let keyword = parser
             .consume_if(|t| {
                 matches!(
@@ -105,6 +119,7 @@ impl<'a> Parse<'a> for Binding<'a> {
         let body = parser.parse()?;
 
         Ok(Binding {
+            is_pub,
             keyword,
             rec,
             name,
@@ -119,6 +134,15 @@ mod parser_tests {
     use super::*;
 
     #[test]
+    fn test_put() {
+        let mut parser = Parser::new("pub let x = x").unwrap();
+        let binding = parser.parse::<Binding>();
+        assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
+        assert!(binding.unwrap().is_pub());
+        assert!(parser.is_empty());
+    }
+
+    #[test]
     fn test_let() {
         let mut parser = Parser::new("let x = x").unwrap();
         let binding = parser.parse::<Binding>();
@@ -128,9 +152,10 @@ mod parser_tests {
 
     #[test]
     fn test_var() {
-        let mut parser = Parser::new("let x = x").unwrap();
+        let mut parser = Parser::new("var x = x").unwrap();
         let binding = parser.parse::<Binding>();
         assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
+        assert!(binding.unwrap().is_var());
         assert!(parser.is_empty());
     }
 
@@ -139,6 +164,7 @@ mod parser_tests {
         let mut parser = Parser::new("let rec x = x").unwrap();
         let binding = parser.parse::<Binding>();
         assert!(binding.is_ok(), "binding expected, but got {:?}", binding);
+        assert!(binding.unwrap().is_rec());
         assert!(parser.is_empty());
     }
 }

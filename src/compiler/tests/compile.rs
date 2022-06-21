@@ -40,9 +40,17 @@ mod statements_and_scopes {
     test_compile! { binding, "let x = 1;" }
     test_compile! { out_of_scope_shadow, "let x = 0; { let x = 1; }; x" }
 
-    test_no_compile! { shadow_export, "let x = 1; let x = 2;"}
     test_no_compile! { out_of_scope, "{ let x = 1; }; x" }
     test_no_compile! { missing_binding, "missing" }
+}
+
+mod exports {
+    test_compile! { let_export, "pub let x = 1;" }
+    test_compile! { var_export, "pub var x = 1;" }
+    test_compile! { rec_export, "pub let rec f = (x) => f(x);"}
+
+    test_no_compile! { shadow_export, "pub let x = 1; pub let x = 2;"}
+    test_no_compile! { scoped_export, " { pub let x = 1; } "}
 }
 
 mod functions {

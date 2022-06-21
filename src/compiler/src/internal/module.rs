@@ -153,6 +153,13 @@ impl ModuleBuilder {
             Ok(())
         }
     }
+
+    pub(crate) fn get_export_mut(
+        &mut self,
+        index: Index<Export>,
+    ) -> &mut Export {
+        &mut self.exports[index.as_usize()]
+    }
 }
 
 impl ModuleBuilder {
@@ -280,9 +287,16 @@ impl ModuleBuilder {
         }
     }
 
-    pub(crate) fn bind_local(&mut self, id: &Identifier) -> Result<(), Error> {
-        self.current_function_mut()
-            .bind_local(Local::new(id.as_str(), id.span()))
+    pub(crate) fn bind_local(
+        &mut self,
+        id: &Identifier,
+        var: bool,
+    ) -> Result<(), Error> {
+        self.current_function_mut().bind_local(Local::new(
+            id.as_str(),
+            id.span(),
+            var,
+        ))
     }
 
     pub(crate) fn bind_export(

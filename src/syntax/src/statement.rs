@@ -46,9 +46,9 @@ impl<'a> Parse<'a> for Statement<'a> {
                 Ok(Statement::Empty(parser.next_span()))
             }
 
-            Some(TokenKind::Reserved(Reserved::Var | Reserved::Let)) => {
-                Ok(Statement::Binding(parser.parse()?))
-            }
+            Some(TokenKind::Reserved(
+                Reserved::Var | Reserved::Let | Reserved::Pub,
+            )) => Ok(Statement::Binding(parser.parse()?)),
 
             Some(TokenKind::Reserved(Reserved::If)) => {
                 let if_only: IfOnly = parser.parse()?;

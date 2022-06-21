@@ -5,6 +5,7 @@ use diagnostic::Span;
 pub struct Export {
     name: String,
     span: Span,
+    is_var: bool,
 }
 
 impl Export {
@@ -12,6 +13,7 @@ impl Export {
         Export {
             name: name.into(),
             span,
+            is_var: false,
         }
     }
 
@@ -21,5 +23,13 @@ impl Export {
 
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn is_var(&self) -> bool {
+        self.is_var
+    }
+
+    pub fn set_var(&mut self, is_var: bool) {
+        self.is_var = is_var;
     }
 }

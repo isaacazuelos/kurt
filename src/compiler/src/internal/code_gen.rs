@@ -62,16 +62,11 @@ impl ModuleBuilder {
         }
     }
 
-    /// Compile a binding statement, something like `let a = b` or `var x = y`.
+    /// Compile a binding statement, like `pub let rec x = y`.
     ///
-    /// ```text
-    ///   DefineLocal
-    /// ```
+    /// The code that's generated depends on the keyword soup used in the
+    /// declaration.
     fn binding(&mut self, syntax: &syntax::Binding) -> Result<()> {
-        if syntax.is_var() {
-            return Err(Error::VarNotSupported(syntax.keyword().span()));
-        }
-
         let name = syntax.name();
 
         // if it's a function, we want to let that function know it's name.
@@ -83,12 +78,18 @@ impl ModuleBuilder {
             self.expression(syntax.body())?;
         }
 
-        if self.on_main_top_level() {
-            let index = self.bind_export(name)?;
-            self.emit(Op::SetExport(index), syntax.span())?;
-            self.emit(Op::Unit, syntax.span())?;
+        if syntax.is_pub() {
+            if self.on_main_top_level() {
+                let index = self.bind_export(name)?;
+                self.get_export_mut(index).set_var(syntax.is_var());
+
+                self.emit(Op::SetExport(index), syntax.span())?;
+                self.emit(Op::Unit, syntax.span())?;
+            } else {
+                return Err(Error::PubNotTopLevel(syntax.span()));
+            }
         } else {
-            self.bind_local(name)?;
+            self.bind_local(name, syntax.is_var())?;
             // We're keeping this slot on the stack.
             self.emit(Op::DefineLocal, syntax.span())?;
         }
@@ -422,7 +423,8 @@ impl ModuleBuilder {
             }
 
             for parameter in syntax.elements() {
-                self.bind_local(parameter.name())?;
+                // no var params, yet?
+                self.bind_local(parameter.name(), false)?;
             }
 
             self.expression(syntax.body())?;

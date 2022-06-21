@@ -20,6 +20,7 @@ pub enum Error {
     NotALegalAssignmentTarget(Span),
     ContinueWithValue(Span),
     ShadowExport(Span, Span),
+    PubNotTopLevel(Span),
 
     JumpTooFar(Span),
 
@@ -67,11 +68,14 @@ impl fmt::Display for Error {
             ContinueWithValue(_) => {
                 write!(f, "a `continue` cannot take a value")
             }
-            ShadowExport(_,_) => write!(f, "cannot shadow exported value"),
+            ShadowExport(_, _) => write!(f, "cannot shadow exported value"),
             JumpTooFar(_) => {
                 write!(f, "this code needs to jump too far")
             }
-            
+            PubNotTopLevel(_) => write!(
+                f,
+                "bindings which are `pub` must be at the top-level scope"
+            ),
 
             UndefinedLocal(_) => write!(f, "no value with this name in scope"),
 
@@ -112,28 +116,29 @@ impl error::Error for Error {}
 
 impl Error {
     fn span(&self) -> Span {
-        match self {
-            Error::ParseChar(s) => *s,
-            Error::ParseInt(s, _) => *s,
-            Error::ParseFloat(s) => *s,
-            Error::VarNotSupported(s) => *s,
-            Error::RecNotFunction(_, s) => *s,
-            Error::EarlyExitKindNotSupported(s) => *s,
-            Error::NotALegalAssignmentTarget(s) => *s,
-            Error::ContinueWithValue(s) => *s,
-            Error::ShadowExport(s, _) => *s,
-            Error::JumpTooFar(s) => *s,
-            Error::UndefinedLocal(s) => *s,
-            Error::UndefinedPrefix(s) => *s,
-            Error::UndefinedInfix(s) => *s,
-            Error::UndefinedPostfix(s) => *s,
-            Error::TooManyArguments(s) => *s,
-            Error::TooManyConstants(s) => *s,
-            Error::TooManyOps(s) => *s,
-            Error::TooManyParameters(s) => *s,
-            Error::TooManyFunctions(s) => *s,
-            Error::TooManyLocals(s) => *s,
-            Error::TooManyExports(s) => *s,
+        *match self {
+            Error::ParseChar(s) => s,
+            Error::ParseInt(s, _) => s,
+            Error::ParseFloat(s) => s,
+            Error::VarNotSupported(s) => s,
+            Error::RecNotFunction(_, s) => s,
+            Error::EarlyExitKindNotSupported(s) => s,
+            Error::NotALegalAssignmentTarget(s) => s,
+            Error::ContinueWithValue(s) => s,
+            Error::ShadowExport(s, _) => s,
+            Error::JumpTooFar(s) => s,
+            Error::PubNotTopLevel(s) => s,
+            Error::UndefinedLocal(s) => s,
+            Error::UndefinedPrefix(s) => s,
+            Error::UndefinedInfix(s) => s,
+            Error::UndefinedPostfix(s) => s,
+            Error::TooManyArguments(s) => s,
+            Error::TooManyConstants(s) => s,
+            Error::TooManyOps(s) => s,
+            Error::TooManyParameters(s) => s,
+            Error::TooManyFunctions(s) => s,
+            Error::TooManyLocals(s) => s,
+            Error::TooManyExports(s) => s,
         }
     }
 }
@@ -161,6 +166,7 @@ impl From<Error> for Diagnostic {
             Error::ContinueWithValue(s) => Error::continue_with_value(s, d),
             Error::ShadowExport(s, p) => Error::shadow_export(s, p, d),
             Error::JumpTooFar(s) => Error::jump_too_far(s, d),
+            Error::PubNotTopLevel(s) => Error::pub_not_top_level(s, d),
 
             Error::UndefinedLocal(s)
             | Error::UndefinedPrefix(s)
@@ -213,9 +219,20 @@ impl Error {
         )
     }
 
+    fn pub_not_top_level(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(
+            s,
+            "this binding is not at the top level scope, and is marked `pub`",
+        )
+        .info("only top-level bindings can be exported with `pub`")
+    }
+
     fn shadow_export(s: Span, p: Span, d: Diagnostic) -> Diagnostic {
-        d.highlight(p, "this is top-level binding is exported, and cannot be shadowed")
-            .highlight(s, "this binding is shadowing the previous one")
+        d.highlight(
+            p,
+            "this is top-level binding is exported, and cannot be shadowed",
+        )
+        .highlight(s, "this binding is shadowing the previous one")
     }
 
     fn too_many_ops(s: Span, d: Diagnostic) -> Diagnostic {
