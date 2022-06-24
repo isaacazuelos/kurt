@@ -24,11 +24,13 @@ pub enum Statement<'a> {
     Empty(Span),
     Expression(Expression<'a>),
     If(IfOnly<'a>),
+    Import(Import),
 }
 
 impl<'a> Syntax for Statement<'a> {
     fn span(&self) -> Span {
         match self {
+            Statement::Import(i) => i.span(),
             Statement::Binding(b) => b.span(),
             Statement::Empty(s) => *s,
             Statement::Expression(s) => s.span(),
@@ -49,6 +51,10 @@ impl<'a> Parse<'a> for Statement<'a> {
             Some(TokenKind::Reserved(
                 Reserved::Var | Reserved::Let | Reserved::Pub,
             )) => Ok(Statement::Binding(parser.parse()?)),
+
+            Some(TokenKind::Reserved(Reserved::Import)) => {
+                Ok(Statement::Import(parser.parse()?))
+            }
 
             Some(TokenKind::Reserved(Reserved::If)) => {
                 let if_only: IfOnly = parser.parse()?;
@@ -132,6 +138,18 @@ mod parser_tests {
         assert!(
             matches!(syntax, Ok(Statement::Expression(Expression::If(_)))),
             "expected If expression, but got {:#?}",
+            syntax
+        );
+        assert!(parser.is_empty());
+    }
+
+    #[test]
+    fn parse_import() {
+        let mut parser = Parser::new("import std").unwrap();
+        let syntax = parser.parse::<Statement>();
+        assert!(
+            matches!(syntax, Ok(Statement::Import(_))),
+            "expected an Import statement, but got {:#?}",
             syntax
         );
         assert!(parser.is_empty());

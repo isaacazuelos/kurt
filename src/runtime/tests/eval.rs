@@ -16,6 +16,23 @@ macro_rules! test_eval {
     };
 }
 
+macro_rules! test_eval_panic {
+    ($name: ident, $input: expr, $expected: expr) => {
+        #[test]
+        #[should_panic]
+        fn $name() {
+            use compiler::Module;
+
+            let module = Module::try_from($input).unwrap();
+            let mut rt = runtime::VirtualMachine::default();
+            let exit = rt.load(module);
+            assert!(exit.is_ok(), "exited with {:?}", exit);
+            let actual = rt.last_result();
+            assert_eq!($expected, actual,);
+        }
+    };
+}
+
 mod literals {
     test_eval! { literal_char, "'a'", "'a'" }
     test_eval! { literal_boolean, "true", "true" }
@@ -198,4 +215,8 @@ mod assignment {
     test_eval! { index_assignment, "let x = [1, 2, 3]; x[1] = :yes; x", "[1, :yes, 3]"}
     test_eval! { assign_to_capture, "let x = 0; let inc = () => x = x + 1; inc(); inc(); x", "2"}
     test_eval! { assign_shared_capture, include_str!("./inputs/assign_shared_capture.k"), "20" }
+}
+
+mod imports {
+    test_eval_panic! { import_missing, "import missing;", "()" }
 }

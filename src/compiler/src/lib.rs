@@ -4,6 +4,7 @@ mod constant;
 mod debug;
 mod export;
 mod function;
+mod import;
 mod internal;
 mod module;
 mod opcode;
@@ -15,6 +16,7 @@ pub use crate::{
     debug::FunctionDebug,
     export::Export,
     function::Function,
+    import::Import,
     internal::{Capture, Local, ModuleBuilder},
     module::Module,
     opcode::Op,

@@ -1,7 +1,7 @@
 //! The virtual machine's big dispatch loop
 
 use common::{i48, Get, Index};
-use compiler::{Capture, Constant, Export, Local, Op};
+use compiler::{Capture, Constant, Export, Import, Local, Op};
 
 use crate::{
     classes::{Function, Keyword, List, Tuple},
@@ -45,6 +45,7 @@ impl VirtualMachine {
                 Op::LoadCapture(i) => self.load_capture(i)?,
                 Op::LoadFunction(i) => self.load_function(i)?,
                 Op::LoadExport(i) => self.load_export(i)?,
+                Op::LoadImport(i) => self.load_import(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
@@ -187,6 +188,15 @@ impl VirtualMachine {
     fn load_export(&mut self, index: Index<Export>) -> Result<()> {
         let module = self.current_module();
         self.stack.push(module.export(index));
+        Ok(())
+    }
+
+    /// Load an imported module from the current module, placing it on the top
+    /// of the stack.
+    #[inline]
+    fn load_import(&mut self, index: Index<Import>) -> Result<()> {
+        let module = self.current_module().import(index);
+        self.stack.push(Value::from(module));
         Ok(())
     }
 

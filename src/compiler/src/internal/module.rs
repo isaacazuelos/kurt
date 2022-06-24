@@ -5,7 +5,7 @@ use syntax::{Identifier, Syntax};
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Export, Function, Local, Module, Op,
+    Capture, Constant, Export, Function, Import, Local, Module, Op,
 };
 
 pub struct ModuleBuilder {
@@ -22,7 +22,11 @@ pub struct ModuleBuilder {
     /// Code is compiled into [`Function`]s which are kept here once complete.
     functions: Vec<Function>,
 
-    /// Exported values
+    /// All things imported. While imported names are scoped, the module itself
+    /// knows the details so the runtime linker can connect things.
+    imports: Vec<Import>,
+
+    /// Exported values.
     exports: Vec<Export>,
 }
 
@@ -33,6 +37,7 @@ impl Default for ModuleBuilder {
             constants: Default::default(),
             compiling: Default::default(),
             functions: Default::default(),
+            imports: Default::default(),
             exports: Default::default(),
         };
 
@@ -63,12 +68,14 @@ impl ModuleBuilder {
         functions[Module::MAIN.as_usize()] = main;
 
         let exports = self.exports.iter().map(|e| e.name().into()).collect();
+        let imports = self.imports.clone(); // the whole thing, for now
 
         Module {
             input: None,
             constants: self.constants.as_vec(),
             functions,
             exports,
+            imports,
         }
     }
 
@@ -159,6 +166,25 @@ impl ModuleBuilder {
         index: Index<Export>,
     ) -> &mut Export {
         &mut self.exports[index.as_usize()]
+    }
+
+    pub(crate) fn add_import(
+        &mut self,
+        name: &str,
+        span: Span,
+    ) -> Result<Index<Import>, Error> {
+        if let Some(index) = self.resolve_import(name) {
+            return Ok(index);
+        }
+
+        let len = self.imports.len();
+
+        if len == Index::<Import>::MAX {
+            return Err(Error::TooManyImports(span));
+        } else {
+            self.imports.push(Import::new(name, span));
+            Ok(Index::new(len as _))
+        }
     }
 }
 
@@ -326,6 +352,19 @@ impl ModuleBuilder {
 
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         self.current_function_mut().resolve_local(name)
+    }
+
+    pub(crate) fn resolve_import(
+        &mut self,
+        name: &str,
+    ) -> Option<Index<Import>> {
+        for (i, import) in self.imports.iter().enumerate() {
+            if import.name() == name {
+                return Some(Index::new(i as _));
+            }
+        }
+
+        None
     }
 
     pub(crate) fn resolve_export(

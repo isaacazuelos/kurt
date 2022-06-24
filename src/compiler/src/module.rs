@@ -5,7 +5,7 @@
 use common::Index;
 use diagnostic::InputId;
 
-use crate::{constant::Constant, internal::ModuleBuilder, Function};
+use crate::{constant::Constant, internal::ModuleBuilder, Function, Import};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
@@ -13,6 +13,7 @@ pub struct Module {
     pub(crate) constants: Vec<Constant>,
     pub(crate) functions: Vec<Function>,
     pub(crate) exports: Vec<String>,
+    pub(crate) imports: Vec<Import>,
 }
 
 impl Module {
@@ -27,6 +28,10 @@ impl Module {
     /// The maximum number of constants that a module can contain.
     pub const MAX_CONSTANTS: usize = Index::<Constant>::MAX;
 
+    pub fn input(&self) -> Option<InputId> {
+        self.input
+    }
+
     pub fn constants(&self) -> &[Constant] {
         &self.constants
     }
@@ -37,6 +42,10 @@ impl Module {
 
     pub fn export_count(&self) -> usize {
         self.exports.len()
+    }
+
+    pub fn imports(&self) -> &[Import] {
+        &self.imports
     }
 }
 

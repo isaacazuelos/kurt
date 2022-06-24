@@ -22,6 +22,7 @@ mod expression;
 mod function;
 mod grouping;
 mod ident;
+mod import;
 mod list;
 mod literal;
 mod loops;
@@ -42,6 +43,7 @@ pub use self::{
     function::{Function, Parameter},
     grouping::Grouping,
     ident::Identifier,
+    import::Import,
     list::List,
     literal::{Kind as LiteralKind, Literal},
     loops::{Loop, While},

@@ -23,6 +23,8 @@ pub enum Error {
     IfNoReserved(Span),
     IfNoElse(Span, Span),
 
+    ImportNoKeyword(Span),
+
     FunctionNoOpen(Span),
     FunctionNoClose(Span, Span),
     FunctionNoArrow(Span, Span),
@@ -119,6 +121,8 @@ impl From<Error> for Diagnostic {
 
             Error::IdentifierMissing(span) => Error::identifier_missing(span),
 
+            Error::ImportNoKeyword(span) => Error::import_no_keyword(span),
+
             Error::ListNoOpen(span) => Error::list_no_open(span),
 
             Error::ListNoClose(open, found) => {
@@ -170,6 +174,7 @@ impl Error {
             Error::CallNoClose(_, s) => s,
             Error::EarlyExitNoReservedWord(s) => s,
             Error::ExpressionInvalidStart(s) => s,
+            Error::ImportNoKeyword(s) => s,
             Error::IfNoReserved(s) => s,
             Error::IfNoElse(_, s) => s,
             Error::FunctionNoOpen(s) => s,
@@ -429,5 +434,11 @@ impl Error {
                 "an `(` can be the start of a tuple, closure, `()`, function \
                 definition, or of parenthesis used for grouping",
             )
+    }
+
+    fn import_no_keyword(span: Span) -> Diagnostic {
+        Diagnostic::new("expected `import`")
+            .location(span.start())
+            .highlight(span, "`import` was expected here")
     }
 }

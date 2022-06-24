@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use common::{i48, u48, Index};
 
-use crate::{Capture, Constant, Export, Function, Local};
+use crate::{Capture, Constant, Export, Function, Import, Local};
 
 type Offset = i32;
 
@@ -62,6 +62,9 @@ pub enum Op {
 
     // ## Loading other kinds of values
   
+    /// Load an imported module
+    LoadImport(Index<Import>),
+
     /// Load a top-level exported binding from this module.
     LoadExport(Index<Export>),
 

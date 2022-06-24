@@ -21,6 +21,7 @@ pub enum Error {
     ContinueWithValue(Span),
     ShadowExport(Span, Span),
     PubNotTopLevel(Span),
+    ImportNotTopLevel(Span),
 
     JumpTooFar(Span),
 
@@ -36,6 +37,7 @@ pub enum Error {
     TooManyFunctions(Span),
     TooManyLocals(Span),
     TooManyExports(Span),
+    TooManyImports(Span),
 }
 
 impl fmt::Display for Error {
@@ -72,6 +74,7 @@ impl fmt::Display for Error {
             JumpTooFar(_) => {
                 write!(f, "this code needs to jump too far")
             }
+            ImportNotTopLevel(_) => write!(f, "`import` must be at top-level"),
             PubNotTopLevel(_) => write!(
                 f,
                 "bindings which are `pub` must be at the top-level scope"
@@ -108,6 +111,9 @@ impl fmt::Display for Error {
             TooManyExports(_) => {
                 write!(f, "this module has to many exported bindings")
             }
+            TooManyImports(_) => {
+                write!(f, "this module has to many imported modules")
+            }
         }
     }
 }
@@ -128,6 +134,7 @@ impl Error {
             Error::ShadowExport(s, _) => s,
             Error::JumpTooFar(s) => s,
             Error::PubNotTopLevel(s) => s,
+            Error::ImportNotTopLevel(s) => s,
             Error::UndefinedLocal(s) => s,
             Error::UndefinedPrefix(s) => s,
             Error::UndefinedInfix(s) => s,
@@ -139,6 +146,7 @@ impl Error {
             Error::TooManyFunctions(s) => s,
             Error::TooManyLocals(s) => s,
             Error::TooManyExports(s) => s,
+            Error::TooManyImports(s) => s,
         }
     }
 }
@@ -167,6 +175,7 @@ impl From<Error> for Diagnostic {
             Error::ShadowExport(s, p) => Error::shadow_export(s, p, d),
             Error::JumpTooFar(s) => Error::jump_too_far(s, d),
             Error::PubNotTopLevel(s) => Error::pub_not_top_level(s, d),
+            Error::ImportNotTopLevel(s) => Error::import_not_top_level(s, d),
 
             Error::UndefinedLocal(s)
             | Error::UndefinedPrefix(s)
@@ -182,6 +191,7 @@ impl From<Error> for Diagnostic {
             Error::TooManyFunctions(s) => Error::too_many_functions(s, d),
             Error::TooManyLocals(s) => Error::too_many_locals(s, d),
             Error::TooManyExports(s) => Error::too_many_exports(s, d),
+            Error::TooManyImports(s) => Error::too_many_imports(s, d),
         }
     }
 }
@@ -225,6 +235,11 @@ impl Error {
             "this binding is not at the top level scope, and is marked `pub`",
         )
         .info("only top-level bindings can be exported with `pub`")
+    }
+
+    fn import_not_top_level(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this import is not at the top level scope")
+            .info("import statements must be on the top-level")
     }
 
     fn shadow_export(s: Span, p: Span, d: Diagnostic) -> Diagnostic {
@@ -292,6 +307,13 @@ impl Error {
     fn too_many_exports(s: Span, d: Diagnostic) -> Diagnostic {
         d.highlight(s, "this binding is the culprit").info(format!(
             "each module can only have {} top-level exported bindings",
+            Function::MAX_BINDINGS - 1,
+        ))
+    }
+
+    fn too_many_imports(s: Span, d: Diagnostic) -> Diagnostic {
+        d.highlight(s, "this import is the culprit").info(format!(
+            "each module can only have {} imports.",
             Function::MAX_BINDINGS - 1,
         ))
     }

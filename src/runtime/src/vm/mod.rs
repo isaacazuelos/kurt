@@ -117,6 +117,18 @@ impl VirtualMachine {
             "<stack empty>".into()
         }
     }
+
+    pub fn get_module_by_name(&self, name: &str) -> Option<Gc<Module>> {
+        for module in self.modules() {
+            if let Some(module_name) = module.name().as_gc::<String>() {
+                if module_name.as_str() == name {
+                    return Some(*module);
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl VirtualMachine {

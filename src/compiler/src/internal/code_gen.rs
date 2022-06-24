@@ -55,11 +55,26 @@ impl ModuleBuilder {
     /// top of the stack, without consuming anything.
     fn statement(&mut self, syntax: &syntax::Statement) -> Result<()> {
         match syntax {
+            syntax::Statement::Import(i) => self.import(i),
             syntax::Statement::Binding(b) => self.binding(b),
             syntax::Statement::Empty(span) => self.empty_statement(*span),
             syntax::Statement::Expression(e) => self.expression(e),
             syntax::Statement::If(i) => self.if_only(i),
         }
+    }
+
+    fn import(&mut self, syntax: &syntax::Import) -> Result<()> {
+        // We need to do two things here, make sure the name is bound correctly
+        // in scope, and that the module. I don't really know how ot make these
+        // scoped without changing a lot more so instead they're just limited to
+        // the top-level.
+        if !self.on_main_top_level() {
+            return Err(Error::ImportNotTopLevel(syntax.span()));
+        }
+
+        self.add_import(syntax.name().as_str(), syntax.span())?;
+        self.identifier_expression(syntax.name())?;
+        Ok(())
     }
 
     /// Compile a binding statement, like `pub let rec x = y`.
@@ -456,6 +471,8 @@ impl ModuleBuilder {
             self.emit(Op::LoadCapture(index), syntax.span())
         } else if let Some(index) = self.resolve_export(syntax.as_str()) {
             self.emit(Op::LoadExport(index), syntax.span())
+        } else if let Some(index) = self.resolve_import(syntax.as_str()) {
+            self.emit(Op::LoadImport(index), syntax.span())
         } else {
             Err(Error::UndefinedLocal(syntax.span()))
         }
