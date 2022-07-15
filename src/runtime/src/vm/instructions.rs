@@ -1,7 +1,7 @@
 //! The virtual machine's big dispatch loop
 
 use common::{i48, Get, Index};
-use compiler::{Capture, Constant, Export, Import, Local, Op};
+use compiler::{Capture, Constant, Local, Op};
 
 use crate::{
     classes::{Function, Keyword, List, Tuple},
@@ -44,8 +44,6 @@ impl VirtualMachine {
                 Op::LoadLocal(i) => self.load_local(i)?,
                 Op::LoadCapture(i) => self.load_capture(i)?,
                 Op::LoadFunction(i) => self.load_function(i)?,
-                Op::LoadExport(i) => self.load_export(i)?,
-                Op::LoadImport(i) => self.load_import(i)?,
                 Op::DefineLocal => self.define_local()?,
                 Op::Index => self.binop(Value::index)?,
 
@@ -53,7 +51,6 @@ impl VirtualMachine {
                 Op::SetLocal(i) => self.set_local(i)?,
                 Op::SetCapture(i) => self.set_capture(i)?,
                 Op::SetIndex => self.set_index()?,
-                Op::SetExport(i) => self.set_export(i)?,
 
                 // functions
                 Op::Call(arg_count) => self.call(arg_count)?,
@@ -180,36 +177,6 @@ impl VirtualMachine {
             .expect("constant index out of range");
 
         self.stack.push(constant);
-        Ok(())
-    }
-
-    /// Load an exported value from the current module to the top of the stack.
-    #[inline]
-    fn load_export(&mut self, index: Index<Export>) -> Result<()> {
-        let module = self.current_module();
-        self.stack.push(module.export(index));
-        Ok(())
-    }
-
-    /// Load an imported module from the current module, placing it on the top
-    /// of the stack.
-    #[inline]
-    fn load_import(&mut self, index: Index<Import>) -> Result<()> {
-        let module = self.current_module().import(index);
-        self.stack.push(Value::from(module));
-        Ok(())
-    }
-
-    /// Set an exported value from the current module to the value on the top
-    /// of the stack. The value is left in place.
-    #[inline]
-    fn set_export(&mut self, index: Index<Export>) -> Result<()> {
-        let module = self.current_module();
-        let value = *self
-            .stack
-            .last()
-            .expect("Cannot SetExport with empty stack");
-        module.set_export(index, value);
         Ok(())
     }
 

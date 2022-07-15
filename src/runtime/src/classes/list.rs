@@ -40,7 +40,7 @@ impl List {
         } else if i >= 0 {
             Ok(i as usize)
         } else {
-            Ok(self.len() - (i.abs() as usize))
+            Ok(self.len() - i.unsigned_abs() as usize)
         }
     }
 

@@ -70,10 +70,6 @@ impl VirtualMachine {
         );
 
         self.load_without_running(new_main_module)?;
-        let old_module = self.current_module();
-        let new_module = *self.modules.last().unwrap();
-
-        unsafe { Module::steal_exports(new_module, old_module) }
 
         // To replace main, we want to stash the instruction index, swap out the
         // closure, and keep any captures it has.

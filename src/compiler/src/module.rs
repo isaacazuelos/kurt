@@ -5,15 +5,13 @@
 use common::Index;
 use diagnostic::InputId;
 
-use crate::{constant::Constant, internal::ModuleBuilder, Function, Import};
+use crate::{constant::Constant, internal::ModuleBuilder, Function};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     pub(crate) input: Option<InputId>,
     pub(crate) constants: Vec<Constant>,
     pub(crate) functions: Vec<Function>,
-    pub(crate) exports: Vec<String>,
-    pub(crate) imports: Vec<Import>,
 }
 
 impl Module {
@@ -38,14 +36,6 @@ impl Module {
 
     pub fn functions(&self) -> &[Function] {
         &self.functions
-    }
-
-    pub fn export_count(&self) -> usize {
-        self.exports.len()
-    }
-
-    pub fn imports(&self) -> &[Import] {
-        &self.imports
     }
 }
 

@@ -139,7 +139,7 @@ impl<'a> Parse<'a> for Parameter {
     }
 }
 
-impl<'a> Syntax for Parameter {
+impl Syntax for Parameter {
     fn span(&self) -> Span {
         self.name.span()
     }

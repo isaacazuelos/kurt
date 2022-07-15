@@ -39,7 +39,7 @@ impl Identifier {
     }
 }
 
-impl<'a> Syntax for Identifier {
+impl Syntax for Identifier {
     fn span(&self) -> Span {
         self.span
     }

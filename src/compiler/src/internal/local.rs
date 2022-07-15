@@ -44,7 +44,7 @@ impl Local {
     }
 }
 
-impl<'a> From<&Identifier> for Local {
+impl From<&Identifier> for Local {
     fn from(id: &Identifier) -> Self {
         Local {
             name: id.as_str().into(),

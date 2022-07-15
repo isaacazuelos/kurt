@@ -90,7 +90,10 @@ impl Lexer<'_> {
 
         let e_next = next == Some('e') || next == Some('E');
         let dot_then_number_next = next == Some('.')
-            && self.peek_nth(1).map(|c| c.is_digit(10)).unwrap_or(false);
+            && self
+                .peek_nth(1)
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false);
 
         if e_next || dot_then_number_next {
             self.float()

@@ -5,7 +5,7 @@ use syntax::{Identifier, Syntax};
 use crate::{
     error::Error,
     internal::{ConstantPool, FunctionBuilder},
-    Capture, Constant, Export, Function, Import, Local, Module, Op,
+    Capture, Constant, Function, Local, Module, Op,
 };
 
 pub struct ModuleBuilder {
@@ -21,13 +21,6 @@ pub struct ModuleBuilder {
 
     /// Code is compiled into [`Function`]s which are kept here once complete.
     functions: Vec<Function>,
-
-    /// All things imported. While imported names are scoped, the module itself
-    /// knows the details so the runtime linker can connect things.
-    imports: Vec<Import>,
-
-    /// Exported values.
-    exports: Vec<Export>,
 }
 
 impl Default for ModuleBuilder {
@@ -37,8 +30,6 @@ impl Default for ModuleBuilder {
             constants: Default::default(),
             compiling: Default::default(),
             functions: Default::default(),
-            imports: Default::default(),
-            exports: Default::default(),
         };
 
         compiler.prime();
@@ -67,15 +58,10 @@ impl ModuleBuilder {
 
         functions[Module::MAIN.as_usize()] = main;
 
-        let exports = self.exports.iter().map(|e| e.name().into()).collect();
-        let imports = self.imports.clone(); // the whole thing, for now
-
         Module {
             input: None,
             constants: self.constants.as_vec(),
             functions,
-            exports,
-            imports,
         }
     }
 
@@ -160,32 +146,6 @@ impl ModuleBuilder {
             Ok(())
         }
     }
-
-    pub(crate) fn get_export_mut(
-        &mut self,
-        index: Index<Export>,
-    ) -> &mut Export {
-        &mut self.exports[index.as_usize()]
-    }
-
-    pub(crate) fn add_import(
-        &mut self,
-        name: &str,
-        span: Span,
-    ) -> Result<Index<Import>, Error> {
-        if let Some(index) = self.resolve_import(name) {
-            return Ok(index);
-        }
-
-        let len = self.imports.len();
-
-        if len == Index::<Import>::MAX {
-            return Err(Error::TooManyImports(span));
-        } else {
-            self.imports.push(Import::new(name, span));
-            Ok(Index::new(len as _))
-        }
-    }
 }
 
 impl ModuleBuilder {
@@ -236,11 +196,6 @@ impl ModuleBuilder {
     pub(crate) fn current_function_mut(&mut self) -> &mut FunctionBuilder {
         self.compiling.last_mut().unwrap()
     }
-
-    /// Is the module compiling it's top-level code in it's `main`?
-    pub(crate) fn on_main_top_level(&self) -> bool {
-        (self.compiling.len() == 1) && (self.compiling[0].on_top_level())
-    }
 }
 
 pub(crate) struct PatchObligation;
@@ -253,7 +208,7 @@ impl ModuleBuilder {
             .unwrap()
             .code()
             .next_index()
-            .ok_or_else(|| Error::TooManyOps(span))
+            .ok_or(Error::TooManyOps(span))
     }
 
     pub(crate) fn patch(
@@ -325,60 +280,8 @@ impl ModuleBuilder {
         ))
     }
 
-    pub(crate) fn bind_export(
-        &mut self,
-        id: &Identifier,
-    ) -> Result<Index<Export>, Error> {
-        debug_assert!(
-            self.on_main_top_level(),
-            "new exports can only be bound from the top level of main"
-        );
-
-        // you cannot shadow exported values
-        if let Some(index) = self.resolve_export(id.as_str()) {
-            let previous = self.exports[index.as_usize()].span();
-            return Err(Error::ShadowExport(id.span(), previous));
-        }
-
-        let index = self.exports.len();
-        if index >= Index::<Export>::MAX as usize {
-            return Err(Error::TooManyExports(id.span()));
-        }
-
-        self.exports.push(Export::new(id.as_str(), id.span()));
-
-        Ok(Index::new(index as u32))
-    }
-
     pub(crate) fn resolve_local(&mut self, name: &str) -> Option<Index<Local>> {
         self.current_function_mut().resolve_local(name)
-    }
-
-    pub(crate) fn resolve_import(
-        &mut self,
-        name: &str,
-    ) -> Option<Index<Import>> {
-        for (i, import) in self.imports.iter().enumerate() {
-            if import.name() == name {
-                return Some(Index::new(i as _));
-            }
-        }
-
-        None
-    }
-
-    pub(crate) fn resolve_export(
-        &mut self,
-        name: &str,
-    ) -> Option<Index<Export>> {
-        for (i, e) in self.exports.iter().enumerate() {
-            if e.name() == name {
-                // won't overflow, as bind_export keeps us under the max
-                return Some(Index::new(i as u32));
-            }
-        }
-
-        None
     }
 
     pub(crate) fn resolve_recursive(&self, syntax: &Identifier) -> bool {

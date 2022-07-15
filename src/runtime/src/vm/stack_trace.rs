@@ -1,5 +1,7 @@
 //! Produce a stack trace diagnostic from an error.
 
+use std::fmt::Write;
+
 use diagnostic::{Diagnostic, DiagnosticCoordinator, Level};
 
 use crate::{
@@ -45,10 +47,12 @@ impl VirtualMachine {
 
         let name = prototype.name();
 
-        message.push_str(&format!("{:?}", name));
+        write!(message, "{:?}", name)
+            .expect("write failed while creating error message");
 
         if let Some(span) = debug.and_then(|d| d.span_of(frame.pc())) {
-            message.push_str(&format!(" at {}", span));
+            write!(message, " at {span}")
+                .expect("write failed while creating error message");
         }
 
         let mut d = Diagnostic::new(message);

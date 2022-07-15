@@ -68,7 +68,7 @@ impl Lexer<'_> {
             '/' if self.peek_nth(1) == Some('/') => Ok(self.comment()),
 
             // Numbers and words
-            c if c.is_digit(10) => self.number(),
+            c if c.is_ascii_digit() => self.number(),
             c if is_identifier_start(c) => Ok(self.word()),
             c if is_operator(c) => self.operator(),
 
