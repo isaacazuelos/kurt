@@ -44,15 +44,6 @@ mod statements_and_scopes {
     test_no_compile! { missing_binding, "missing" }
 }
 
-mod exports {
-    test_compile! { let_export, "pub let x = 1;" }
-    test_compile! { var_export, "pub var x = 1;" }
-    test_compile! { rec_export, "pub let rec f = (x) => f(x);"}
-
-    test_no_compile! { shadow_export, "pub let x = 1; pub let x = 2;"}
-    test_no_compile! { scoped_export, " { pub let x = 1; } "}
-}
-
 mod functions {
     test_compile! { function, "(x) => x" }
     test_compile! { call, "let id = (x) => x; id(1)" }
