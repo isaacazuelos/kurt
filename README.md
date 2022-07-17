@@ -20,9 +20,7 @@ cargo install --path=.
 ## Usage
 
 Not a lot is supported yet. Even the `--help` isn't very informative at the
-moment. There are `repl`, `eval` and `script` subcommands, which can take a
-`--trace` flag to show what the VM is doing, or a `--dump` flag to show you
-the compiled byte code.
+moment. There are `eval` and `script` subcommands.
 
 ## Contributing
 

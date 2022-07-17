@@ -16,15 +16,6 @@ pub struct InputCoordinator {
 }
 
 impl InputCoordinator {
-    pub fn repl_input(&mut self, buffer: String) -> InputId {
-        let id = self.inputs.len();
-        self.inputs.push(Input {
-            buffer,
-            name: Name::Repl,
-        });
-        InputId(id)
-    }
-
     pub fn eval_input(&mut self, buffer: String) -> InputId {
         let id = self.inputs.len();
         self.inputs.push(Input {
@@ -50,7 +41,6 @@ impl InputCoordinator {
     pub fn get_input_name(&self, id: InputId) -> String {
         match self.inputs[id.0].name() {
             Name::File(path) => (format!("{}", path.display())),
-            Name::Repl => (format!("<repl {}>", id.0)),
             Name::Eval if id.0 == 0 => "<eval>".into(),
             Name::Eval => format!("<eval-{}>", id.0),
         }
@@ -74,7 +64,6 @@ impl Input {
 /// Usually this is a path to the file we loaded, but it could also be the repl
 /// or an an `eval` expression at the command line.
 enum Name {
-    Repl,
     Eval,
     File(PathBuf),
 }

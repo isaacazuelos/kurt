@@ -14,5 +14,5 @@ mod tracing;
 pub use crate::{
     error::{Error, Result},
     value::Value,
-    vm::{Exit, Stack, VirtualMachine},
+    vm::{Stack, VirtualMachine},
 };

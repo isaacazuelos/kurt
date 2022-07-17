@@ -1,5 +1,4 @@
 //! Syntax for a whole modules.
-//!
 
 use diagnostic::Span;
 
@@ -8,9 +7,6 @@ use parser::{lexer::TokenKind, Parse};
 use super::*;
 
 /// A module is a piece of a program, a single file of input.
-///
-/// This is also used as the repl's top-level code, which might not be the case
-/// forever.
 ///
 /// # Grammar
 ///

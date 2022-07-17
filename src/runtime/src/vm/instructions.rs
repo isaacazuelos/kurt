@@ -9,20 +9,20 @@ use crate::{
     memory::Gc,
     primitives::PrimitiveOperations,
     value::Value,
-    vm::{stack::StackTop, CallFrame, Exit, Stack},
+    vm::{stack::StackTop, CallFrame, Stack},
     Error, VirtualMachine,
 };
 
 impl VirtualMachine {
     /// Start the VM up again.
-    pub(crate) fn run(&mut self) -> Result<Exit> {
+    pub(crate) fn run(&mut self) -> Result<()> {
         loop {
             #[cfg(feature = "trace")]
             self.trace();
 
             match self.fetch() {
                 // control
-                Op::Halt => return self.halt(),
+                Op::Halt => return Ok(()),
                 Op::Nop => continue,
 
                 // stack
@@ -119,14 +119,6 @@ impl VirtualMachine {
 }
 
 impl VirtualMachine {
-    /// The [`Halt`][Op::Halt] instruction stops the VM, and moves the
-    /// instruction pointer back one so it's back on the `Halt` opcode.
-    #[inline]
-    fn halt(&mut self) -> Result<Exit> {
-        self.pc_mut().saturating_decrement();
-        Ok(Exit::Halt)
-    }
-
     /// The [`Dup`][Op::Dup] instruction duplicates the value on the top of the
     /// stack. Does nothing if the stack is empty.
     #[inline]

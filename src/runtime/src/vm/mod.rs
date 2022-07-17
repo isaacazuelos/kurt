@@ -5,7 +5,6 @@ use compiler::{Constant, Op};
 use diagnostic::Span;
 
 mod call_stack;
-mod exit;
 mod instructions;
 mod open_captures;
 mod stack;
@@ -21,7 +20,6 @@ use crate::{
 
 pub use self::{
     call_stack::{CallFrame, CallStack},
-    exit::Exit,
     stack::Stack,
 };
 
@@ -41,7 +39,7 @@ pub struct VirtualMachine {
 
 impl VirtualMachine {
     /// Load a module into the runtime and execute its top-level code.
-    pub fn load(&mut self, module: compiler::Module) -> Result<Exit> {
+    pub fn load(&mut self, module: compiler::Module) -> Result<()> {
         self.load_without_running(module)?;
 
         let new_module = *self
@@ -59,71 +57,15 @@ impl VirtualMachine {
         self.run()
     }
 
-    pub fn reload_main(
-        &mut self,
-        new_main_module: compiler::Module,
-    ) -> Result<()> {
-        debug_assert_eq!(
-            self.call_stack.len(),
-            1,
-            "runtime have halted because it hit the end of main."
-        );
-
-        self.load_without_running(new_main_module)?;
-
-        // To replace main, we want to stash the instruction index, swap out the
-        // closure, and keep any captures it has.
-        let old_main: Gc<Function> = self.stack[self.bp()].as_gc().unwrap();
-
-        let new_main: Gc<Function> =
-            self.make_from(self.modules.last().unwrap().main());
-
-        for i in 0..old_main.capture_count() {
-            let index = Index::new(i);
-            let cell = old_main.get_capture_cell(index);
-            new_main.push_capture_cell(cell);
-        }
-
-        let mut frame = self.call_stack.pop();
-
-        frame.pc_mut().saturating_decrement();
-
-        let bp = frame.bp();
-
-        self.call_stack.push(frame);
-        self.stack[bp] = Value::from(new_main);
-
-        Ok(())
-    }
-
-    /// Resume the runtime. If it hasn't been started before this will also
-    /// start it.
-    pub fn resume(&mut self) -> Result<Exit> {
-        self.stack.pop();
-        self.run()
-    }
-
     /// A string containing a representation of the last value on the stack.
     ///
-    /// This is useful for the `repl` and `eval` subcommands.
+    /// This is used by the `eval` subcommand to show the result.
     pub fn last_result(&self) -> std::string::String {
         if let Some(value) = self.stack.last() {
             format!("{:?}", value)
         } else {
             "<stack empty>".into()
         }
-    }
-
-    pub fn get_module_by_name(&self, name: &str) -> Option<Gc<Module>> {
-        for module in self.modules() {
-            if let Some(module_name) = module.name().as_gc::<String>() {
-                if module_name.as_str() == name {
-                    return Some(*module);
-                }
-            }
-        }
-
-        None
     }
 }
 
